@@ -472,7 +472,7 @@ if "!result!" == "true" (
     if "!subscription:~0,1!" == "-" set result=false
 
     if "!result!" == "false" (
-        @echo [%ESC%[91m错误%ESC%[0m] 如果指定参数 "%ESC%[!warncolor!m--conf%ESC%[0m" 或者 "%ESC%[!warncolor!m--c%ESC%[0m" 则必须提供有效的%ESC%[!warncolor!m配置文件%ESC%[0m或%ESC%[!warncolor!m订阅%ESC%[0m
+        @echo [%ESC%[91m错误%ESC%[0m] 如果指定参数 "%ESC%[!warncolor!m--conf%ESC%[0m" 或者 "%ESC%[!warncolor!m-c%ESC%[0m" 则必须提供有效的%ESC%[!warncolor!m配置文件%ESC%[0m或%ESC%[!warncolor!m订阅%ESC%[0m
         @echo.
         goto :usage
     )
@@ -1707,7 +1707,7 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查配置 %ESC%[91mconfiguration%ESC%[0m 是否正确
+@echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查配置 %ESC%[91m!configuration!%ESC%[0m 是否正确
 goto :eof
 
 
@@ -2863,6 +2863,7 @@ set "tips=[%ESC%[!warncolor!m提示%ESC%[0m] 请输入一个格式为 %ESC%[!war
 call :trim retryflag "%~3"
 if "!retryflag!" == "1" (
     set "tips=[%ESC%[91m错误%ESC%[0m] 输入的时间%ESC%[91m无效%ESC%[0m或%ESC%[91m格式不正确%ESC%[0m，请重新输入："
+    set "retryflag=0"
 )
 
 set /p "userinput=!tips!"
