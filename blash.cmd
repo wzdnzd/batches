@@ -2085,9 +2085,10 @@ set proxy_urls[0]=https://mirror.ghproxy.com
 set proxy_urls[1]=https://github.moeyy.xyz
 set proxy_urls[2]=https://gh.ddlc.top
 set proxy_urls[3]=https://hub.gitmirror.com
+set proxy_urls[4]=https://proxy.api.030101.xyz
 
-@REM random [0, 3]
-set /a num=!random! %% 4
+@REM random [0, 4]
+set /a num=!random! %% 5
 set "ghproxy=!proxy_urls[%num%]!"
 
 @REM github proxy
@@ -2883,14 +2884,28 @@ call :trim usertime "%~3"
 
 set "validflag=0"
 for /f "tokens=1-2 delims=:" %%a in ("!usertime!") do (
-    set /a "hours=%%a" 2>nul
-    set /a "minutes=%%b" 2>nul
-    if !hours! lss 24 if !minutes! lss 60 if !hours! geq 0 if !minutes! geq 0 (
+    set "hours=%%a" 2>nul
+    set "minutes=%%b" 2>nul
+
+    call :is_number hour_flag !hours!
+    call :is_number minute_flag !minutes!
+
+    if !hour_flag! == 1 if !minute_flag! == 1 if !hours! lss 24 if !minutes! lss 60 if !hours! geq 0 if !minutes! geq 0 (
         set "validflag=1"
     )
 )
 
 if "!validflag!" == "0" (call :promptinput "%~1" "%~2" 1) else (set "%~1=!usertime!")
+goto :eof
+
+
+@REM check if a variable is zero or a positive integer
+:is_number <result> <variable>
+set "%~1=0"
+call :trim variable "%~2"
+
+@echo !variable! | findstr /r /c:"^[0-9][0-9][ ]*$" >nul 2>nul && (set "%~1=1")
+
 goto :eof
 
 
