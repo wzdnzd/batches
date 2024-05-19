@@ -1213,6 +1213,13 @@ if "!content!" == "" (
     goto :eof
 )
 
+call :get_arch arch_version
+if "!arch_version!" == "386" (
+    set "arch_version=x86"
+) else if "!arch_version!" == "armv7" (
+    set "arch_version=arm"
+)
+
 set "wintunurl=!wintunurl!/!content!"
 @echo [%ESC%[!infocolor!m信息%ESC%[0m] 开始下载 wintun，下载链接："!wintunurl!"
 
@@ -1224,7 +1231,7 @@ if exist "!temp!\wintun.zip" (
     @REM clean workspace
     del /f /q "!temp!\wintun.zip" >nul 2>nul
 
-    set "wintunfile=!temp!\wintun\bin\amd64\wintun.dll"
+    set "wintunfile=!temp!\wintun\bin\!arch_version!\wintun.dll"
     if exist "!wintunfile!" (
         @REM compare and update
         call :md5compare diff "!wintunfile!" "!dest!\wintun.dll"
@@ -1903,17 +1910,24 @@ set "dashdirectory=clash-dashboard-gh-pages"
 
 set "clashurl="
 
+@REM get os and cpu version
+call :get_arch arch_version
+if "!arch_version!" == "" (
+    @echo [%ESC%[91m错误%ESC%[0m] 未知 操作系统 及 CPU 架构信息，获取 clash 下载链接失败
+    goto :eof
+)
+
 @REM determine whether to download clash.exe
 if not exist "!dest!\clash.exe" (set "needdownload=1") else (set "needdownload=!force!")
 
 if "!clashmeta!" == "0" (
     @echo [%ESC%[!warncolor!m提示%ESC%[0m] %ESC%[!warncolor!mclash.premium%ESC%[0m 暂%ESC%[!warncolor!m不提供%ESC%[0m下载，建议切使用 %ESC%[!warncolor!m-m%ESC%[0m 或 %ESC%[!warncolor!m--meta%ESC%[0m 换到 %ESC%[!warncolor!mclash.meta%ESC%[0m
 
-    set "clashexe=clash-windows-amd64.exe"
+    set "clashexe=clash-windows-!arch_version!.exe"
 
     if "!needdownload!" == "1" (
         if "!alpha!" == "0" (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/Dreamacro/clash/releases/tags/premium" ^| findstr /i /r /c:"https://github.com/Dreamacro/clash/releases/download/premium/clash-windows-amd64-[^v][^3].*.zip"') do set "clashurl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/Dreamacro/clash/releases/tags/premium" ^| findstr /i /r /c:"https://github.com/Dreamacro/clash/releases/download/premium/clash-windows-!arch_version!-[^v][^3].*.zip"') do set "clashurl=%%b"
             
             @REM remove whitespace
             call :trim clashurl "!clashurl!"
@@ -1924,7 +1938,7 @@ if "!clashmeta!" == "0" (
             set "clashurl=!clashurl:~1,-1!"
         ) else (
             @echo [%ESC%[!warncolor!m警告%ESC%[0m] %ESC%[!warncolor!mclash.premium%ESC%[0m 预览版下载链接可能%ESC%[91m无法访问%ESC%[0m，想要使用该版本请确保网络正常
-            set "clashurl=https://release.dreamacro.workers.dev/latest/clash-windows-amd64-latest.zip"
+            set "clashurl=https://release.dreamacro.workers.dev/latest/clash-windows-!arch_version!-latest.zip"
         )
     )
 
@@ -1938,15 +1952,15 @@ if "!clashmeta!" == "0" (
         set "dashdirectory=metacubexd-gh-pages"
     )
 ) else (
-    set "clashexe=mihomo-windows-amd64.exe"
+    set "clashexe=mihomo-windows-!arch_version!.exe"
     set "geositeurl=https://raw.githubusercontent.com/Loyalsoldier/domain-list-custom/release/geosite.dat"
     set "geoipurl=https://raw.githubusercontent.com/Loyalsoldier/geoip/release/geoip-only-cn-private.dat"
 
     if "!needdownload!" == "1" (
         if "!alpha!" == "1" (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases?prerelease=true&per_page=10" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-amd64-alpha-.*.zip"') do set "clashurl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases?prerelease=true&per_page=10" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!arch_version!-alpha-.*.zip"') do set "clashurl=%%b"
         ) else (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-amd64-.*.zip"') do set "clashurl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-!arch_version!-.*.zip"') do set "clashurl=%%b"
         )
 
         call :trim clashurl "!clashurl!"
@@ -2054,6 +2068,20 @@ if "!needdownload!" == "0" goto :eof
 call :ghproxywrapper downloadurl !url!
 
 set "%~1=!downloadurl!"
+goto :eof
+
+
+@REM get cpu and os version, see: https://github.com/MetaCubeX/mihomo/releases
+:get_arch <version>
+set "%~1="
+if "!PROCESSOR_ARCHITECTURE!" == "AMD64" (
+    set "%~1=amd64"
+) else if "!PROCESSOR_ARCHITECTURE!" == "ARM64" (
+    set "%~1=arm64"
+) else if "!PROCESSOR_ARCHITECTURE!" == "X86" (
+    set "%~1=386"
+) else (set "%~1=armv7")
+
 goto :eof
 
 
