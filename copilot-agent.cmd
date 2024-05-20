@@ -79,12 +79,17 @@ set "show=0"
 @REM setting workspace
 set "dest="
 
-@REM executable file name
-set "defaultname=override.exe"
-set "software=!defaultname!"
-
 @REM config file name
 set "config=config.json"
+
+@REM customize
+set "customize=0"
+
+@REM default executable file name
+if "!customize!" == "1" (set "defaultname=copilot-agent.exe") else (set "defaultname=override.exe")
+
+@REM last executable file name
+set "software=!defaultname!"
 
 @REM reg key name
 set "application=GithubCopilotAgent"
@@ -585,8 +590,6 @@ set "release="
 
 @REM amd64 or 386
 call :get_arch version
-@echo version: !version!
-pause
 if "!version!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 下载失败，无法获取 操作系统 及 CPU 架构信息
     goto :eof
@@ -695,7 +698,7 @@ goto :eof
 @REM config autostart and auto update
 :postprocess
 @REM allow change max tokens
-if "!enable_replace_max_token!" == "1" call :replace_max_tokens
+if "!enable_replace_max_token!" == "1" call :replace_max_tokens 0
 
 call :privilege "goto :nopromptrunas" 0
 
@@ -712,7 +715,10 @@ goto :eof
 
 
 @REM change max tokens to 2048
-:replace_max_tokens
+:replace_max_tokens <force>
+call :trim force "%~1"
+if "!force!" == "" set "force=0"
+
 @REM subpath of the file to be replaced
 set "subpath=dist\extension.js"
 
@@ -727,6 +733,8 @@ for /d %%d in (%USERPROFILE%\.vscode\extensions\github.copilot-*) do (
 
         @REM delete if exist backup file
         if exist "!backupfile!" (
+            if "!force!" == "0" goto :eof
+
             del /f /q "!backupfile!" >nul 2>nul
         )
 
