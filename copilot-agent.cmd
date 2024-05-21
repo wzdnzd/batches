@@ -50,6 +50,9 @@ set "enable_auto_update=1"
 @REM enable set environment for JetBrains IDE
 set "enable_set_env=1"
 
+@REM set env flag
+set "setenvflag=0"
+
 @REM start flag
 set "startflag=0"
 
@@ -97,10 +100,25 @@ set "application=GithubCopilotAgent"
 @REM schedule name
 set "scheduledname=GithubCopilotAgentUpdate"
 
+@REM default base url for proxy github copilot
+set "default_base_url=https://cocopilot.org"
+
+@REM base url for proxy github copilot
+set "base_url="
+
+@REM subpath for API
+set "sub_path="
+
 @REM autostart registry configuration path
 set "autostartregpath=HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
 set "startupapproved=HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
-set "envpath=HKCU\Environment"
+
+@REM regedit path for environment
+set "env_regedit_path_user=HKCU\Environment"
+set "env_regedit_path_all=HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Environment"
+
+@REM default env path
+set "forall=0"
 
 @REM parse arguments
 call :argsparse %*
@@ -112,6 +130,13 @@ if "!shouldexit!" == "1" exit /b 1
 if "!printflag!" == "1" (
     @echo [%ESC%[!infocolor!m信息%ESC%[0m] 项目地址：%ESC%[!infocolor!m!address!%ESC%[0m
     goto :eof
+)
+
+@REM set environment
+if "!setenvflag!" == "1" (
+    if "!base_url!" == "" set "base_url=!default_base_url!"
+    call :check_and_set "!base_url!" "!sub_path!"
+    exit /b
 )
 
 @REM regular file path
@@ -159,17 +184,45 @@ exit /b
 set result=false
 
 if "%1" == "-a" set result=true
-if "%1" == "--address" set result=true
+if "%1" == "--all" set result=true
 if "!result!" == "true" (
-    set "printflag=1"
+    set "forall=1"
     set result=false
     shift & goto :argsparse
+)
+
+if "%1" == "-b" set result=true
+if "%1" == "--base" set result=true
+if "!result!" == "true" (
+    @REM validate argument
+    call :trim url "%~2"
+
+    if "!url!" == "" set result=false
+    if "!url:~0,7!" NEQ "http://" if "!url:~0,8!" NEQ "https://" set result=false
+
+    if "!result!" == "false" (
+        @echo [%ESC%[91m错误%ESC%[0m] 如果指定参数 "%ESC%[!warncolor!m--base%ESC%[0m" 或者 "%ESC%[!warncolor!m-b%ESC%[0m" 则必须提供有效的 %ESC%[!warncolor!mAPI 接口%ESC%[0m
+        @echo.
+        goto :usage
+    )
+
+    set "base_url=!url!"
+    set result=false
+    shift & shift & goto :argsparse
 )
 
 if "%1" == "-d" set result=true
 if "%1" == "--display" set result=true
 if "!result!" == "true" (
     set "asdaemon=0"
+    set result=false
+    shift & goto :argsparse
+)
+
+if "%1" == "-e" set result=true
+if "%1" == "--env" set result=true
+if "!result!" == "true" (
+    set "setenvflag=1"
     set result=false
     shift & goto :argsparse
 )
@@ -195,6 +248,14 @@ if "!result!" == "true" (
     shift & shift & goto :argsparse
 )
 
+if "%1" == "-g" set result=true
+if "%1" == "--github" set result=true
+if "!result!" == "true" (
+    set "printflag=1"
+    set result=false
+    shift & goto :argsparse
+)
+
 if "%1" == "-h" set result=true
 if "%1" == "--help" set result=true
 if "!result!" == "true" (
@@ -207,6 +268,27 @@ if "!result!" == "true" (
     set "show=1"
     set result=false
     shift & goto :argsparse
+)
+
+if "%1" == "-l" set result=true
+if "%1" == "--link" set result=true
+if "!result!" == "true" (
+    @REM validate argument
+    call :trim link "%~2"
+
+    if "!link!" == "" set result=false
+    if "!link:~0,2!" == "--" set result=false
+    if "!link:~0,1!" == "-" set result=false
+
+    if "!result!" == "false" (
+        @echo [%ESC%[91m错误%ESC%[0m] 如果指定参数 "%ESC%[!warncolor!m--link%ESC%[0m" 或者 "%ESC%[!warncolor!m-l%ESC%[0m" 则必须提供有效的%ESC%[!warncolor!m子路径%ESC%[0m
+        @echo.
+        goto :usage
+    )
+
+    set "sub_path=!link!"
+    set result=false
+    shift & shift & goto :argsparse
 )
 
 if "%1" == "-p" set result=true
@@ -313,7 +395,9 @@ goto :eof
 @echo.
 @echo 功能选项：
 @REM @echo. if this line contains Chinese output, it will be garbled
-@echo -a, --address         打印 %ESC%[!warncolor!moverride%ESC%[0m 项目对应的 Github 地址
+@echo -e, --env             设置环境变量，配合 %ESC%[!warncolor!m-a%ESC%[0m 及 %ESC%[!warncolor!m-b%ESC%[0m 使用
+@REM @echo. if this line contains Chinese output, it will be garbled
+@echo -g, --github          打印 %ESC%[!warncolor!moverride%ESC%[0m 项目对应的 Github 地址
 @REM @echo. if this line contains Chinese output, it will be garbled
 @echo -h, --help            打印帮助信息
 @echo -p, --purge           禁止服务开机自启、自动更新及环境变量设置等
@@ -326,10 +410,17 @@ goto :eof
 echo.
 @echo 其他参数：
 @REM @echo. if this line contains Chinese output, it will be garbled
+@echo -a, --all             为所有用户设置环境变量，默认只对当前用户有效
+@REM @echo. if this line contains Chinese output, it will be garbled
+@echo -b, --base            接口地址，默认为 %ESC%[!warncolor!m!default_base_url!%ESC%[0m
+@REM @echo. if this line contains Chinese output, it will be garbled
 @echo -d, --display         前台运行，默认启动守护进程静默执行
 @REM @echo. if this line contains Chinese output, it will be garbled
 @echo -f, --filename        可执行程序文件名，默认为 %ESC%[!warncolor!m!defaultname!%ESC%[0m
 @echo -i, --interactive     新窗口中执行窗口，不隐藏窗口
+@REM @echo. if this line contains Chinese output, it will be garbled
+@echo -l, --link            API 接口子路径
+@REM @echo. if this line contains Chinese output, it will be garbled
 @echo -w, --workspace       服务工作路径，默认为当前脚本所在目录
 @echo.
 
@@ -768,10 +859,11 @@ for /d %%d in (%USERPROFILE%\.vscode\extensions\github.copilot-*) do (
 
         @REM replace
         move "!backupfile!" "!extension_path!" >nul 2>nul
+
+        @echo [%ESC%[!infocolor!m信息%ESC%[0m] 最大 tokens 数值恢复%ESC%[!infocolor!m成功%ESC%[0m
     )
 )
 
-@echo [%ESC%[!infocolor!m信息%ESC%[0m] 最大 tokens 数值恢复%ESC%[!infocolor!m成功%ESC%[0m
 goto :eof
 
 
@@ -969,13 +1061,27 @@ if "!bindinfo!" == "" (
 )
 
 @REM base proxy url 
-set "baseurl=http://!bindinfo!"
+set "base_url=http://!bindinfo!"
+call :check_and_set "!base_url!" "/v1"
+
+goto :eof
+
+
+@REM check and set environment with base url
+:check_and_set <base_url> <subpath>
+call :trim base_url "%~1"
+call :trim subpath "%~2"
 
 @REM check
-call :check_env missing "!baseurl!"
+call :check_env missing "!base_url!" "!forall!"
 if "!missing!" == "0" goto :eof
 
-set "tips=[%ESC%[!warncolor!m提示%ESC%[0m] 是否为 JetBrains 系开发软件添加环境变量？(%ESC%[!warncolor!mY%ESC%[0m/%ESC%[!warncolor!mN%ESC%[0m) "
+if "!base_url!" == "" (
+    @echo [%ESC%[91m错误%ESC%[0m] API 接口地址不能为空
+    goto :eof
+)
+
+set "tips=[%ESC%[!warncolor!m提示%ESC%[0m] API 地址：%ESC%[!warncolor!m!base_url!%ESC%[0m，是否为 JetBrains 系开发软件添加环境变量？(%ESC%[!warncolor!mY%ESC%[0m/%ESC%[!warncolor!mN%ESC%[0m) "
 if "!msterminal!" == "1" (
     choice /t 5 /d n /n /m "!tips!"
 ) else (
@@ -985,60 +1091,89 @@ if "!msterminal!" == "1" (
 if !errorlevel! == 2 exit /b 1
 
 @REM add to environment
-call :privilege "goto :do_set_env !baseurl!" 0
+call :privilege "goto :do_set_env !base_url! !forall! !subpath!" 0
+@echo [%ESC%[!infocolor!m信息%ESC%[0m] 环境变量设置%ESC%[!infocolor!m完成%ESC%[0m
 
 goto :eof
 
 
 @REM check all environment is ready
-:check_env <result> <bindinfo>
+:check_env <result> <bindinfo> <forall>
 set "%~1=0"
 call :trim bindinfo "%~2"
 
-call :regquery value "!envpath!" "AGENT_DEBUG_OVERRIDE_PROXY_URL" "REG_SZ"
+@REM regedit path
+call :trim flag "%~3"
+if "!flag!" == "1" (
+    set "regedit_path=!env_regedit_path_all!"
+) else (
+    set "regedit_path=!env_regedit_path_user!"
+)
+
+call :regquery value "!regedit_path!" "AGENT_DEBUG_OVERRIDE_PROXY_URL" "REG_SZ"
 if "!value!" NEQ "!bindinfo!" set "%~1=1"
 
-call :regquery value "!envpath!" "GITHUB_COPILOT_OVERRIDE_PROXY_URL" "REG_SZ"
+call :regquery value "!regedit_path!" "GITHUB_COPILOT_OVERRIDE_PROXY_URL" "REG_SZ"
 if "!value!" NEQ "!bindinfo!" set "%~1=1"
 
-call :regquery value "!envpath!" "AGENT_DEBUG_OVERRIDE_CAPI_URL" "REG_SZ"
+call :regquery value "!regedit_path!" "AGENT_DEBUG_OVERRIDE_CAPI_URL" "REG_SZ"
 if "!value!" NEQ "!bindinfo!/v1" set "%~1=1"
 
-call :regquery value "!envpath!" "GITHUB_COPILOT_OVERRIDE_CAPI_URL" "REG_SZ"
+call :regquery value "!regedit_path!" "GITHUB_COPILOT_OVERRIDE_CAPI_URL" "REG_SZ"
 if "!value!" NEQ "!bindinfo!/v1" set "%~1=1"
 
 goto :eof
 
 
 @REM do set environment
-:do_set_env <bindinfo>
+:do_set_env <bindinfo> <forall> <subpath>
 call :trim bindinfo "%~1"
+
+@REM regedit path
+call :trim flag "%~2"
+if "!flag!" == "1" (
+    set "regedit_path=!env_regedit_path_all!"
+) else (
+    set "regedit_path=!env_regedit_path_user!"
+)
+
+@REM regedit path
+call :trim subpath "%~3"
+
 if "!bindinfo!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 配置 "%ESC%[!warncolor!m!configfile!%ESC%[0m" 无效，请检查确认
     goto :eof
 )
 
-reg delete "!envpath!" /v "AGENT_DEBUG_OVERRIDE_PROXY_URL" /f >nul 2>nul
-reg add "!envpath!" /v "AGENT_DEBUG_OVERRIDE_PROXY_URL" /t "REG_SZ" /d "!bindinfo!" >nul 2>nul
+reg delete "!regedit_path!" /v "AGENT_DEBUG_OVERRIDE_PROXY_URL" /f >nul 2>nul
+reg add "!regedit_path!" /v "AGENT_DEBUG_OVERRIDE_PROXY_URL" /t "REG_SZ" /d "!bindinfo!" >nul 2>nul
 
-reg delete "!envpath!" /v "GITHUB_COPILOT_OVERRIDE_PROXY_URL" /f >nul 2>nul
-reg add "!envpath!" /v "GITHUB_COPILOT_OVERRIDE_PROXY_URL" /t "REG_SZ" /d "!bindinfo!" >nul 2>nul
+reg delete "!regedit_path!" /v "GITHUB_COPILOT_OVERRIDE_PROXY_URL" /f >nul 2>nul
+reg add "!regedit_path!" /v "GITHUB_COPILOT_OVERRIDE_PROXY_URL" /t "REG_SZ" /d "!bindinfo!" >nul 2>nul
 
-reg delete "!envpath!" /v "AGENT_DEBUG_OVERRIDE_CAPI_URL" /f >nul 2>nul
-reg add "!envpath!" /v "AGENT_DEBUG_OVERRIDE_CAPI_URL" /t "REG_SZ" /d "!bindinfo!/v1" >nul 2>nul
+reg delete "!regedit_path!" /v "AGENT_DEBUG_OVERRIDE_CAPI_URL" /f >nul 2>nul
+reg add "!regedit_path!" /v "AGENT_DEBUG_OVERRIDE_CAPI_URL" /t "REG_SZ" /d "!bindinfo!!subpath!" >nul 2>nul
 
-reg delete "!envpath!" /v "GITHUB_COPILOT_OVERRIDE_CAPI_URL" /f >nul 2>nul
-reg add "!envpath!" /v "GITHUB_COPILOT_OVERRIDE_CAPI_URL" /t "REG_SZ" /d "!bindinfo!/v1" >nul 2>nul
+reg delete "!regedit_path!" /v "GITHUB_COPILOT_OVERRIDE_CAPI_URL" /f >nul 2>nul
+reg add "!regedit_path!" /v "GITHUB_COPILOT_OVERRIDE_CAPI_URL" /t "REG_SZ" /d "!bindinfo!!subpath!" >nul 2>nul
 
 goto :eof
 
 
 @REM remove environment
-:remove_env
-reg delete "!envpath!" /v "AGENT_DEBUG_OVERRIDE_PROXY_URL" /f >nul 2>nul
-reg delete "!envpath!" /v "GITHUB_COPILOT_OVERRIDE_PROXY_URL" /f >nul 2>nul
-reg delete "!envpath!" /v "AGENT_DEBUG_OVERRIDE_CAPI_URL" /f >nul 2>nul
-reg delete "!envpath!" /v "GITHUB_COPILOT_OVERRIDE_CAPI_URL" /f >nul 2>nul
+:remove_env <forall>
+@REM regedit path
+call :trim flag "%~1"
+if "!flag!" == "1" (
+    set "regedit_path=!env_regedit_path_all!"
+) else (
+    set "regedit_path=!env_regedit_path_user!"
+)
+
+reg delete "!regedit_path!" /v "AGENT_DEBUG_OVERRIDE_PROXY_URL" /f >nul 2>nul
+reg delete "!regedit_path!" /v "GITHUB_COPILOT_OVERRIDE_PROXY_URL" /f >nul 2>nul
+reg delete "!regedit_path!" /v "AGENT_DEBUG_OVERRIDE_CAPI_URL" /f >nul 2>nul
+reg delete "!regedit_path!" /v "GITHUB_COPILOT_OVERRIDE_CAPI_URL" /f >nul 2>nul
 goto :eof
 
 
@@ -1289,7 +1424,7 @@ goto :eof
 
 @REM clean data
 :purge
-set "tips=[%ESC%[!warncolor!m警告%ESC%[0m] 即将关闭服务并禁用开机自启，是否继续？(%ESC%[!warncolor!mY%ESC%[0m/%ESC%[!warncolor!mN%ESC%[0m) "
+set "tips=[%ESC%[!warncolor!m警告%ESC%[0m] 即将%ESC%[!warncolor!m清除%ESC%[0m所有设置，是否继续？(%ESC%[!warncolor!mY%ESC%[0m/%ESC%[!warncolor!mN%ESC%[0m) "
 if "!msterminal!" == "1" (
     choice /t 6 /d n /n /m "!tips!"
 ) else (
@@ -1317,7 +1452,9 @@ if "!success!" == "0" (
 )
 
 @REM remove environment
-call :privilege "goto :remove_env" 0
+call :privilege "goto :remove_env !forall!" 0
+
+@echo [%ESC%[!infocolor!m信息%ESC%[0m] 设置清除%ESC%[!infocolor!m完成%ESC%[0m
 
 goto :eof
 
