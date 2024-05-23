@@ -103,6 +103,10 @@ set "scheduledname=GithubCopilotAgentUpdate"
 @REM default base url for proxy github copilot
 set "default_base_url=https://cocopilot.org"
 
+@REM ja-netfilter address
+set "ja_netfilter=https://gitee.com/ja-netfilter"
+set "jetbra_in=https://3.jetbra.in"
+
 @REM base url for proxy github copilot
 set "base_url="
 
@@ -127,10 +131,7 @@ call :argsparse %*
 if "!shouldexit!" == "1" exit /b 1
 
 @REM print project address
-if "!printflag!" == "1" (
-    @echo [%ESC%[!infocolor!m信息%ESC%[0m] 项目地址：%ESC%[!infocolor!m!address!%ESC%[0m
-    goto :eof
-)
+if "!printflag!" == "1" goto :print_address_info
 
 @REM set environment
 if "!setenvflag!" == "1" (
@@ -395,9 +396,9 @@ goto :eof
 @echo.
 @echo 功能选项：
 @REM @echo. if this line contains Chinese output, it will be garbled
-@echo -e, --env             设置环境变量，配合 %ESC%[!warncolor!m-a%ESC%[0m 及 %ESC%[!warncolor!m-b%ESC%[0m 使用
+@echo -e, --env             设置环境变量，配合 %ESC%[!warncolor!m-a%ESC%[0m、%ESC%[!warncolor!m-b%ESC%[0m 以及 %ESC%[!warncolor!m-l%ESC%[0m 使用
 @REM @echo. if this line contains Chinese output, it will be garbled
-@echo -g, --github          打印 %ESC%[!warncolor!moverride%ESC%[0m 项目对应的 Github 地址
+@echo -g, --github          打印 %ESC%[!warncolor!moverride 项目%ESC%[0m及 %ESC%[!warncolor!mcocopilot 平台%ESC%[0m地址
 @REM @echo. if this line contains Chinese output, it will be garbled
 @echo -h, --help            打印帮助信息
 @echo -p, --purge           禁止服务开机自启、自动更新及环境变量设置等
@@ -417,15 +418,28 @@ echo.
 @echo -d, --display         前台运行，默认启动守护进程静默执行
 @REM @echo. if this line contains Chinese output, it will be garbled
 @echo -f, --filename        可执行程序文件名，默认为 %ESC%[!warncolor!m!defaultname!%ESC%[0m
-@echo -i, --interactive     新窗口中执行窗口，不隐藏窗口
+@echo -i, --interactive     新窗口中执行，不隐藏窗口
 @REM @echo. if this line contains Chinese output, it will be garbled
-@echo -l, --link            API 接口子路径
+@echo -l, --link            API 接口子路径，默认为空
 @REM @echo. if this line contains Chinese output, it will be garbled
-@echo -w, --workspace       服务工作路径，默认为当前脚本所在目录
+@echo -w, --workspace       %ESC%[!warncolor!m!software!%ESC%[0m 所在文件夹路径，默认为当前脚本所在目录
 @echo.
 
 set "shouldexit=1"
 goto :eof
+
+
+@REM print project-related sites information
+:print_address_info
+@echo [%ESC%[!infocolor!m信息%ESC%[0m] %ESC%[!warncolor!mcocopilot%ESC%[0m 平台地址：%ESC%[!infocolor!m!default_base_url!/dash%ESC%[0m
+@echo.
+@echo [%ESC%[!infocolor!m信息%ESC%[0m] %ESC%[!warncolor!moverride%ESC%[0m 项目地址：%ESC%[!infocolor!m!address!%ESC%[0m
+@echo.
+@echo [%ESC%[!infocolor!m信息%ESC%[0m] %ESC%[!warncolor!mja-netfilter%ESC%[0m 项目地址：%ESC%[!infocolor!m!ja_netfilter!%ESC%[0m
+@echo.
+@echo [%ESC%[!infocolor!m信息%ESC%[0m] %ESC%[!warncolor!mjetbra.in%ESC%[0m 网站地址：%ESC%[!infocolor!m!jetbra_in!%ESC%[0m
+
+exit /b
 
 
 @REM start program
