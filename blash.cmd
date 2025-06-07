@@ -3171,7 +3171,7 @@ set "%~1=0"
 call :trim iconname "%~2"
 if "!iconname!" == "" goto :eof
 
-call :ghproxywrapper iconurl "https://raw.githubusercontent.com/wzdnzd/aggregator/master/clash.ico"
+call :ghproxywrapper iconurl "https://raw.githubusercontent.com/wzdnzd/batches/main/icons/clash.ico"
 set "statuscode=000"
 for /f %%a in ('curl --retry 3 --retry-max-time 60 -m 60 --connect-timeout 30 -L -s -o "!dest!\!iconname!" -w "%%{http_code}" "!iconurl!"') do set "statuscode=%%a"
 
