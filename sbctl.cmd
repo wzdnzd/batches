@@ -68,6 +68,7 @@ set "should_exit=0"                       @REM Exit flag for error conditions
 set "init_flag=0"                         @REM Initialize proxy network
 set "test_flag=0"                         @REM Test network connectivity
 set "repair_flag=0"                       @REM Repair network issues
+set "reload_flag=0"                       @REM Reload configuration
 set "restart_flag=0"                      @REM Restart proxy program
 set "kill_flag=0"                         @REM Stop proxy program
 set "update_flag=0"                       @REM Update all components
@@ -83,6 +84,7 @@ set "subscription_link="                  @REM Subscription link URL
 set "is_web_link=0"                       @REM Flag for web-based configuration
 set "remote_url="                         @REM Remote configuration URL
 set "dest="                               @REM Destination workspace directory
+set "singbox_server="                     @REM Sing-box API server address
 
 @REM Parse and validate command line arguments
 call :parseArgs %*
@@ -116,6 +118,7 @@ if "!test_flag!" == "1" (
     call :testConnection available 1
     exit /b
 )
+if "!reload_flag!" == "1" goto :reloadConfig
 if "!restart_flag!" == "1" goto :restartProgram
 if "!repair_flag!" == "1" goto :resolveIssues
 if "!update_flag!" == "1" goto :updateComponents
@@ -133,6 +136,7 @@ exit /b
 set "%~1=0"
 if "!restart_flag!" == "1" set "%~1=1"
 if "!repair_flag!" == "1" set "%~1=1"
+if "!reload_flag!" == "1" set "%~1=1"
 if "!test_flag!" == "1" set "%~1=1"
 if "!update_flag!" == "1" set "%~1=1"
 if "!init_flag!" == "1" set "%~1=1"
@@ -296,20 +300,23 @@ if "!available!" == "1" (
     ) else set "lazy_check=1"
 )
 
-@REM Present repair options: Restart, Update/restore, or Cancel
-set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 按 %ESC%[!warn_color!mR%ESC%[0m %ESC%[!warn_color!m重启%ESC%[0m，按 %ESC%[!warn_color!mU%ESC%[0m %ESC%[!warn_color!m恢复%ESC%[0m至默认，按 %ESC%[!warn_color!mN%ESC%[0m %ESC%[!warn_color!m取消%ESC%[0m (%ESC%[!warn_color!mR%ESC%[0m/%ESC%[!warn_color!mU%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+@REM Present repair options: Reload, Restart, Update/restore, or Cancel
+set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 按 %ESC%[!warn_color!mO%ESC%[0m %ESC%[!warn_color!m重载%ESC%[0m，按 %ESC%[!warn_color!mR%ESC%[0m %ESC%[!warn_color!m重启%ESC%[0m，按 %ESC%[!warn_color!mU%ESC%[0m %ESC%[!warn_color!m恢复%ESC%[0m至默认，按 %ESC%[!warn_color!mN%ESC%[0m %ESC%[!rncolor!m取消%ESC%[0m (%ESC%[!warn_color!mO%ESC%[0m/%ESC%[!warn_color!mR%ESC%[0m/%ESC%[!warn_color!mU%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
 if "!ms_terminal!" == "1" (
-    choice /t 6 /c RUN /d R /n /m "!tips!"
+    choice /t 6 /c ORUN /d R /n /m "!tips!"
 ) else (
     set /p "=!tips!" <nul
-    choice /t 6 /c RUN /d R /n
+    choice /t 6 /c ORUN /d R /n
 )
 
 @REM Execute selected repair action
 if !errorlevel! == 1 (
+    @REM Option R: Reload the proxy configuration
+    call :reloadConfig
+) else if !errorlevel! == 2 (
     @REM Option R: Restart the proxy program
     call :restartProgram
-) else if !errorlevel! == 2 (
+) else if !errorlevel! == 3 (
     @REM Option U: Update/restore components to default state
     call :killProcessWrapper
 
@@ -479,6 +486,15 @@ if "%1" == "-k" set "result=true"
 if "%1" == "--kill" set "result=true"
 if "!result!" == "true" (
     set "kill_flag=1"
+    set "result=false"
+    shift & goto :parseArgs
+)
+
+@REM Reload configuration
+if "%1" == "-o" set "result=true"
+if "%1" == "--reload" set "result=true"
+if "!result!" == "true" (
+    set "reload_flag=1"
     set "result=false"
     shift & goto :parseArgs
 )
@@ -722,21 +738,22 @@ set "usage_lines[3]=  -f, --fix             检查并修复代理网络"
 set "usage_lines[4]=  -h, --help            显示帮助信息"
 set "usage_lines[5]=  -i, --init            初始化代理网络"
 set "usage_lines[6]=  -k, --kill            停止代理程序"
-set "usage_lines[7]=  -p, --purge           清理所有设置"
-set "usage_lines[8]=  -r, --restart         重启代理程序"
-set "usage_lines[9]=  -t, --test            测试网络连接"
-set "usage_lines[10]=  -u, --update          更新所有组件"
-set "usage_lines[11]=BLANK"
-set "usage_lines[12]=其他参数："
-set "usage_lines[13]=  -c, --conf            指定配置文件或订阅链接"
-set "usage_lines[14]=  -d, --daemon          后台运行"
-set "usage_lines[15]=  -e, --exclude         跳过订阅更新"
-set "usage_lines[16]=  -g, --generate        重新生成更新脚本"
-set "usage_lines[17]=  -s, --show            显示窗口"
-set "usage_lines[18]=  -w, --workspace       指定工作目录"
-set "usage_lines[19]=BLANK"
+set "usage_lines[7]=  -o, --reload          重新加载配置文件"
+set "usage_lines[8]=  -p, --purge           清理所有设置"
+set "usage_lines[9]=  -r, --restart         重启代理程序"
+set "usage_lines[10]=  -t, --test            测试网络连接"
+set "usage_lines[11]=  -u, --update          更新所有组件"
+set "usage_lines[12]=BLANK"
+set "usage_lines[13]=其他参数："
+set "usage_lines[14]=  -c, --conf            指定配置文件或订阅链接"
+set "usage_lines[15]=  -d, --daemon          后台运行"
+set "usage_lines[16]=  -e, --exclude         跳过订阅更新"
+set "usage_lines[17]=  -g, --generate        重新生成更新脚本"
+set "usage_lines[18]=  -s, --show            显示窗口"
+set "usage_lines[19]=  -w, --workspace       指定工作目录"
+set "usage_lines[20]=BLANK"
 
-for /l %%i in (0,1,19) do (
+for /l %%i in (0,1,20) do (
     call set "line=%%usage_lines[%%i]%%"
     if "!line!" == "BLANK" (
         @echo.
@@ -1422,9 +1439,9 @@ if "!status!" == "0" (
     @REM Start sing-box service if not currently running
     call :executeWrapper 0
 ) else (
-    @REM Restart service if already running (after updates)
-    @echo [%ESC%[!info_color!m信息%ESC%[0m] 订阅和代理规则更新完毕，即将重启
-    goto :restartProgram
+    @REM Reload configuration if already running
+    @echo [%ESC%[!info_color!m信息%ESC%[0m] 订阅和代理规则更新完毕，即将重新加载
+    goto :reloadConfig
 )
 goto :eof
 
@@ -3066,7 +3083,7 @@ if "!local_version!" == "" (
 )
 
 @REM Get remote version and download URL from GitHub API in single request
-set "api_url=https://api.github.com/repos/!github_repo!/releases"
+set "api_url=https://api.github.com/repos/!GITHUB_REPO!/releases"
 call :applyGithubProxy api_url "!api_url!"
 
 @REM Download GitHub releases API response to temporary file
@@ -3214,7 +3231,7 @@ goto :eof
 :getSingboxUrl <url>
 set "%~1="
 
-set "api_url=https://api.github.com/repos/!github_repo!/releases"
+set "api_url=https://api.github.com/repos/!GITHUB_REPO!/releases"
 call :applyGithubProxy api_url "!api_url!"
 
 @REM Get release info
@@ -3281,6 +3298,75 @@ for /f "tokens=1* delims=:" %%a in ("!line!") do (
             )
         )
     )
+)
+goto :eof
+
+
+@REM ============================================================================
+@REM Reload sing-box configuration without restarting
+@REM Purpose:    Hot-reloads configuration using sing-box API
+@REM Parameters: None
+@REM Returns:    Success/failure status with user feedback
+@REM ============================================================================
+:reloadConfig
+if not exist "!config_file!" goto :eof
+
+@REM Parse API server path
+if "!singbox_server!" == "" call :extractServer singbox_server
+
+if "!singbox_server!" == "" (
+    @echo [%ESC%[91m错误%ESC%[0m] %ESC%[91m不支持%ESC%[0m重载，可使用 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" 重启或者在文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 配置 "%ESC%[!warn_color!mexternal_controller%ESC%[0m" 属性以启用该功能
+    goto :eof
+)
+
+set "singbox_api=!singbox_server!/configs?reload=true"
+
+@REM Extract secret for API authentication
+call :parseJsonValue secret "secret"
+
+@REM Check if sing-box process is running
+call :isProcessRunning status
+
+if "!status!" == "1" (
+    @REM Convert backslashes to forward slashes for JSON
+    set "file_path=!config_file:\=/!"
+
+    @REM Call API for reload
+    set "status_code=000"
+    set "output=!TEMP_DIR!\singbox_reload_output.txt"
+    if exist "!output!" del /f /q "!output!" >nul 2>nul
+
+    if "!secret!" NEQ "" (
+        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer !secret!" -X PUT -d "{""path"":""!file_path!""}" "!singbox_api!"') do set "status_code=%%a"
+    ) else (
+        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -X PUT -d "{""path"":""!file_path!""}" "!singbox_api!"') do set "status_code=%%a"
+    )
+
+    if "!status_code!" == "204" (
+        @echo [%ESC%[!info_color!m信息%ESC%[0m] 网络代理程序重载%ESC%[!info_color!m成功%ESC%[0m，祝你使用愉快
+        call :postProcess
+    ) else if "!status_code!" == "401" (
+        @echo [%ESC%[!info_color!m信息%ESC%[0m] %ESC%[!warn_color!msecret%ESC%[0m 已被修改，请使用 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" 重启
+    ) else (
+        set "content="
+
+        if exist "!output!" (
+            @REM Read error output
+            for /f "delims=" %%a in (!output!) do set "content=%%a"
+        )
+
+        @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序重载%ESC%[91m失败%ESC%[0m，请检查配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 是否有效
+        if "!content!" NEQ "" (
+            @echo [%ESC%[91m错误%ESC%[0m] 错误信息："!content!"
+        )
+
+        @echo.
+    )
+
+    @REM Clean up output file
+    del /f /q "!output!" >nul 2>nul
+) else (
+    @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序%ESC%[91m未启动%ESC%[0m，可使用命令 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" 启动
 )
 goto :eof
 
