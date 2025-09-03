@@ -117,6 +117,9 @@ set "yacd=0"
 @REM metacubexd, see https://github.com/MetaCubeX/metacubexd
 set "metacubexd=0"
 
+@REM zashboard, see https://github.com/Zephyruso/zashboard
+set "zashboard=0"
+
 @REM run on background
 set "asdaemon=0"
 
@@ -691,8 +694,9 @@ if "!result!" == "true" (
 if "%1" == "-x" set result=true
 if "%1" == "--metacubexd" set result=true
 if "!result!" == "true" (
-    set "yacd=0"
     set "metacubexd=1"
+    set "yacd=0"
+    set "zashboard=0"
     set result=false
     shift & goto :argsparse
 )
@@ -700,8 +704,19 @@ if "!result!" == "true" (
 if "%1" == "-y" set result=true
 if "%1" == "--yacd" set result=true
 if "!result!" == "true" (
-    set "yacd=1"
     set "metacubexd=0"
+    set "yacd=1"
+    set "zashboard=0"
+    set result=false
+    shift & goto :argsparse
+)
+
+if "%1" == "-z" set result=true
+if "%1" == "--zashboard" set result=true
+if "!result!" == "true" (
+    set "metacubexd=0"
+    set "yacd=0"
+    set "zashboard=1"
     set result=false
     shift & goto :argsparse
 )
@@ -785,6 +800,8 @@ echo.
 @echo -x, --metacubexd      使用 %ESC%[!warncolor!mmetacubexd%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用
 @REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
 @echo -y, --yacd            使用 %ESC%[!warncolor!myacd%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用
+@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
+@echo -z, --zashboard       使用 %ESC%[!warncolor!mzashboard%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用
 @echo.
 
 set "shouldexit=1"
@@ -836,16 +853,13 @@ set "content="
 set "needgeosite=0"
 
 @REM yacd dashboard
-if "!metacubexd!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\yacd.ico" (
-    set "yacd=1"
-    set "metacubexd=0"
-)
+if "!metacubexd!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\yacd.ico" set "yacd=1"
 
 @REM metacubexd dashboard
-if "!yacd!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\maskable-icon-512x512.png" (
-    set "yacd=0"
-    set "metacubexd=1"
-)
+if "!yacd!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\maskable-icon-512x512.png" set "metacubexd=1"
+
+@REM zashboard dashboard
+if "!yacd!" == "0" if "!metacubexd!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\pwa-maskable-512x512.png" set "zashboard=1"
 
 @REM force use clash.premium
 if "!clashpremium!" == "1" (
@@ -1891,6 +1905,10 @@ call :trim force "%~1"
 if "!force!" == "" set "force=0"
 
 @REM dashboard
+if "!zashboard!" == "1" (
+    set "metacubexd=0"
+    set "yacd=0"
+)
 if "!metacubexd!" == "1" set "yacd=0"
 
 call :trim geositeflag "%~2"
@@ -1912,6 +1930,7 @@ set "clashurl="
 
 @REM get os and cpu version
 call :get_arch arch_version
+
 if "!arch_version!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 未知 操作系统 及 CPU 架构信息，获取 clash 下载链接失败
     goto :eof
@@ -1950,6 +1969,11 @@ if "!clashmeta!" == "0" (
     if "!metacubexd!" == "1" (
         set "dashboardurl=https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
         set "dashdirectory=metacubexd-gh-pages"
+    )
+
+    if "!zashboard!" == "1" (
+        set "dashboardurl=https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
+        set "dashdirectory=zashboard-gh-pages"
     )
 ) else (
     set "clashexe=mihomo-windows-!arch_version!.exe"
@@ -2018,9 +2042,12 @@ if "!clashmeta!" == "0" (
     if "!yacd!" == "1" (
         set "dashboardurl=https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip"
         set "dashdirectory=Yacd-meta-gh-pages"
-    ) else (
+    ) else if "!metacubexd!" == "1" (
         set "dashboardurl=https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
         set "dashdirectory=metacubexd-gh-pages"
+    ) else (        
+        set "dashboardurl=https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
+        set "dashdirectory=zashboard-gh-pages"
     )
 )
 
@@ -2109,8 +2136,8 @@ call :trim rawurl %~2
 if "!rawurl!" == "" goto :eof
 
 @REM github proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
-set proxy_urls[0]=https://mirror.ghproxy.com
-set proxy_urls[1]=https://github.moeyy.xyz
+set proxy_urls[0]=https://ghproxy.cfd
+set proxy_urls[1]=https://gh-proxy.com
 set proxy_urls[2]=https://gh.ddlc.top
 set proxy_urls[3]=https://hub.gitmirror.com
 set proxy_urls[4]=https://proxy.api.030101.xyz
@@ -2832,6 +2859,7 @@ if "!clashpremium!" == "1" set "operation=!operation! -n"
 if "!alpha!" == "1" set "operation=!operation! -a"
 if "!yacd!" == "1" set "operation=!operation! -y"
 if "!metacubexd!" == "1" set "operation=!operation! -x"
+if "!zashboard!" == "1" set "operation=!operation! -z"
 
 @REM generate and write to file
 call :generatestartvbs "!updatevbs!" "!operation!"
