@@ -418,7 +418,14 @@ if "!quickflag!" == "1" (
 
 @REM run as admin
 if "!asdaemon!" == "1" (
-    cacls "%SystemDrive%\System Volume Information" >nul 2>&1 || (start "" mshta vbscript:CreateObject^("Shell.Application"^).ShellExecute^("%~snx0"," %*","","runas",!show!^)^(window.close^)&exit /b)
+    cacls "%SystemDrive%\System Volume Information" >nul 2>&1 || (
+        if "!show!" == "1" (
+            powershell -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs"
+        ) else (
+            powershell -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs -WindowStyle Hidden"
+        )
+        exit /b
+    )
 )
 
 @REM prepare all plugins
@@ -1505,7 +1512,7 @@ goto :eof
 
 @REM privilege escalation
 :privilege <args> <show>
-set "hidewindow=0"
+set "showwindow=0"
 set "operation=%~1"
 if "!operation!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 非法操作，必须指定函数名
@@ -1515,17 +1522,26 @@ if "!operation!" == "" (
 @REM parse window parameter
 call :trim param "%~2"
 set "display=" & for /f "delims=0123456789" %%i in ("!param!") do set "display=%%i"
-if defined display (set "hidewindow=0") else (set "hidewindow=!param!")
-if "!hidewindow!" NEQ "0" set "hidewindow=1"
+if defined display (set "showwindow=0") else (set "showwindow=!param!")
+if "!showwindow!" NEQ "0" set "showwindow=1"
 
+@REM call Start-Process with powershell
 cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
-    if "!hidewindow!" == "1" (
+    if "!showwindow!" == "0" (
         !operation!
         exit /b
     ) else (
-        start "" mshta vbscript:CreateObject^("Shell.Application"^).ShellExecute^("%~snx0","%~1","","runas",0^)^(window.close^)&exit /b
+        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
+        exit /b
     )
-) || (start "" mshta vbscript:CreateObject^("Shell.Application"^).ShellExecute^("%~snx0","%~1","","runas",!hidewindow!^)^(window.close^)&exit /b)
+) || (
+    if "!showwindow!" == "0" (
+        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
+    ) else (
+        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
+    )
+    exit /b
+)
 goto :eof
 
 

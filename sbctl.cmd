@@ -387,7 +387,14 @@ goto :eof
 :updateComponents
 @REM Request administrator privileges if running as daemon
 if "!as_daemon!" == "1" (
-    cacls "%SystemDrive%\System Volume Information" >nul 2>&1 || (start "" mshta vbscript:CreateObject^("Shell.Application"^).ShellExecute^("%~snx0"," %*","","runas",!show_window!^)^(window.close^)&exit /b)
+    cacls "%SystemDrive%\System Volume Information" >nul 2>&1 || (
+        if "!show_window!" == "1" (
+            powershell -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs"
+        ) else (
+            powershell -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs -WindowStyle Hidden"
+        )
+        exit /b
+    )
 )
 
 @REM Download and prepare all required components
@@ -1453,7 +1460,7 @@ goto :eof
 @REM Purpose:    Handles UAC elevation for operations requiring admin rights
 @REM ============================================================================
 :privilege <args> <show>
-set "hide_window=0"
+set "show=0"
 set "operation=%~1"
 if "!operation!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 非法操作，必须指定函数名
@@ -1463,18 +1470,26 @@ if "!operation!" == "" (
 @REM Parse window visibility parameter (0=hidden, 1=visible)
 call :trim param "%~2"
 set "display=" & for /f "delims=0123456789" %%i in ("!param!") do set "display=%%i"
-if defined display (set "hide_window=0") else (set "hide_window=!param!")
-if "!hide_window!" NEQ "0" set "hide_window=1"
+if defined display (set "show=0") else (set "show=!param!")
+if "!show!" NEQ "0" set "show=1"
 
 @REM Check if already running as administrator, if not request elevation
 cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
-    if "!hide_window!" == "1" (
+    if "!show!" == "0" (
         !operation!
         exit /b
     ) else (
-        start "" mshta vbscript:CreateObject^("Shell.Application"^).ShellExecute^("%~snx0","%~1","","runas",0^)^(window.close^)&exit /b
+        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
+        exit /b
     )
-) || (start "" mshta vbscript:CreateObject^("Shell.Application"^).ShellExecute^("%~snx0","%~1","","runas",!hide_window!^)^(window.close^)&exit /b)
+) || (
+    if "!show!" == "0" (
+        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
+    ) else (
+        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
+    )
+    exit /b
+)
 goto :eof
 
 
