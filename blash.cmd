@@ -1638,6 +1638,9 @@ call :privilege "goto :nopromptrunas" 0
 @REM tips
 call :outputhint
 
+@REM add script to user path
+call :addpath
+
 @REM allow auto start when user login
 call :autostart
 
@@ -1811,6 +1814,37 @@ if "!proxyserver!" NEQ "!server!" (
 
 @REM hint
 @echo [%ESC%[!warncolor!m提示%ESC%[0m] 如果无法正常使用网络代理，请到 "%ESC%[!warncolor!m设置 -^> 网络和 Internet -^> 代理%ESC%[0m" 确认是否已设置为 "%ESC%[!warncolor!m!proxyserver!%ESC%[0m"
+goto :eof
+
+
+@REM add current script to user's environment path
+:addpath
+set "script_dir=%~dp0"
+set "script_dir=!script_dir:~0,-1!"
+
+@REM get current path values
+for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "current_path=%%b"
+
+@REM check if already added
+echo !current_path! | findstr /i /c:"!script_dir!" >nul
+if !errorlevel! == 0 goto :eof
+
+set "tips=[%ESC%[!warncolor!m提示%ESC%[0m] 是否将脚本路径 %ESC%[!warncolor!m!script_dir!%ESC%[0m 加入到用户 PATH 路径？(%ESC%[!warncolor!mY%ESC%[0m/%ESC%[!warncolor!mN%ESC%[0m) "
+if "!msterminal!" == "1" (
+    choice /t 5 /d y /n /m "!tips!"
+) else (
+    set /p "=!tips!" <nul
+    choice /t 5 /d y /n
+)
+
+if !errorlevel! == 1 (
+    @REM rewrite Path environment
+    set "new_path=!current_path!;!script_dir!"
+    reg add "HKCU\Environment" /v Path /t REG_EXPAND_SZ /d "!new_path!" /f >nul 2>nul
+
+    @echo [%ESC%[!infocolor!m信息%ESC%[0m] 添加 %ESC%[!warncolor!m!script_dir!%ESC%[0m 到用户 PATH 路径%ESC%[!infocolor!m成功%ESC%[0m
+) 
+
 goto :eof
 
 

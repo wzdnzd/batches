@@ -1591,6 +1591,9 @@ call :privilege "goto :enableSilentAdmin" 0
 @REM Display configuration hints and proxy setup guidance
 call :displayHints
 
+@REM Add current script to user's environment path
+call :addScriptToPath
+
 @REM Configure automatic startup when user logs in
 call :enableAutostart
 
@@ -1640,7 +1643,12 @@ call :trim should_check "%~1"
 if "!should_check!" == "" set "should_check=0"
 if not exist "!dest!\!SINGBOX_EXE!" set "should_check=1"
 
-if "!should_check!" == "1" (call :prepare changed)
+if "!should_check!" == "1" (
+    call :prepare changed
+) else (
+    call :extractServer singbox_server
+    call :extractDashboardInfo dashboard_name _ _
+)
 
 @REM Verify config
 if not exist "!dest!\!SINGBOX_EXE!" (
@@ -1684,6 +1692,7 @@ call :privilege "goto :execute !config_file! !dest!" !show_window!
 for /l %%i in (1,1,6) do (
     @REM Check running status
     call :isProcessRunning status
+
     if "!status!" == "1" (
         @REM Abnormal detect
         call :abnormal state
@@ -1710,7 +1719,14 @@ for /l %%i in (1,1,6) do (
             if "!dashboard_name!" == "" (
                 @echo [%ESC%[!info_color!m信息%ESC%[0m] 代理程序启动%ESC%[!info_color!m成功%ESC%[0m
             ) else (
-                @echo [%ESC%[!info_color!m信息%ESC%[0m] 代理程序启动%ESC%[!info_color!m成功%ESC%[0m，可在浏览器中访问 %ESC%[!warn_color!m!singbox_server!/ui%ESC%[0m 查看详细信息
+                set "message=[%ESC%[!info_color!m信息%ESC%[0m] 代理程序启动%ESC%[!info_color!m成功%ESC%[0m，可在浏览器中访问 %ESC%[!warn_color!m!singbox_server!/ui%ESC%[0m 查看详细信息"
+                               
+                call :parseJsonValue secret "secret"
+                if "!secret:~0,1!" == """" if "!secret:~-1!" == """" set "secret=!secret:~1,-1!"
+                
+                if "!secret!" NEQ "" if !secret! NEQ "" set "message=!message!，密码：%ESC%[!warn_color!m!secret!%ESC%[0m"
+
+                @echo !message!
             )
             call :postProcess
             exit /b
@@ -1785,6 +1801,42 @@ if "!proxy_server!" NEQ "!server!" (
 
 @REM Hint
 @echo [%ESC%[!warn_color!m提示%ESC%[0m] 如果无法正常使用网络代理，请到 "%ESC%[!warn_color!m设置 -^> 网络和 Internet -^> 代理%ESC%[0m" 确认是否已设置为 "%ESC%[!warn_color!m!proxy_server!%ESC%[0m"
+goto :eof
+
+
+@REM ============================================================================
+@REM Add current script to user's environment path
+@REM Purpose:    Adds the current script directory to user PATH environment variable
+@REM Process:    Queries current PATH, checks if already exists, prompts user for confirmation, then adds to registry
+@REM ============================================================================
+:addScriptToPath
+set "script_dir=%~dp0"
+set "script_dir=!script_dir:~0,-1!"
+
+@REM Query current path values
+for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "current_path=%%b"
+
+@REM Check if already added
+echo !current_path! | findstr /i /c:"!script_dir!" >nul
+if !errorlevel! == 0 goto :eof
+
+set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 是否将脚本路径 %ESC%[!warn_color!m!script_dir!%ESC%[0m 加入到用户 PATH 路径？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+
+if "!msterminal!" == "1" (
+    choice /t 5 /d y /n /m "!tips!"
+) else (
+    set /p "=!tips!" <nul
+    choice /t 5 /d y /n
+)
+
+if !errorlevel! == 1 (
+    @REM Rewrite Path Environment
+    set "new_path=!current_path!;!script_dir!"
+    reg add "HKCU\Environment" /v Path /t REG_EXPAND_SZ /d "!new_path!" /f >nul 2>nul
+
+    @echo [%ESC%[!info_color!m信息%ESC%[0m] 添加 %ESC%[!warn_color!m!script_dir!%ESC%[0m 到用户 PATH 路径%ESC%[!info_color!m成功%ESC%[0m
+) 
+
 goto :eof
 
 
