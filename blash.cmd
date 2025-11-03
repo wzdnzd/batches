@@ -1733,7 +1733,10 @@ for /l %%i in (1,1,6) do (
             if "!dashboard!" == "" (
                 @echo [%ESC%[!infocolor!m信息%ESC%[0m] 代理程序启动%ESC%[!infocolor!m成功%ESC%[0m
             ) else (
-                @echo [%ESC%[!infocolor!m信息%ESC%[0m] 代理程序启动%ESC%[!infocolor!m成功%ESC%[0m，可在浏览器中访问 %ESC%[!warncolor!m!clashserver!/ui%ESC%[0m 查看详细信息
+                set "message=[%ESC%[!infocolor!m信息%ESC%[0m] 代理程序启动%ESC%[!infocolor!m成功%ESC%[0m，可在浏览器中访问 %ESC%[!warncolor!m!clashserver!/ui%ESC%[0m 查看详细信息"
+                call :parsevalue secret "secret:[ ][ ]*"
+                if "!secret!" NEQ "" set "message=!message!，密码：%ESC%[!warncolor!m!secret!%ESC%[0m"
+                @echo !message!
             )
             call :postprocess
             exit /b
