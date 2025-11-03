@@ -493,7 +493,10 @@ if "!result!" == "true" (
         set "invalid=0"
 
         @REM include '"' see https://stackoverflow.com/questions/46238709/how-to-detect-if-input-is-quote
-        @echo !subscription! | findstr /i /r /c:"\"^" >nul && (set "invalid=1")
+        @REM @echo !subscription! | findstr /i /r /c:"\"^" >nul && (set "invalid=1")
+
+        @REM replace '"' to ''
+        set "subscription=!subscription:"=!"
 
         @REM contain whitespace
         if "!subscription!" neq "!subscription: =!" set "invalid=1"
@@ -2037,7 +2040,7 @@ if "!clashmeta!" == "0" (
         if "!alpha!" == "1" (
             for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases?prerelease=true&per_page=10" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!arch_version!-alpha-.*.zip"') do set "clashurl=%%b"
         ) else (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-!arch_version!-.*.zip"') do set "clashurl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-!arch_version!-v[0-9]*\.[0-9]*\.[0-9]*.zip"') do set "clashurl=%%b"
         )
 
         call :trim clashurl "!clashurl!"
