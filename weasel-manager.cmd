@@ -277,6 +277,10 @@ call :WriteInstallContext "install"
 if errorlevel 1 exit /b 1
 
 call :RunAsSelf __admin_install --context "%CONTEXT_FILE%"
+set "ADMIN_RC=%ERRORLEVEL%"
+if not "%ADMIN_RC%"=="0" exit /b %ADMIN_RC%
+
+call :StartWeaselServerNormal
 exit /b %ERRORLEVEL%
 
 
@@ -358,6 +362,10 @@ call :WriteInstallContext "update"
 if errorlevel 1 exit /b 1
 
 call :RunAsSelf __admin_install --context "%CONTEXT_FILE%"
+set "ADMIN_RC=%ERRORLEVEL%"
+if not "%ADMIN_RC%"=="0" exit /b %ADMIN_RC%
+
+call :StartWeaselServerNormal
 exit /b %ERRORLEVEL%
 
 
@@ -495,6 +503,7 @@ call :CheckSafeTarget
 if errorlevel 1 exit /b 1
 
 call :StopWeasel
+call :UnregisterOldWeasel
 
 if not exist "%APP_DIR%\" mkdir "%APP_DIR%"
 if errorlevel 1 (
@@ -547,19 +556,12 @@ if not "%SETUP_RC%"=="0" (
     exit /b 1
 )
 
-call :RestartInputFramework
 call :RunWeaselDeployment "%INSTALL_MODE%"
 
 call :CopyManagerToInstallDir
 call :WriteState
 call :WriteRegistry
 
-if "%NO_START%"=="1" goto install_finished
-
-echo Starting WeaselServer...
-start "" "%APP_DIR%\WeaselServer.exe"
-
-:install_finished
 echo.
 echo Done.
 echo Weasel is installed in: %APP_DIR%
@@ -578,7 +580,6 @@ if exist "%APP_DIR%\WeaselSetup.exe" (
     start "" /wait "%APP_DIR%\WeaselSetup.exe" /u
 )
 
-call :RestartInputFramework
 call :DeleteRegistry
 
 echo Removing files...
@@ -1287,8 +1288,7 @@ if not errorlevel 1 (
 
 popd
 
-echo WARNING: redeploy failed. Restarting shell and retrying...
-call :RestartInputFramework
+echo WARNING: redeploy failed. Starting server and retrying...
 
 if exist "%APP_DIR%\WeaselServer.exe" (
     start "" "%APP_DIR%\WeaselServer.exe"
@@ -1485,7 +1485,7 @@ exit /b 0
 
 
 rem ============================================================
-rem Weasel process / shell / deployment
+rem Weasel process / deployment
 rem ============================================================
 
 :StopWeasel
@@ -1502,19 +1502,14 @@ taskkill /IM WeaselServer.exe /T /F >nul 2>&1
 exit /b 0
 
 
-:RestartInputFramework
-echo Restarting Windows shell and input framework...
-
-taskkill /IM TextInputHost.exe /T /F >nul 2>&1
-taskkill /IM ctfmon.exe /T /F >nul 2>&1
-taskkill /IM explorer.exe /F >nul 2>&1
-
-ping -n 3 127.0.0.1 >nul 2>&1
-
-start "" explorer.exe
-start "" ctfmon.exe
-
-ping -n 3 127.0.0.1 >nul 2>&1
+:UnregisterOldWeasel
+if exist "%APP_DIR%\WeaselSetup.exe" (
+    echo Unregistering old Weasel input method...
+    start "" /wait "%APP_DIR%\WeaselSetup.exe" /u
+    if errorlevel 1 (
+        echo WARNING: old WeaselSetup.exe /u returned a non-zero exit code.
+    )
+)
 
 exit /b 0
 
@@ -1541,14 +1536,7 @@ echo WARNING: /install failed. Trying /deploy...
 start "" /wait "%APP_DIR%\WeaselDeployer.exe" /deploy
 if not errorlevel 1 goto deploy_success
 
-popd
-
-call :RestartInputFramework
-
-pushd "%APP_DIR%"
-if errorlevel 1 exit /b 0
-
-echo WARNING: deployment failed again. Starting server and retrying /deploy...
+echo WARNING: deployment failed. Starting server and retrying /deploy...
 if exist "%APP_DIR%\WeaselServer.exe" (
     start "" "%APP_DIR%\WeaselServer.exe"
     ping -n 3 127.0.0.1 >nul 2>&1
@@ -1560,12 +1548,23 @@ if not errorlevel 1 goto deploy_success
 popd
 
 echo WARNING: WeaselDeployer failed, but installation files and registry were updated.
-echo WARNING: If needed, run redeploy manually after the shell restarts.
+echo WARNING: If needed, run redeploy manually.
 exit /b 0
 
 :deploy_success
 popd
 echo Deployment completed.
+exit /b 0
+
+
+:StartWeaselServerNormal
+if "%NO_START%"=="1" exit /b 0
+
+if not exist "%APP_DIR%\WeaselServer.exe" exit /b 0
+
+echo Starting WeaselServer...
+start "" "%APP_DIR%\WeaselServer.exe"
+
 exit /b 0
 
 
@@ -1606,8 +1605,6 @@ reg add "%REG_UNINSTALL%" /v HelpLink /t REG_SZ /d "https://rime.im/docs/" /f /r
 reg add "%REG_UNINSTALL%" /v NoModify /t REG_DWORD /d 1 /f /reg:%REG_VIEW% >nul 2>&1
 reg add "%REG_UNINSTALL%" /v NoRepair /t REG_DWORD /d 1 /f /reg:%REG_VIEW% >nul 2>&1
 
-rem These values intentionally contain embedded quotes.
-rem Use backslash-escaped quotes so reg.exe receives them as literal quotes.
 reg add "%REG_UNINSTALL%" /v DisplayIcon /t REG_SZ /d "\"%SERVER_PATH%\"" /f /reg:%REG_VIEW% >nul 2>&1
 reg add "%REG_UNINSTALL%" /v UninstallString /t REG_SZ /d "\"%MANAGER_PATH%\" uninstall --dir \"%APP_DIR%\" --yes" /f /reg:%REG_VIEW% >nul 2>&1
 reg add "%REG_UNINSTALL%" /v QuietUninstallString /t REG_SZ /d "\"%MANAGER_PATH%\" uninstall --dir \"%APP_DIR%\" --yes" /f /reg:%REG_VIEW% >nul 2>&1
