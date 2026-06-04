@@ -102,6 +102,16 @@ set "clashmeta=0"
 @REM use clash.premium
 set "clashpremium=0"
 
+@REM use vernesong/mihomo smart group core
+set "vernemihomo=0"
+
+@REM core edition explicitly specified by arguments
+set "coreforced=0"
+
+@REM LightGBM model
+set "lgbmurl="
+set "lgbmfile=Model.bin"
+
 @REM alpha version allowed
 set "alpha=0"
 
@@ -119,6 +129,9 @@ set "metacubexd=0"
 
 @REM zashboard, see https://github.com/Zephyruso/zashboard
 set "zashboard=0"
+
+@REM dashboard explicitly specified by arguments
+set "dashboardforced=0"
 
 @REM run on background
 set "asdaemon=0"
@@ -601,6 +614,9 @@ if "%1" == "-m" set result=true
 if "%1" == "--meta" set result=true
 if "!result!" == "true" (
     set "clashmeta=1"
+    set "clashpremium=0"
+    set "vernemihomo=0"
+    set "coreforced=1"
     set result=false
     shift & goto :argsparse
 )
@@ -609,6 +625,9 @@ if "%1" == "-n" set result=true
 if "%1" == "--native" set result=true
 if "!result!" == "true" (
     set "clashpremium=1"
+    set "clashmeta=0"
+    set "vernemihomo=0"
+    set "coreforced=1"
     set result=false
     shift & goto :argsparse
 )
@@ -669,6 +688,18 @@ if "!result!" == "true" (
     shift & goto :argsparse
 )
 
+if "%1" == "-v" set result=true
+if "%1" == "--verne" set result=true
+if "!result!" == "true" (
+    set "vernemihomo=1"
+    @REM vernesong/mihomo still uses the mihomo download and geodata branch
+    set "clashmeta=1"
+    set "clashpremium=0"
+    set "coreforced=1"
+    set result=false
+    shift & goto :argsparse
+)
+
 if "%1" == "-w" set result=true
 if "%1" == "--workspace" set result=true
 if "!result!" == "true" (
@@ -705,6 +736,7 @@ if "%1" == "-x" set result=true
 if "%1" == "--metacubexd" set result=true
 if "!result!" == "true" (
     set "metacubexd=1"
+    set "dashboardforced=1"
     set "yacd=0"
     set "zashboard=0"
     set result=false
@@ -716,6 +748,7 @@ if "%1" == "--yacd" set result=true
 if "!result!" == "true" (
     set "metacubexd=0"
     set "yacd=1"
+    set "dashboardforced=1"
     set "zashboard=0"
     set result=false
     shift & goto :argsparse
@@ -727,6 +760,7 @@ if "!result!" == "true" (
     set "metacubexd=0"
     set "yacd=0"
     set "zashboard=1"
+    set "dashboardforced=1"
     set result=false
     shift & goto :argsparse
 )
@@ -763,60 +797,71 @@ goto :eof
 
 @REM help
 :usage
-@echo 使用方法：!batname! [%ESC%[!warncolor!m功能选项%ESC%[0m] [%ESC%[!warncolor!m其他参数%ESC%[0m]，支持 %ESC%[!warncolor!m-%ESC%[0m 和 %ESC%[!warncolor!m--%ESC%[0m 两种模式
+set "usage_line=使用方法：!batname! [%ESC%[!warncolor!m功能选项%ESC%[0m] [%ESC%[!warncolor!m其他参数%ESC%[0m]，支持 %ESC%[!warncolor!m-%ESC%[0m 和 %ESC%[!warncolor!m--%ESC%[0m 两种模式"
+@echo(!usage_line!
 @echo.
-@echo 功能选项：
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -f, --fix             检查并尝试修复代理网络
-@echo -h, --help            打印帮助信息
-@echo -i, --init            利用 %ESC%[!warncolor!m--conf%ESC%[0m 提供的配置文件创建代理网络
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -k, --kill            退出网络代理程序
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
+set "usage_line=功能选项："
+@echo(!usage_line!
+set "usage_line=-f, --fix             检查并尝试修复代理网络"
+@echo(!usage_line!
+set "usage_line=-h, --help            打印帮助信息"
+@echo(!usage_line!
+set "usage_line=-i, --init            利用 %ESC%[!warncolor!m--conf%ESC%[0m 提供的配置文件创建代理网络"
+@echo(!usage_line!
+set "usage_line=-k, --kill            退出网络代理程序"
+@echo(!usage_line!
 if "!customize!" == "1" (
-    @echo -l, --love            当然是大声告诉我宝我爱她啦🤪🤪🤪
+    set "usage_line=-l, --love            当然是大声告诉我宝我爱她啦🤪🤪🤪"
+    @echo(!usage_line!
 )
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -o, --overload        重新加载配置文件
-@echo -p, --purge           关闭系统代理并禁止程序开机自启，取消自动更新
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -r, --restart         重启网络代理程序
-@echo -t, --test            测试代理网络是否可用
-@echo -u, --update          更有所有组件，包括 clash.exe、订阅、代理规则以及 IP 地址数据库等
-echo.
-@echo 其他参数：
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -a, --alpha           是否允许使用预览版，默认为稳定版，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或者 %ESC%[!warncolor!m-u%ESC%[0m 使用
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -b, --brief           精简模式运行，没有明确配置dashboard情况下，无法使用可视化页面
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -c, --conf            配置文件，支持本地配置文件和订阅链接，默认为当前目录下的 %ESC%[!warncolor!mconfig.yaml%ESC%[0m
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -d, --daemon          后台静默执行，禁止打印日志
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -e, --exclude         更新时跳过代理集中配置的订阅
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -g, --generate        重新生成自动检查更新的脚本，搭配 %ESC%[!warncolor!m-u%ESC%[0m 使用
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -m, --meta            如果配置兼容，使用 clash.meta 代替 clash.premium，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -n, --native          强制使用 clash.premium，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用
-@echo -q, --quick           仅更新新订阅和代理规则，搭配 %ESC%[!warncolor!m-u%ESC%[0m 使用
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -s, --show            新窗口中执行，默认为当前窗口
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -w, --workspace       代理程序运行路径，默认为当前脚本所在目录
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -x, --metacubexd      使用 %ESC%[!warncolor!mmetacubexd%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -y, --yacd            使用 %ESC%[!warncolor!myacd%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用
-@REM @echo. if this line contains Chinese output, it will be garbled. Why? ? ? >_<
-@echo -z, --zashboard       使用 %ESC%[!warncolor!mzashboard%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用
+set "usage_line=-o, --overload        重新加载配置文件"
+@echo(!usage_line!
+set "usage_line=-p, --purge           关闭系统代理并禁止程序开机自启，取消自动更新"
+@echo(!usage_line!
+set "usage_line=-r, --restart         重启网络代理程序"
+@echo(!usage_line!
+set "usage_line=-t, --test            测试代理网络是否可用"
+@echo(!usage_line!
+set "usage_line=-u, --update          更有所有组件，包括 clash.exe、订阅、代理规则以及 IP 地址数据库等"
+@echo(!usage_line!
 @echo.
+set "usage_line=其他参数："
+@echo(!usage_line!
+set "usage_line=-a, --alpha           是否允许使用预览版，默认为稳定版，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或者 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+set "usage_line=-b, --brief           精简模式运行，没有明确配置dashboard情况下，无法使用可视化页面"
+@echo(!usage_line!
+set "usage_line=-c, --conf            配置文件，支持本地配置文件和订阅链接，默认为当前目录下的 %ESC%[!warncolor!mconfig.yaml%ESC%[0m"
+@echo(!usage_line!
+set "usage_line=-d, --daemon          后台静默执行，禁止打印日志"
+@echo(!usage_line!
+set "usage_line=-e, --exclude         更新时跳过代理集中配置的订阅"
+@echo(!usage_line!
+set "usage_line=-g, --generate        重新生成自动检查更新的脚本，搭配 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+set "usage_line=-m, --meta            如果配置兼容，使用 clash.meta 代替 clash.premium，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+set "usage_line=-n, --native          使用 clash.premium，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+set "usage_line=-q, --quick           仅更新新订阅和代理规则，搭配 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+set "usage_line=-s, --show            新窗口中执行，默认为当前窗口"
+@echo(!usage_line!
+set "usage_line=-v, --verne           使用 vernesong/mihomo 内核，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+set "usage_line=-w, --workspace       代理程序运行路径，默认为当前脚本所在目录"
+@echo(!usage_line!
+set "usage_line=-x, --metacubexd      使用 %ESC%[!warncolor!mmetacubexd%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+set "usage_line=-y, --yacd            使用 %ESC%[!warncolor!myacd%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+set "usage_line=-z, --zashboard       使用 %ESC%[!warncolor!mzashboard%ESC%[0m 控制面板，搭配 %ESC%[!warncolor!m-i%ESC%[0m 或 %ESC%[!warncolor!m-u%ESC%[0m 使用"
+@echo(!usage_line!
+@echo.
+set "usage_line="
 
 set "shouldexit=1"
 goto :eof
-
 
 @REM draw heart
 :printheart
@@ -873,8 +918,32 @@ if "!yacd!" == "0" if "!metacubexd!" == "0" if "!dashboard!" NEQ "" if exist "!d
 
 @REM force use clash.premium
 if "!clashpremium!" == "1" (
+    set "vernemihomo=0"
+    set "lgbmurl="
     set "clashmeta=0"
     goto :eof
+)
+
+if "!coreforced!" == "0" (
+    set "vernemihomo=0"
+    call :detectsmartgroup smartgroup
+    if "!smartgroup!" == "1" (
+        set "vernemihomo=1"
+        set "clashmeta=1"
+        set "clashpremium=0"
+    )
+)
+
+set "lgbmurl="
+if "!vernemihomo!" == "1" (
+    set "clashmeta=1"
+    set "clashpremium=0"
+
+    call :parsevalue uselightgbm "uselightgbm:[ ][ ]*true"
+    if /i "!uselightgbm:~0,4!" == "true" (
+        call :parsevalue lgbmurl "lgbm-url:.*http.*://"
+        if "!lgbmurl!" == "" set "lgbmurl=https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model.bin"
+    )
 )
 
 for /f "tokens=*" %%i in ('findstr /i /r "GEOSITE,.*" "!configfile!"') do set "content=!content!;%%i"
@@ -892,6 +961,15 @@ if "!notfound!" == "0" (set "clashmeta=1")
 if "!clashmeta!" == "1" (
     set "%~1=!needgeosite!"
     set "clashpremium=0"
+    goto :eof
+)
+
+@REM rules include IP-ASN/SRC-IP-ASN, must be clash.meta
+call :detectasnrules needgeoasn
+if "!needgeoasn!" == "1" (
+    set "clashmeta=1"
+    set "clashpremium=0"
+    set "%~1=!needgeosite!"
     goto :eof
 )
 
@@ -977,6 +1055,133 @@ if exist "!dest!\clash.exe" ("!dest!\clash.exe" -v | findstr /i "Meta" >nul 2>nu
 goto :eof
 
 
+@REM detect smart proxy group in proxy-groups section
+:detectsmartgroup <result>
+set "%~1=0"
+if not exist "!configfile!" goto :eof
+
+set "insideproxygroups=0"
+for /f "usebackq delims=" %%l in ("!configfile!") do (
+    set "line=%%l"
+    call :trim configline "!line!"
+
+    if "!configline!" NEQ "" if "!configline:~0,1!" NEQ "#" (
+        if /i "!configline:~0,13!" == "proxy-groups:" (
+            set "insideproxygroups=1"
+        ) else if "!insideproxygroups!" == "1" (
+            set "firstchar=!line:~0,1!"
+            if "!firstchar!" NEQ " " if "!firstchar!" NEQ "-" if /i "!configline:~0,5!" NEQ "type:" set "insideproxygroups=0"
+
+            if "!insideproxygroups!" == "1" if /i "!configline!" == "type: smart" (
+                set "%~1=1"
+                goto :eof
+            )
+        )
+    )
+)
+goto :eof
+
+
+@REM detect IP-ASN/SRC-IP-ASN rules in rules section
+:detectasnrules <result>
+set "%~1=0"
+if not exist "!configfile!" goto :eof
+
+set "insiderules=0"
+for /f "usebackq delims=" %%l in ("!configfile!") do (
+    set "line=%%l"
+    call :trim configline "!line!"
+
+    if "!configline!" NEQ "" if "!configline:~0,1!" NEQ "#" (
+        if /i "!configline!" == "rules:" (
+            set "insiderules=1"
+        ) else if "!insiderules!" == "1" (
+            set "firstchar=!line:~0,1!"
+            if "!firstchar!" NEQ " " if "!firstchar!" NEQ "-" set "insiderules=0"
+
+            if "!insiderules!" == "1" (
+                if /i "!configline:~0,9!" == "- IP-ASN," (
+                    set "%~1=1"
+                    goto :eof
+                )
+
+                if /i "!configline:~0,13!" == "- SRC-IP-ASN," (
+                    set "%~1=1"
+                    goto :eof
+                )
+            )
+        )
+    )
+)
+goto :eof
+
+
+@REM detect smart proxy group with prefer-asn: true
+:detectsmartpreferasn <result>
+set "%~1=0"
+if not exist "!configfile!" goto :eof
+
+set "insideproxygroups=0"
+set "groupissmart=0"
+set "grouppreferasn=0"
+for /f "usebackq delims=" %%l in ("!configfile!") do (
+    set "line=%%l"
+    call :trim configline "!line!"
+
+    if "!configline!" NEQ "" if "!configline:~0,1!" NEQ "#" (
+        if /i "!configline:~0,13!" == "proxy-groups:" (
+            set "insideproxygroups=1"
+            set "groupissmart=0"
+            set "grouppreferasn=0"
+        ) else if "!insideproxygroups!" == "1" (
+            set "firstchar=!line:~0,1!"
+            if "!firstchar!" NEQ " " if "!firstchar!" NEQ "-" if /i "!configline:~0,5!" NEQ "type:" (
+                if "!groupissmart!" == "1" if "!grouppreferasn!" == "1" (
+                    set "%~1=1"
+                    goto :eof
+                )
+                set "insideproxygroups=0"
+            )
+
+            if "!insideproxygroups!" == "1" (
+                if /i "!configline:~0,2!" == "- " (
+                    if "!groupissmart!" == "1" if "!grouppreferasn!" == "1" (
+                        set "%~1=1"
+                        goto :eof
+                    )
+
+                    set "groupissmart=0"
+                    set "grouppreferasn=0"
+                )
+
+                if /i "!configline!" == "type: smart" set "groupissmart=1"
+                if /i "!configline!" == "prefer-asn: true" set "grouppreferasn=1"
+            )
+        )
+    )
+)
+
+if "!groupissmart!" == "1" if "!grouppreferasn!" == "1" set "%~1=1"
+goto :eof
+
+
+@REM detect whether ASN database is needed
+:detectasnneeded <result>
+set "%~1=0"
+
+call :detectasnrules asnrules
+if "!asnrules!" == "1" (
+    set "%~1=1"
+    goto :eof
+)
+
+if "!vernemihomo!" == "1" (
+    call :detectsmartpreferasn smartasn
+    if "!smartasn!" == "1" set "%~1=1"
+)
+goto :eof
+
+
 @REM quickly update subscriptions and rulesets
 :quickupdate <edition>
 set "%~1=0"
@@ -992,18 +1197,26 @@ call :updaterules 1
 
 @REM detect new edition
 set "clashedition=0"
-if exist "!dest!\clash.exe" ("!dest!\clash.exe" -v | findstr /i "Meta" >nul 2>nul && (set "clashedition=1"))
+if exist "!dest!\clash.exe" (
+    "!dest!\clash.exe" -v | findstr /i "Meta" >nul 2>nul && (set "clashedition=1")
+    "!dest!\clash.exe" -v | findstr /i "smart" >nul 2>nul && (set "clashedition=2")
+)
 call :versioned geositeneed !subfiles!
 
-if "!clashedition!" NEQ "!clashmeta!" (
+set "targetedition=0"
+if "!clashmeta!" == "1" set "targetedition=1"
+if "!vernemihomo!" == "1" set "targetedition=2"
+
+if "!clashedition!" NEQ "!targetedition!" (
     set "%~1=1"
-    if "!clashmeta!" == "1" (
-        set "oldedition=clash.premium"
-        set "newedition=clash.meta"
-    ) else (
-        set "oldedition=clash.meta"
-        set "newedition=clash.premium"
-    )
+    set "oldedition=clash.premium"
+    if "!clashedition!" == "1" set "oldedition=clash.meta"
+    if "!clashedition!" == "2" set "oldedition=vernesong/mihomo"
+
+    set "newedition=clash.premium"
+    if "!targetedition!" == "1" set "newedition=clash.meta"
+    if "!targetedition!" == "2" set "newedition=vernesong/mihomo"
+
     @echo [%ESC%[!warncolor!m提示%ESC%[0m] 配置%ESC%[91m不兼容%ESC%[0m，代理程序需从 %ESC%[!warncolor!m!oldedition!%ESC%[0m 切换至 %ESC%[!warncolor!m!newedition!%ESC%[0m
     goto :eof
 )
@@ -1351,6 +1564,22 @@ if "!geositeurl!" NEQ "" (
     )
 )
 
+@REM download ASN.mmdb
+if "!geoasnurl!" NEQ "" (
+    @echo [%ESC%[!infocolor!m信息%ESC%[0m] 开始下载 %ESC%[!warncolor!m!geoasnfile!%ESC%[0m 至 %ESC%[!warncolor!m!dest!%ESC%[0m
+
+    call :retrydownload "!geoasnurl!" "!temp!\!geoasnfile!" 
+    if exist "!temp!\!geoasnfile!" (
+        if "!dfiles!" == "" (
+            set "dfiles=!geoasnfile!"
+        ) else (
+            set "dfiles=!dfiles!;!geoasnfile!"
+        )
+    ) else (
+        @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!geoasnfile!" 不存在，下载链接："!geoasnurl!"
+    )
+)
+
 @REM download GeoIP.dat
 if "!geoipurl!" NEQ "" (
     @echo [%ESC%[!infocolor!m信息%ESC%[0m] 开始下载 %ESC%[!warncolor!m!geoipfile!%ESC%[0m 至 %ESC%[!warncolor!m!dest!%ESC%[0m
@@ -1364,6 +1593,22 @@ if "!geoipurl!" NEQ "" (
         )
     ) else (
         @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!geoipfile!" 不存在，下载链接："!geoipurl!"
+    )
+)
+
+@REM download LightGBM model
+if "!lgbmurl!" NEQ "" (
+    @echo [%ESC%[!infocolor!m信息%ESC%[0m] 开始下载 %ESC%[!warncolor!m!lgbmfile!%ESC%[0m 至 %ESC%[!warncolor!m!dest!%ESC%[0m
+
+    call :retrydownload "!lgbmurl!" "!temp!\!lgbmfile!"
+    if exist "!temp!\!lgbmfile!" (
+        if "!dfiles!" == "" (
+            set "dfiles=!lgbmfile!"
+        ) else (
+            set "dfiles=!dfiles!;!lgbmfile!"
+        )
+    ) else (
+        @echo [%ESC%[91merror%ESC%[0m] "!temp!\!lgbmfile!" not found, url: "!lgbmurl!"
     )
 )
 
@@ -1977,6 +2222,8 @@ set "countryurl=https://raw.githubusercontent.com/Hackl0us/GeoIP2-CN/release/Cou
 set "countryfile=Country.mmdb"
 set "geositefile=GeoSite.dat"
 set "geoipfile=GeoIP.dat"
+set "geoasnfile=ASN.mmdb"
+set "lgbmfile=Model.bin"
 
 @REM dashboard url
 set "dashboardurl=https://github.com/Dreamacro/clash-dashboard/archive/refs/heads/gh-pages.zip"
@@ -2035,9 +2282,12 @@ if "!clashmeta!" == "0" (
     set "clashexe=mihomo-windows-!arch_version!.exe"
     set "geositeurl=https://raw.githubusercontent.com/Loyalsoldier/domain-list-custom/release/geosite.dat"
     set "geoipurl=https://raw.githubusercontent.com/Loyalsoldier/geoip/release/geoip-only-cn-private.dat"
+    set "geoasnurl=https://raw.githubusercontent.com/xishang0128/geoip/refs/heads/release/GeoLite2-ASN.mmdb"
 
     if "!needdownload!" == "1" (
-        if "!alpha!" == "1" (
+        if "!vernemihomo!" == "1" (
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/vernesong/mihomo/releases/tags/Prerelease-Alpha" ^| findstr /i /r /c:"https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!arch_version!-alpha-smart-.*.zip"') do set "clashurl=%%b"
+        ) else if "!alpha!" == "1" (
             for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases?prerelease=true&per_page=10" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!arch_version!-alpha-.*.zip"') do set "clashurl=%%b"
         ) else (
             for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-!arch_version!-v[0-9]*\.[0-9]*\.[0-9]*.zip"') do set "clashurl=%%b"
@@ -2095,6 +2345,15 @@ if "!clashmeta!" == "0" (
         )
     )
 
+    @REM ASN database download url
+    call :detectasnneeded needgeoasn
+    if "!needgeoasn!" == "0" (
+        set "geoasnurl="
+    ) else (
+        call :parsegeoxurl customgeoasnurl "asn"
+        if "!customgeoasnurl!" NEQ "" set "geoasnurl=!customgeoasnurl!"
+    )
+
     if "!yacd!" == "1" (
         set "dashboardurl=https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip"
         set "dashdirectory=Yacd-meta-gh-pages"
@@ -2106,6 +2365,9 @@ if "!clashmeta!" == "0" (
         set "dashdirectory=zashboard-gh-pages"
     )
 )
+
+@REM prefer external-ui-url from config unless dashboard was explicitly specified
+call :selectdashboard
 
 @REM clashurl
 call :generateurl clashurl "!clashurl!" "clash.exe" "!force!"
@@ -2130,8 +2392,42 @@ call :generateurl countryurl "!countryurl!" "!countryfile!" "!force!"
 @REM geositeurl
 call :generateurl geositeurl "!geositeurl!" "!geositefile!" "!force!"
 
+@REM geoasnurl
+call :generateurl geoasnurl "!geoasnurl!" "!geoasnfile!" "!force!"
+
 @REM geoipurl
 call :generateurl geoipurl "!geoipurl!" "!geoipfile!" "!force!"
+
+@REM LightGBM model
+if "!vernemihomo!" == "0" set "lgbmurl="
+call :generateurl lgbmurl "!lgbmurl!" "!lgbmfile!" "!force!"
+goto :eof
+
+
+@REM select dashboard download url
+:selectdashboard
+if "!dashboardforced!" == "1" goto :eof
+
+set "configdashboardurl="
+call :parsevalue configdashboardurl "external-ui-url:.*http.*://"
+if "!configdashboardurl!" == "" goto :eof
+
+set "dashboardurl=!configdashboardurl!"
+call :dashboarddirfromurl dashdirectory "!dashboardurl!" "!dashdirectory!"
+goto :eof
+
+
+@REM infer dashboard archive directory from common GitHub archive URLs
+:dashboarddirfromurl <result> <url> <default>
+set "%~1=%~3"
+call :trim rawurl "%~2"
+if "!rawurl!" == "" goto :eof
+
+if "!rawurl:Dreamacro/clash-dashboard=!" NEQ "!rawurl!" set "%~1=clash-dashboard-gh-pages"
+if "!rawurl:haishanh/yacd=!" NEQ "!rawurl!" set "%~1=yacd-gh-pages"
+if "!rawurl:MetaCubeX/Yacd-meta=!" NEQ "!rawurl!" set "%~1=Yacd-meta-gh-pages"
+if "!rawurl:MetaCubeX/metacubexd=!" NEQ "!rawurl!" set "%~1=metacubexd-gh-pages"
+if "!rawurl:Zephyruso/zashboard=!" NEQ "!rawurl!" set "%~1=zashboard-gh-pages"
 goto :eof
 
 
@@ -2192,14 +2488,15 @@ call :trim rawurl %~2
 if "!rawurl!" == "" goto :eof
 
 @REM github proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
-set proxy_urls[0]=https://ghproxy.cfd
-set proxy_urls[1]=https://gh-proxy.com
-set proxy_urls[2]=https://gh.ddlc.top
-set proxy_urls[3]=https://hub.gitmirror.com
-set proxy_urls[4]=https://proxy.api.030101.xyz
+set proxy_urls[0]=https://ghfast.top
+set proxy_urls[1]=https://proxy.api.030101.xyz
+set proxy_urls[2]=https://git.udrone.vip
+set proxy_urls[3]=https://gh.noki.icu
+set proxy_urls[4]=https://ghproxy.monkeyray.net
+set proxy_urls[5]=https://ghproxy.net
 
-@REM random [0, 4]
-set /a num=!random! %% 5
+@REM random [0, 5]
+set /a num=!random! %% 6
 set "ghproxy=!proxy_urls[%num%]!"
 
 @REM github proxy
@@ -2262,6 +2559,41 @@ if "!key:~0,1!" == "#" goto :eof
 
 call :removequotes value "!text!"
 set "%~1=!value!"
+goto :eof
+
+
+@REM query value from geox-url section
+:parsegeoxurl <result> <name>
+set "%~1="
+call :trim targetkey "%~2"
+if "!targetkey!" == "" goto :eof
+if not exist "!configfile!" goto :eof
+
+set "insidegeoxurl=0"
+for /f "usebackq delims=" %%l in ("!configfile!") do (
+    set "line=%%l"
+    call :trim configline "!line!"
+
+    if "!configline!" NEQ "" if "!configline:~0,1!" NEQ "#" (
+        if /i "!configline!" == "geox-url:" (
+            set "insidegeoxurl=1"
+        ) else if "!insidegeoxurl!" == "1" (
+            set "firstchar=!line:~0,1!"
+            if "!firstchar!" NEQ " " if "!firstchar!" NEQ "-" set "insidegeoxurl=0"
+
+            if "!insidegeoxurl!" == "1" (
+                for /f "tokens=1* delims=:" %%a in ("!configline!") do (
+                    call :trim geoxkey "%%a"
+                    if /i "!geoxkey!" == "!targetkey!" (
+                        call :removequotes geoxvalue "%%b"
+                        set "%~1=!geoxvalue!"
+                        goto :eof
+                    )
+                )
+            )
+        )
+    )
+)
 goto :eof
 
 
@@ -2706,6 +3038,10 @@ if "!countryfile!" NEQ "" (
 
 if "!geositefile!" NEQ "" (
     if exist "!directory!\!geositefile!" del /f /q "!directory!\!geositefile!" >nul
+)
+
+if "!geoasnfile!" NEQ "" (
+    if exist "!directory!\!geoasnfile!" del /f /q "!directory!\!geoasnfile!" >nul
 )
 
 if "!geoipfile!" NEQ "" (
