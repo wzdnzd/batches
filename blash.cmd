@@ -14,7 +14,7 @@
 @REM Use UTF-8 so Chinese messages and symbols render correctly
 chcp 65001 >nul 2>nul
 
-@REM https://blog.csdn.net/sanqima/article/details/37818115
+@REM Reference: https://blog.csdn.net/sanqima/article/details/37818115
 setlocal enableDelayedExpansion
 
 @REM Initialize ANSI color support for console output
@@ -29,30 +29,31 @@ goto :mainWorkflow
 @REM ============================================================================
 
 @REM ============================================================================
-@REM MAIN WORKFLOW - Parse options and dispatch the requested operation
+@REM Run the main command workflow
+@REM Purpose:    Run the main command workflow
 @REM ============================================================================
 :mainWorkflow
-@REM batch file name
+@REM Batch file name
 set "batchName=%~nx0"
 
-@REM microsoft terminal displays differently from cmd and powershell
-@REM call :isMicrosoftTerminal msTerminal
+@REM Microsoft Terminal renders differently from CMD and PowerShell
+@REM Call :isMicrosoftTerminal msTerminal
 set "msTerminal=1"
 
-@REM enable create shortcut
+@REM Enable desktop shortcut creation
 set "enableShortcut=1"
 
-@REM enable download config from remote
+@REM Enable remote configuration download
 set "enableRemoteConfig=1"
 set "remoteConfigUrl="
 
-@REM validate configuration files before starting
+@REM Validate configuration files before starting
 set "verifyConfig=0"
 
-@REM check and update wintun.dll
+@REM Check and update wintun.dll
 set "checkWintun=0"
 
-@REM info color
+@REM Console color settings
 set "infoColor=92"
 set "warnColor=93"
 
@@ -61,189 +62,185 @@ if "!msTerminal!" == "1" (
     set "warnColor=97"
 )
 
-@REM print heart
+@REM Optional heart output
 set "customize=0"
 set "drawHeart=0"
 
-@REM exit flag
+@REM Exit flag
 set "shouldExit=0"
 
-@REM init
+@REM Initialization flag
 set "initFlag=0"
 
-@REM configuration file name
+@REM Configuration file name
 set "configuration=config.yaml"
 
-@REM common core names
+@REM Common core executable names
 set "clashExecutableName=clash.exe"
 set "mihomoExecutableName=mihomo.exe"
 set "proxyExecutableName=!clashExecutableName!"
 
-@REM core display names
+@REM Core display names
 set "clashPremiumName=Clash Premium"
 set "metaCubeXMihomoName=MetaCubeX Mihomo"
 set "smartMihomoName=Smart Mihomo"
 
-@REM subscription link
+@REM Subscription link
 set "subscriptionLink="
 set "isWebLink=0"
 
-@REM check
+@REM Check status
 set "testFlag=0"
 
-@REM repairFlag
+@REM Repair flag
 set "repairFlag=0"
 
-@REM only reload
+@REM Reload-only flag
 set "reloadOnly=0"
 
-@REM restart proxy executable
+@REM Restart proxy executable flag
 set "restartFlag=0"
 
-@REM close proxy
+@REM Close proxy flag
 set "killFlag=0"
 
-@REM update
+@REM Update flag
 set "updateFlag=0"
 
-@REM purge
+@REM Purge flag
 set "purgeFlag=0"
 
-@REM only update subscriptions and rulesets
+@REM Update only subscriptions and rulesets
 set "quickFlag=0"
 
-@REM don't update subscription
+@REM Skip subscription updates
 set "excludeUpdates=0"
 
-@REM use MetaCubeX Mihomo
+@REM Use MetaCubeX Mihomo
 set "useClashMeta=0"
 
-@REM use Clash Premium
+@REM Use Clash Premium
 set "useClashPremium=0"
 
-@REM use Smart Mihomo smart group core
+@REM Use Smart Mihomo smart group core
 set "useVerneMihomo=0"
 
-@REM core edition explicitly specified by arguments
+@REM Core edition explicitly selected by arguments
 set "coreForced=0"
 
 @REM LightGBM model
 set "lgbmUrl="
 set "lgbmFile=Model.bin"
 
-@REM alpha version allowed
+@REM Allow alpha versions
 set "alpha=0"
 
-@REM simplified mode
+@REM Brief mode
 set "brief=0"
 
-@REM regenerates auto update script
+@REM Regenerate the auto-update script
 set "regenerate=0"
 
-@REM yacd dashboard, see https://github.com/MetaCubeX/Yacd-meta or https://github.com/haishanh/yacd
+@REM Yacd dashboard, see https://github.com/MetaCubeX/Yacd-meta or https://github.com/haishanh/yacd
 set "yacd=0"
 
-@REM metacubexd, see https://github.com/MetaCubeX/metacubexd
+@REM MetaCubeXD dashboard, see https://github.com/MetaCubeX/metacubexd
 set "metaCubeXDashboard=0"
 
-@REM zashboard, see https://github.com/Zephyruso/zashboard
+@REM Zashboard, see https://github.com/Zephyruso/zashboard
 set "zashboard=0"
 
-@REM dashboard explicitly specified by arguments
+@REM Dashboard explicitly specified by arguments
 set "dashboardForced=0"
 
-@REM run on background
+@REM Run in the background
 set "asDaemon=0"
 
-@REM showWindow window
+@REM Show elevated command window
 set "showWindow=0"
 
-@REM setting workspace
+@REM Workspace setting
 set "dest="
 
-@REM network proxy registry configuration path
+@REM Network proxy registry configuration path
 set "proxyRegPath=HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
 
-@REM autostart registry configuration path
+@REM Autostart registry configuration path
 set "autostartRegPath=HKCU\Software\Microsoft\Windows\CurrentVersion\Run"
 set "startupApprovedRegPath=HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
 
-@REM parse arguments
+@REM Parse arguments
 call :parseArgs %*
 
-@REM invalid arguments
+@REM Handle invalid arguments
 if "!shouldExit!" == "1" exit /b 1
 
-@REM regular file path
+@REM Resolve regular file paths
 if "!dest!" == "" set "dest=%~dp0"
 call :normalizePath dest "!dest!"
 call :resolveProxyExecutableName
 
-@REM auto start vb script
+@REM Startup VBS script path
 set "startupVbs=!dest!\startup.vbs"
 
-@REM auto update vb script
+@REM Auto-update VBS script path
 set "updateVbs=!dest!\update.vbs"
 
-@REM draw a heart
+@REM Print the heart output
 if "!drawHeart!"== "1" goto :printHeart
 
-@REM close network proxy
+@REM Close the network proxy
 if "!killFlag!" == "1" goto :closeProxy
 
-@REM clean all setting
+@REM Remove proxy settings
 if "!purgeFlag!" == "1" goto :purge
 
-@REM prevent configuration validation when no action was requested
+@REM Prevent configuration validation when no action was requested
 if "!reloadOnly!" == "0" if "!restartFlag!" == "0" if "!repairFlag!" == "0" if "!testFlag!" == "0" if "!updateFlag!" == "0" if "!initFlag!" == "0" (
-    @REM @echo [%ESC%[91m错误%ESC%[0m] 必须包含 [%ESC%[!warnColor!m-f%ESC%[0m %ESC%[!warnColor!m-i%ESC%[0m %ESC%[!warnColor!m-k%ESC%[0m %ESC%[!warnColor!m-r%ESC%[0m %ESC%[!warnColor!m-t%ESC%[0m %ESC%[!warnColor!m-u%ESC%[0m] 中的一种操作
-    @REM @echo.
-
     if "!shouldExit!" == "0" goto :usage
     exit /b
 )
 
-@REM config file path
+@REM Configuration file path
 call :validateConfiguration configFile
 if "!configFile!" == "" exit /b 1
 
-@REM connectivity test
+@REM Connectivity test
 if "!testFlag!" == "1" (
     call :testConnection available 1
     exit /b
 )
 
-@REM reload config
+@REM Reload configuration
 if "!reloadOnly!" == "1" goto :reloadConfig
 
-@REM update
+@REM Update flag
 if "!restartFlag!" == "1" goto :restartProgram
 
-@REM check issues
+@REM Diagnose issues
 if "!repairFlag!" == "1" goto :resolveIssues
 
-@REM update
+@REM Update flag
 if "!updateFlag!" == "1" goto :updateComponents
 
-@REM init
+@REM Initialization flag
 if "!initFlag!" == "1" goto :initialize
 
-@REM unknown command
-@REM if "!shouldExit!" == "0" goto :usage
+@REM Handle unknown commands
+@REM If "!shouldExit!" == "0" goto :usage
 
 exit /b
 
-
 @REM ============================================================================
-@REM Validate and process the Clash configuration file
-@REM Parameters: <result> - Return variable for the validated config file path
-@REM Purpose:    Accepts a local YAML file or downloads a subscription URL
+@REM Validate and resolve the Clash configuration file
+@REM Purpose:    Validate and resolve the Clash configuration file
+@REM Parameters: <result>
 @REM ============================================================================
 :validateConfiguration <result>
 set "%~1="
 set "subscriptionFile=!temp!\clashsub.yaml"
 
-@REM absolute path
+@REM Resolve an absolute path
 call :convertToAbsolutePath configLocation "!configuration!"
 call :normalizePath configLocation "!configLocation!"
 
@@ -252,7 +249,7 @@ if "!configLocation!" == "" (
     exit /b 1
 )
 
-@REM cannot contain whitespace in path
+@REM Reject paths containing whitespace
 if "!configLocation!" NEQ "!configLocation: =!" (
     @echo [%ESC%[91m错误%ESC%[0m] 无效的配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m"， 路径不能包含%ESC%[!warnColor!m空格%ESC%[0m
     exit /b 1
@@ -270,18 +267,18 @@ if "!isWebLink!" == "1" (
         if !errorlevel! == 2 exit /b 1
     )
 
-    @REM try to download
+    @REM Try to download the subscription
     del /f /q "!subscriptionFile!" >nul 2>nul
 
     set "statusCode=000"
     for /f %%a in ('curl --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -L -s -o "!subscriptionFile!" -w "%%{http_code}" -H "User-Agent: Clash" "!subscriptionLink!"') do set "statusCode=%%a"
 
-    @REM download success
+    @REM Download succeeded
     if "!statusCode!" == "200" (
         set "fileSize=0"
         if exist "!subscriptionFile!" (for %%a in ("!subscriptionFile!") do set "fileSize=%%~za")
         if !fileSize! GTR 64 (
-            @REM validate
+            @REM Validate the file
             set "content="
             for /f "tokens=*" %%a in ('findstr /i /r /c:"^external-controller:[ ][ ]*.*:[0-9][0-9]*.*" !subscriptionFile!') do set "content=%%a"
             if "!content!" == "" (
@@ -300,10 +297,10 @@ if "!isWebLink!" == "1" (
             move "!subscriptionFile!" "!configLocation!" >nul 2>nul
             @echo [%ESC%[!infoColor!m信息%ESC%[0m] 订阅下载%ESC%[!infoColor!m成功%ESC%[0m
 
-            @REM 保存订阅链接
+            @REM Save the subscription link
             @echo !subscriptionLink! > "!filePath!\subscriptions.txt"
         ) else (
-            @REM output is empty
+            @REM Downloaded content is empty
             set "statusCode=000"
         )
     )
@@ -319,7 +316,7 @@ if not exist "!configLocation!" (
     goto :eof
 )
 
-@REM validate
+@REM Validate the file
 set "content="
 for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^proxy-groups:[ ]*" "!configLocation!"') do set "content=%%a"
 call :trim content "!content!"
@@ -331,10 +328,9 @@ if "!content!" NEQ "proxy-groups" (
 set "%~1=!configLocation!"
 goto :eof
 
-
 @REM ============================================================================
 @REM Initialize the network proxy workspace
-@REM Purpose:    First-time setup that downloads required components and starts Clash
+@REM Purpose:    Initialize the network proxy workspace
 @REM ============================================================================
 :initialize
 set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 网络代理程序将在目录 "%ESC%[!warnColor!m!dest!%ESC%[0m" 安装并运行，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
@@ -351,18 +347,17 @@ set "excludeUpdates=1"
 call :updateComponents
 goto :eof
 
-
 @REM ============================================================================
-@REM Diagnose and repair network proxy issues
-@REM Purpose:    Offers reload, restart, or restore actions and verifies connectivity
+@REM Diagnose and repair proxy connectivity issues
+@REM Purpose:    Diagnose and repair proxy connectivity issues
 @REM ============================================================================
 :resolveIssues
-@REM mandatory use of the stable version
+@REM Force the stable version during repair
 set "alpha=0"
 
 @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始检查并尝试修复网络代理，请稍等
 
-@REM check status
+@REM Check current status
 call :testConnection available 0
 set "lazyCheck=0"
 if "!available!" == "1" (
@@ -375,7 +370,7 @@ if "!available!" == "1" (
     )
     if !errorlevel! == 2 exit /b 1
 ) else (
-    @REM running detect
+    @REM Detect whether the proxy is running
     call :isProcessRunning status
     if "!status!" == "0" (
         call :checkNetworkWrapper continue 1
@@ -397,16 +392,16 @@ if !errorlevel! == 1 (
 ) else if !errorlevel! == 2 (
     call :restartProgram
 ) else if !errorlevel! == 3 (
-    @REM kill clash process
+    @REM Stop the Clash process
     call :killProcessWrapper
 
-    @REM lazy check
+    @REM Defer the final network check
     if "!lazyCheck!" == "1" (
         call :checkNetworkWrapper continue 0
         if "!continue!" == "0" exit /b
     )
 
-    @REM restore plugins
+    @REM Restore required components
     call :updateComponents
 ) else (
     :: cancel
@@ -414,13 +409,13 @@ if !errorlevel! == 1 (
 )
 
 for /l %%i in (1,1,5) do (
-    @REM recheck
+    @REM Recheck connectivity
     call :testConnection available 0
     if "!available!" == "1" (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 问题修复%ESC%[!infoColor!m成功%ESC%[0m，网络代理可%ESC%[!infoColor!m正常%ESC%[0m使用
         exit /b
     ) else (
-        @REM wait
+        @REM Wait before continuing
         timeout /t 1 /nobreak >nul 2>nul
     )
 )
@@ -428,8 +423,12 @@ for /l %%i in (1,1,5) do (
 @echo [%ESC%[91m错误%ESC%[0m] 问题修复%ESC%[91m失败%ESC%[0m， 网络代理仍%ESC%[91m无法%ESC%[0m使用， 请尝试其他方法
 goto :eof
 
-
-@REM check if the network is available
+@REM ============================================================================
+@REM Check network connectivity and report user-facing errors
+@REM Purpose:    Check network connectivity and report user-facing errors
+@REM Parameters: <result>, <enable>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :checkNetworkWrapper <result> <enable>
 set "%~1=1"
 call :trim logLevel "%~2"
@@ -439,7 +438,7 @@ call :checkNetworkAvailable available 0 "https://www.baidu.com" ""
 if "!available!" == "0" (
     @echo [%ESC%[91m错误%ESC%[0m] 网络%ESC%[91m不可用%ESC%[0m， 但代理程序%ESC%[91m并未运行%ESC%[0m，请检查你的%ESC%[!warnColor!m本地网络%ESC%[0m是否正常
 
-    @REM should terminate
+    @REM Terminate on failure when requested
     set "%~1=0"
     exit /b
 )
@@ -449,10 +448,9 @@ if "!logLevel!" == "1" (
 )
 goto :eof
 
-
 @REM ============================================================================
-@REM Update all Clash components
-@REM Purpose:    Updates core, subscriptions, rules, geodata, dashboard, and starts Clash
+@REM Update proxy components and related resources
+@REM Purpose:    Update proxy components and related resources
 @REM ============================================================================
 :updateComponents
 set "downloadedAlready=0"
@@ -462,7 +460,7 @@ if "!quickFlag!" == "1" (
     if "!modified!" == "0" (exit /b 0) else (set "downloadedAlready=1")
 )
 
-@REM run as admin
+@REM Run as administrator when needed
 if "!asDaemon!" == "1" (
     cacls "%SystemDrive%\System Volume Information" >nul 2>&1 || (
         if "!showWindow!" == "1" (
@@ -474,32 +472,31 @@ if "!asDaemon!" == "1" (
     )
 )
 
-@REM prepare all plugins
+@REM Prepare all required components
 call :prepareComponents changed 1 !downloadedAlready!
 
-@REM no new version found
+@REM No new version was found
 if "!changed!" == "0" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 当前已是最新版本，无需更新
 ) else (
-    @REM wait for overwrite files
+    @REM Wait before continuing for overwrite files
     timeout /t 1 /nobreak >nul 2>nul
 )
 
-@REM postclean
+@REM Clean temporary files after update
 call :cleanWorkspace "!temp!"
 
-@REM startup
+@REM Start the proxy program
 call :startClash
 
-@REM regenerate auto update script
+@REM Regenerate auto update script
 if "!regenerate!" == "1" call :generateUpdateVbs
 
 goto :eof
 
-
 @REM ============================================================================
-@REM Parse and validate command line arguments
-@REM Purpose:    Sets operation flags and option values from user arguments
+@REM Parse command-line arguments
+@REM Purpose:    Parse command-line arguments
 @REM ============================================================================
 :parseArgs
 set result=false
@@ -523,7 +520,7 @@ if "!result!" == "true" (
 if "%1" == "-c" set result=true
 if "%1" == "--conf" set result=true
 if "!result!" == "true" (
-    @REM validate argument
+    @REM Validate the file argument
     call :trim subscription "%~2"
 
     if "!subscription!" == "" set result=false
@@ -541,15 +538,15 @@ if "!result!" == "true" (
     if "!isWebLink!" == "1" (
         set "invalid=0"
 
-        @REM include '"' see https://stackoverflow.com/questions/46238709/how-to-detect-if-input-is-quote
+        @REM Include '"' see https://stackoverflow.com/questions/46238709/how-to-detect-if-input-is-quote
         @REM @echo !subscription! | findstr /i /r /c:"\"^" >nul && (set "invalid=1")
 
-        @REM replace '"' to ''
+        @REM Remove double quotes
         set "subscription=!subscription:"=!"
 
-        @REM contain whitespace
+        @REM Reject whitespace
         if "!subscription!" neq "!subscription: =!" set "invalid=1"
-        @REM match url
+        @REM Match a URL
         echo "!subscription!" | findstr /i /r /c:^"\"http.*://.*[a-zA-Z0-9][a-zA-Z0-9]*\"^" >nul 2>nul || (set "invalid=1")
 
         if "!invalid!" == "1" (
@@ -739,7 +736,7 @@ if "!result!" == "true" (
 if "%1" == "-w" set result=true
 if "%1" == "--workspace" set result=true
 if "!result!" == "true" (
-    @REM validate argument
+    @REM Validate the file argument
     call :trim param "%~2"
     if "!param!" == "" set result=false
     if "!param:~0,2!" == "--" set result=false
@@ -801,7 +798,7 @@ if "!result!" == "true" (
     shift & goto :parseArgs
 )
 
-@REM will throw exception if this code not in here or delete it or merge with <if "%1" NEQ "">. why?
+@REM Keep this branch separate because merging it changes batch argument parsing behavior
 if "%1" == "" goto :eof
 
 if "%1" NEQ "" (
@@ -830,8 +827,10 @@ if "%1" NEQ "" (
 
 goto :eof
 
-
-@REM help
+@REM ============================================================================
+@REM Print command usage
+@REM Purpose:    Print command usage
+@REM ============================================================================
 :usage
 set "usageLine=使用方法：!batchName! [%ESC%[!warnColor!m功能选项%ESC%[0m] [%ESC%[!warnColor!m其他参数%ESC%[0m]，支持 %ESC%[!warnColor!m-%ESC%[0m 和 %ESC%[!warnColor!m--%ESC%[0m 两种模式"
 @echo(!usageLine!
@@ -899,7 +898,10 @@ set "usageLine="
 set "shouldExit=1"
 goto :eof
 
-@REM draw heart
+@REM ============================================================================
+@REM Print the optional heart message
+@REM Purpose:    Print the optional heart message
+@REM ============================================================================
 :printHeart
 set "whitespace="
 
@@ -936,23 +938,27 @@ if "!msTerminal!" == "1" (
 exit /b
 goto :eof
 
-
-@REM confirm download url and filename according parameters
+@REM ============================================================================
+@REM Select the required proxy core edition
+@REM Purpose:    Select the required proxy core edition
+@REM Parameters: <geosite>, <subscriptionFiles>
+@REM Returns:    Sets <geosite> with the computed value or status
+@REM ============================================================================
 :detectRequiredEdition <geosite> <subscriptionFiles>
 set "%~1=0"
 set "content="
 set "needGeoSite=0"
 
-@REM yacd dashboard
+@REM Yacd dashboard
 if "!metaCubeXDashboard!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\yacd.ico" set "yacd=1"
 
-@REM metacubexd dashboard
+@REM MetaCubeXD dashboard
 if "!yacd!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\maskable-icon-512x512.png" set "metaCubeXDashboard=1"
 
-@REM zashboard dashboard
+@REM Zashboard dashboard
 if "!yacd!" == "0" if "!metaCubeXDashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\pwa-maskable-512x512.png" set "zashboard=1"
 
-@REM force use Clash Premium
+@REM Force use Clash Premium
 if "!useClashPremium!" == "1" (
     set "useVerneMihomo=0"
     set "lgbmUrl="
@@ -988,7 +994,7 @@ if "!cfgHasGeoSiteRule!" == "1" (
 )
 if "!cfgHasMetaRule!" == "1" set "notFound=0"
 
-@REM rulesets include GEOSITE, must be MetaCubeX Mihomo
+@REM Rulesets include GEOSITE, must be MetaCubeX Mihomo
 if "!notFound!" == "0" (set "useClashMeta=1")
 if "!useClashMeta!" == "1" (
     set "%~1=!needGeoSite!"
@@ -997,7 +1003,7 @@ if "!useClashMeta!" == "1" (
     goto :eof
 )
 
-@REM rules include IP-ASN/SRC-IP-ASN, must be MetaCubeX Mihomo
+@REM Rules include IP-ASN/SRC-IP-ASN, must be MetaCubeX Mihomo
 if "!cfgHasAsnRule!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
@@ -1014,7 +1020,7 @@ if "!cfgHasScriptRule!" == "1" (
     goto :eof
 )
 
-@REM include sniffer, must be MetaCubeX Mihomo
+@REM Include sniffer, must be MetaCubeX Mihomo
 if "!cfgHasSniffer!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
@@ -1022,7 +1028,7 @@ if "!cfgHasSniffer!" == "1" (
     goto :eof
 )
 
-@REM proxy-groups include exclude-filter, must be MetaCubeX Mihomo
+@REM Proxy-groups include exclude-filter, must be MetaCubeX Mihomo
 if "!cfgHasExcludeFilter!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
@@ -1030,7 +1036,7 @@ if "!cfgHasExcludeFilter!" == "1" (
     goto :eof
 )
 
-@REM include vless or hysteria, must be MetaCubeX Mihomo
+@REM Include vless or hysteria, must be MetaCubeX Mihomo
 if "!cfgHasMetaProxy!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
@@ -1038,13 +1044,13 @@ if "!cfgHasMetaProxy!" == "1" (
     goto :eof
 )
 
-@REM proxy-groups include filter, must be MetaCubeX Mihomo
-@REM set "tempFile=!temp!\clashproxygroups.txt"
-@REM set "regex=^\s+type:\s+(select|url-test|fallback|load-balance|relay).*"
+@REM Proxy-groups include filter, must be MetaCubeX Mihomo
+@REM Set "tempFile=!temp!\clashproxygroups.txt"
+@REM Set "regex=^\s+type:\s+(select|url-test|fallback|load-balance|relay).*"
 
-@REM del /f /q "!tempFile!" >nul 2>nul
-@REM call :findByContext "!configFile!" "!regex!" "!tempFile!" 10
-@REM if exist "!tempFile!" (
+@REM Del /f /q "!tempFile!" >nul 2>nul
+@REM Call :findByContext "!configFile!" "!regex!" "!tempFile!" 10
+@REM If exist "!tempFile!" (
 @REM     for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*filter:[ ][ ]*.*" "!tempFile!"') do (
 @REM         call :trim includeKey %%a
 @REM         if /i "!includeKey:~0,1!" NEQ "#" (
@@ -1058,7 +1064,7 @@ if "!cfgHasMetaProxy!" == "1" (
 @REM     del /f /q "!tempFile!" >nul 2>nul
 @REM )
 
-@REM old edition
+@REM Old edition
 if exist "!dest!\!mihomoExecutableName!" ("!dest!\!mihomoExecutableName!" -v | findstr /i "Meta" >nul 2>nul && (
         set "useClashMeta=1"
         set "useClashPremium=0"
@@ -1067,8 +1073,11 @@ if exist "!dest!\!mihomoExecutableName!" ("!dest!\!mihomoExecutableName!" -v | f
 call :resolveProxyExecutableName
 goto :eof
 
-
-@REM parse frequently used configuration facts once to avoid repeated slow batch scans
+@REM ============================================================================
+@REM Load frequently used configuration facts
+@REM Purpose:    Load frequently used configuration facts
+@REM Parameters: <subscriptionFiles>
+@REM ============================================================================
 :loadConfigSummary <subscriptionFiles>
 set "cfgHasSmartGroup=0"
 set "cfgHasSmartPreferAsn=0"
@@ -1098,24 +1107,33 @@ if exist "!cfgSummaryFile!" (
 )
 goto :eof
 
-
-@REM resolve proxy executable filename from selected core edition
+@REM ============================================================================
+@REM Resolve the selected proxy executable name
+@REM Purpose:    Resolve the selected proxy executable name
+@REM ============================================================================
 :resolveProxyExecutableName
 set "proxyExecutableName=!clashExecutableName!"
 if "!useClashMeta!" == "1" set "proxyExecutableName=!mihomoExecutableName!"
 if "!useVerneMihomo!" == "1" set "proxyExecutableName=!mihomoExecutableName!"
 goto :eof
 
-
-@REM resolve core display name from edition number: 0=Clash Premium, 1=MetaCubeX Mihomo, 2=Smart Mihomo
+@REM ============================================================================
+@REM Resolve the display name for a core edition
+@REM Purpose:    Resolve the display name for a core edition
+@REM Parameters: <result>, <edition>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :resolveCoreDisplayName <result> <edition>
 set "%~1=!clashPremiumName!"
 if "%~2" == "1" set "%~1=!metaCubeXMihomoName!"
 if "%~2" == "2" set "%~1=!smartMihomoName!"
 goto :eof
 
-
-@REM detect smart proxy group in proxy-groups section
+@REM ============================================================================
+@REM Detect Smart proxy groups
+@REM Purpose:    Detect Smart proxy groups
+@REM Parameters: <result>
+@REM ============================================================================
 :detectSmartGroup <result>
 set "%~1=0"
 if not exist "!configFile!" goto :eof
@@ -1141,8 +1159,11 @@ for /f "usebackq delims=" %%l in ("!configFile!") do (
 )
 goto :eof
 
-
-@REM detect IP-ASN/SRC-IP-ASN rules in rules section
+@REM ============================================================================
+@REM Detect ASN-based rules
+@REM Purpose:    Detect ASN-based rules
+@REM Parameters: <result>
+@REM ============================================================================
 :detectAsnRules <result>
 set "%~1=0"
 if not exist "!configFile!" goto :eof
@@ -1175,8 +1196,11 @@ for /f "usebackq delims=" %%l in ("!configFile!") do (
 )
 goto :eof
 
-
-@REM detect smart proxy group with prefer-asn: true
+@REM ============================================================================
+@REM Detect Smart groups using ASN preference
+@REM Purpose:    Detect Smart groups using ASN preference
+@REM Parameters: <result>
+@REM ============================================================================
 :detectSmartPreferAsn <result>
 set "%~1=0"
 if not exist "!configFile!" goto :eof
@@ -1224,8 +1248,11 @@ for /f "usebackq delims=" %%l in ("!configFile!") do (
 if "!groupIsSmart!" == "1" if "!groupPreferAsn!" == "1" set "%~1=1"
 goto :eof
 
-
-@REM detect whether ASN database is needed
+@REM ============================================================================
+@REM Detect whether the ASN database is required
+@REM Purpose:    Detect whether the ASN database is required
+@REM Parameters: <result>
+@REM ============================================================================
 :detectAsnNeeded <result>
 set "%~1=0"
 
@@ -1241,21 +1268,24 @@ if "!useVerneMihomo!" == "1" (
 )
 goto :eof
 
-
-@REM quickly update subscriptions and rulesets
+@REM ============================================================================
+@REM Quickly update subscriptions and rule providers
+@REM Purpose:    Quickly update subscriptions and rule providers
+@REM Parameters: <edition>
+@REM ============================================================================
 :quickUpdate <edition>
 set "%~1=0"
 
-@REM configration
+@REM Configuration
 call :updateConfig 1
 
-@REM subscriptions
+@REM Subscriptions
 if "!excludeUpdates!" == "0" call :updateSubscriptions subscriptionFiles 1
 
-@REM rulesets
+@REM Rulesets
 call :updateRules 1
 
-@REM detect new edition
+@REM Detect the new core edition
 set "clashEdition=0"
 if exist "!dest!\!mihomoExecutableName!" (
     "!dest!\!mihomoExecutableName!" -v | findstr /i "Meta" >nul 2>nul && (set "clashEdition=1")
@@ -1280,11 +1310,15 @@ if "!clashEdition!" NEQ "!targetEdition!" (
     goto :eof
 )
 
-@REM reload
+@REM Reload
 if "!changed!" == "1" (goto :reloadConfig) else (goto :eof)
 
-
-@REM check if special rules are included
+@REM ============================================================================
+@REM Search rule text for unsupported rule types
+@REM Purpose:    Search rule text for unsupported rule types
+@REM Parameters: <notFound>, <text>
+@REM Returns:    Sets <notFound> with the computed value or status
+@REM ============================================================================
 :searchRules <notFound> <text>
 set "%~1=1"
 set "rulesets=%~2"
@@ -1301,8 +1335,11 @@ for /F "tokens=1* delims=;" %%f in ("!rulesets!") do (
 )
 goto :eof
 
-
-@REM update subscriptions
+@REM ============================================================================
+@REM Update subscription-managed configuration
+@REM Purpose:    Update subscription-managed configuration
+@REM Parameters: <subscriptionFiles>, <force>
+@REM ============================================================================
 :updateSubscriptions <subscriptionFiles> <force>
 call :trim force "%~2"
 if "!force!" == "" set "force=1"
@@ -1315,7 +1352,12 @@ call :refreshReferencedFiles changed "proxy-providers" "!force!" subscriptionFil
 set "%~1=!subscriptionFiles!"
 goto :eof
 
-
+@REM ============================================================================
+@REM Split a file path into directory and file name
+@REM Purpose:    Split a file path into directory and file name
+@REM Parameters: <directory>, <fileName>, <filePath>
+@REM Returns:    Sets <directory> with the computed value or status
+@REM ============================================================================
 :splitPath <directory> <fileName> <filePath>
 set "%~1=%~dp3"
 set "%~2=%~nx3"
@@ -1323,8 +1365,12 @@ set "%~2=%~nx3"
 if "!%~1:~-1!" == "\" set "%~1=!%~1:~0,-1!"
 goto :eof
 
-
-@REM to absolute path
+@REM ============================================================================
+@REM Convert a path to an absolute path
+@REM Purpose:    Convert a path to an absolute path
+@REM Parameters: <result>, <fileName>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :convertToAbsolutePath <result> <fileName>
 call :trim filePath %~2
 set "%~1="
@@ -1354,10 +1400,14 @@ if "!filePath!" == "" goto :eof
 )
 goto :eof
 
-
-@REM connectivity
+@REM ============================================================================
+@REM Test network connectivity
+@REM Purpose:    Test network connectivity
+@REM Parameters: <result>, <allowed>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :testConnection <result> <allowed>
-@REM running status
+@REM Running status
 set "%~1=0"
 call :trim output "%~2"
 if "!output!" == "" set "output=1"
@@ -1371,16 +1421,20 @@ if "!status!" == "0" (
     goto :eof
 )
 
-@REM call :getSystemProxy server
+@REM Call :getSystemProxy server
 call :generateSystemProxy server
 
-@REM detect network is available
+@REM Detect whether the network is available
 call :checkNetworkAvailable status "!output!" "https://www.google.com" "!server!"
 set "%~1=!status!"
 goto :eof
 
-
-@REM check network
+@REM ============================================================================
+@REM Check whether the network is reachable
+@REM Purpose:    Check whether the network is reachable
+@REM Parameters: <result>, <allowed>, <url>, <proxyServer>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :checkNetworkAvailable <result> <allowed> <url> <proxyServer>
 set "%~1=0"
 call :trim output "%~2"
@@ -1390,7 +1444,7 @@ call :trim proxyServer "%~4"
 if "!output!" == "" set "output=1"
 if "!url!" == "" set "url=https://www.google.com"
 
-@REM check
+@REM Check status
 set "statusCode=000"
 if "!proxyServer!" == "" (
     for /f %%a in ('curl --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "statusCode=%%a"
@@ -1413,8 +1467,11 @@ if "!statusCode!" == "200" (
 )
 goto :eof
 
-
-@REM query proxy address
+@REM ============================================================================
+@REM Build the system proxy server value
+@REM Purpose:    Build the system proxy server value
+@REM Parameters: <result>
+@REM ============================================================================
 :generateSystemProxy <result>
 set "%~1="
 
@@ -1424,7 +1481,7 @@ if "!server!" NEQ "" (
     goto :eof
 )
 
-@REM extract from config file
+@REM Extract from the configuration file
 if exist "!configFile!" (
     call :isTunEnabled enabled
     if "!enabled!" == "1" goto :eof
@@ -1446,8 +1503,12 @@ if exist "!configFile!" (
 )
 goto :eof
 
-
-@REM create if directory not exists
+@REM ============================================================================
+@REM Create a directory tree when missing
+@REM Purpose:    Create a directory tree when missing
+@REM Parameters: <result>, <directory>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :createDirectories <result> <directory>
 set "%~1=0"
 call :trim directory "%~2"
@@ -1462,40 +1523,47 @@ if not exist "!directory!" (
 ) else (set "%~1=1")
 goto :eof
 
-
-@REM tun enabled
+@REM ============================================================================
+@REM Detect whether TUN mode is enabled
+@REM Purpose:    Detect whether TUN mode is enabled
+@REM Parameters: <enabled>
+@REM ============================================================================
 :isTunEnabled <enabled>
 set "%~1=0"
 set "text="
 
-@REM not work in batch but works fine in cmd, why?
-@REM for /f "tokens=*" %%a in ('findstr /i /r /c:"^tun:[ ]*" "!configFile!"') do set "text=%%a"
+@REM Not work in batch but works fine in cmd, why?
+@REM For /f "tokens=*" %%a in ('findstr /i /r /c:"^tun:[ ]*" "!configFile!"') do set "text=%%a"
 
 for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"tun:[ ]*" "!configFile!"') do set "text=%%a"
 
-@REM not required
+@REM Skip when not required
 call :trim text "!text!"
 if "!text!" == "tun" set "%~1=1"
 goto :eof
 
-
-@REM wintun
+@REM ============================================================================
+@REM Download and update Wintun when required
+@REM Purpose:    Download and update Wintun when required
+@REM Parameters: <changed>, <force>
+@REM Returns:    Sets <changed> with the computed value or status
+@REM ============================================================================
 :downloadWintun <changed> <force>
 set "%~1=0"
 
 call :trim force "%~2"
 if "!force!" == "" set "force=0"
 
-@REM has been integrated in MetaCubeX Mihomo
+@REM Has been integrated in MetaCubeX Mihomo
 if "!useClashMeta!" == "1" exit /b
 
-@REM check if required
+@REM Check whether the component is required
 call :isTunEnabled enabled
 if "!enabled!" == "0" exit /b
 
 if "!force!" == "0" set "checkWintun=0"
 
-@REM exists
+@REM Existing file check
 if exist "!dest!\wintun.dll" if "!checkWintun!" == "0" goto :eof
 
 set "content="
@@ -1521,20 +1589,20 @@ set "wintunUrl=!wintunUrl!/!content!"
 
 call :retryDownload "!wintunUrl!" "!temp!\wintun.zip"
 if exist "!temp!\wintun.zip" (
-    @REM unzip
+    @REM Extract the archive
     tar -xzf "!temp!\wintun.zip" -C !temp! >nul 2>nul
 
-    @REM clean workspace
+    @REM Clean the workspace
     del /f /q "!temp!\wintun.zip" >nul 2>nul
 
     set "wintunFile=!temp!\wintun\bin\!archVersion!\wintun.dll"
     if exist "!wintunFile!" (
-        @REM compare and update
+        @REM Compare and update files
         call :compareMd5 diff "!wintunFile!" "!dest!\wintun.dll"
         if "!diff!" == "1" (
             set "%~1=1"
 
-            @REM delete if exist
+            @REM Delete the existing file when present
             del /f /q "!dest!\wintun.dll" >nul 2>nul
             move "!wintunFile!" "!dest!" >nul 2>nul
         )
@@ -1546,14 +1614,17 @@ if exist "!temp!\wintun.zip" (
 )
 goto :eof
 
-
-@REM download binary file and data
+@REM ============================================================================
+@REM Download required executable and data files
+@REM Purpose:    Download required executable and data files
+@REM Parameters: <fileNames>, <outputEnabled>
+@REM ============================================================================
 :downloadFiles <fileNames> <outputEnabled>
 set "%~1="
 call :trim outputEnabled "%~2"
 if "!outputEnabled!" == "" set "outputEnabled=1"
 
-@REM deprecated and no longer needed, so set it to 0
+@REM This component is deprecated, so keep its changed flag disabled
 set "outputEnabled=0"
 
 if "!outputEnabled!" == "1" (
@@ -1562,7 +1633,7 @@ if "!outputEnabled!" == "1" (
 
 set "downloadedFileList="
 
-@REM download clash
+@REM Download the Clash core
 if "!clashUrl!" NEQ "" (
     if /i "!clashUrl:~0,8!" NEQ "https://" (
         @echo [%ESC%[91m错误%ESC%[0m] !proxyExecutableName! 下载地址解析失败："!clashUrl!"
@@ -1570,17 +1641,17 @@ if "!clashUrl!" NEQ "" (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
         call :retryDownload "!clashUrl!" "!temp!\clash.zip"
         if exist "!temp!\clash.zip" (
-            @REM unzip
+            @REM Extract the archive
             tar -xzf "!temp!\clash.zip" -C !temp! >nul 2>nul
 
-            @REM clean workspace
+            @REM Clean the workspace
             del /f /q "!temp!\clash.zip"
         ) else (
             @echo [%ESC%[91m错误%ESC%[0m] !proxyExecutableName! 下载失败，下载链接："!clashUrl!"
         )
 
         if exist "!temp!\!clashExe!" (
-            @REM rename file
+            @REM Rename the downloaded file
             ren "!temp!\!clashExe!" !proxyExecutableName!
 
             set "downloadedFileList=!proxyExecutableName!"
@@ -1600,8 +1671,12 @@ for %%u in (country geoSite geoAsn geoIp lgbm) do (
 set "%~1=!downloadedFileList!"
 goto :eof
 
-
-@REM download a regular file to temp and report success
+@REM ============================================================================
+@REM Download a managed file and mark it as downloaded
+@REM Purpose:    Download a managed file and mark it as downloaded
+@REM Parameters: <result>, <url>, <fileName>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :downloadManagedFile <result> <url> <fileName>
 set "%~1=0"
 call :trim managedUrl "%~2"
@@ -1625,8 +1700,11 @@ if exist "!temp!\!managedFile!" (
 )
 goto :eof
 
-
-@REM append a filename to a semicolon-separated downloaded file list
+@REM ============================================================================
+@REM Append a file name to the downloaded file list
+@REM Purpose:    Append a file name to the downloaded file list
+@REM Parameters: <listVar>, <fileName>
+@REM ============================================================================
 :appendDownloadedFile <listVar> <fileName>
 call :trim appendedFile "%~2"
 if "!appendedFile!" == "" goto :eof
@@ -1638,8 +1716,11 @@ if "!%~1!" == "" (
 )
 goto :eof
 
-
-@REM download with retry
+@REM ============================================================================
+@REM Download a file with retry support
+@REM Purpose:    Download a file with retry support
+@REM Parameters: <url>, <fileName>
+@REM ============================================================================
 :retryDownload <url> <fileName>
 set maxRetries=3
 call :trim downloadUrl "%~1"
@@ -1671,8 +1752,12 @@ if "!failFlag!" NEQ "0" (
 )
 goto :eof
 
-
-@REM compare
+@REM ============================================================================
+@REM Detect downloaded files that differ from installed files
+@REM Purpose:    Detect downloaded files that differ from installed files
+@REM Parameters: <result>, <fileNames>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :detectChangedFiles <result> <fileNames>
 set "%~1=0"
 set "fileNames=%~2"
@@ -1686,18 +1771,18 @@ for %%a in (!fileNames!) do (
     )
 
     if "!repairFlag!" == "1" (
-        @REM delete for triggering upgrade
+        @REM Delete the installed file to force an upgrade
         del /f /q "!dest!\!fileName!" >nul 2>nul
     )
 
-    @REM found new file
+    @REM Found a new file
     if not exist "!dest!\!fileName!" (
         set "%~1=1"
         call :upgradeFiles "!fileNames!"
         exit /b
     )
 
-    @REM compare and update
+    @REM Compare and update files
     call :compareMd5 diff "!temp!\!fileName!" "!dest!\!fileName!"
     if "!diff!" == "1" (
         set "%~1=1"
@@ -1708,8 +1793,12 @@ for %%a in (!fileNames!) do (
 )
 goto :eof
 
-
-@REM compare file with md5
+@REM ============================================================================
+@REM Compare two files by MD5 hash
+@REM Purpose:    Compare two files by MD5 hash
+@REM Parameters: <changed>, <source>, <target>
+@REM Returns:    Sets <changed> with the computed value or status
+@REM ============================================================================
 :compareMd5 <changed> <source> <target>
 set "%~1=0"
 
@@ -1723,21 +1812,24 @@ if not exist "!target!" (
     goto :eof
 )
 
-@REM source md5
+@REM Source MD5
 set "original=" & for /F "skip=1 delims=" %%h in ('2^> nul CertUtil -hashfile "!source!" MD5') do if not defined original set "original=%%h"
-@REM target md5
+@REM Target MD5
 set "received=" & for /F "skip=1 delims=" %%h in ('2^> nul CertUtil -hashfile "!target!" MD5') do if not defined received set "received=%%h"
 
 if "!original!" NEQ "!received!" (set "%~1=1")
 goto :eof
 
-
-@REM update proxy executable and data
+@REM ============================================================================
+@REM Replace installed proxy files with downloaded files
+@REM Purpose:    Replace installed proxy files with downloaded files
+@REM Parameters: <fileNames>
+@REM ============================================================================
 :upgradeFiles <fileNames>
 call :trim fileNames "%~1"
 if "!fileNames!" == "" goto :eof
 
-@REM make sure the file exists
+@REM Ensure the downloaded file exists
 set "existingFiles="
 for %%a in (!fileNames!) do (
     if exist "!temp!\%%a" (
@@ -1749,33 +1841,35 @@ for %%a in (!fileNames!) do (
     )
 )
 
-@REM file missing
+@REM Missing file
 if "!existingFiles!" == "" goto :terminate
 
-@REM stop clash
+@REM Stop Clash before replacing files
 call :killProcessWrapper
 
-@REM copy file
+@REM Copy files
 for %%a in (!fileNames!) do (
     set "fileName=%%a"
 
-    @REM delete if old file exists
+    @REM Delete the old file when present
     if exist "!dest!\!fileName!" (
         del /f /q "!dest!\!fileName!" >nul 2>nul
     )
 
-    @REM move new file to dest
+    @REM Move the new file into the destination directory
     move "!temp!\!fileName!" "!dest!" >nul 2>nul
 )
 goto :eof
 
-
-@REM start
+@REM ============================================================================
+@REM Start the selected proxy core
+@REM Purpose:    Start the selected proxy core
+@REM ============================================================================
 :startClash
 call :isProcessRunning status
 
 if "!status!" == "0" (
-    @REM startup clash
+    @REM Start the proxy program
     call :runClashWrapper 0
 ) else (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 订阅和代理规则更新完毕，即将重新加载
@@ -1783,8 +1877,11 @@ if "!status!" == "0" (
 )
 goto :eof
 
-
-@REM privilege escalation
+@REM ============================================================================
+@REM Run an operation with administrator privileges when needed
+@REM Purpose:    Run an operation with administrator privileges when needed
+@REM Parameters: <args>, <showWindow>
+@REM ============================================================================
 :runElevated <args> <showWindow>
 set "elevatedShowWindow=0"
 set "operation=%~1"
@@ -1794,13 +1891,13 @@ if "!operation!" == "" (
     exit /b 1
 )
 
-@REM parse window parameter
+@REM Parse the window visibility parameter
 call :trim param "%~2"
 set "display=" & for /f "delims=0123456789" %%i in ("!param!") do set "display=%%i"
 if defined display (set "elevatedShowWindow=0") else (set "elevatedShowWindow=!param!")
 if "!elevatedShowWindow!" NEQ "0" set "elevatedShowWindow=1"
 
-@REM call Start-Process with powershell
+@REM Call Start-Process through PowerShell
 cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
     if "!elevatedShowWindow!" == "0" (
         !operation!
@@ -1819,8 +1916,11 @@ cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
 )
 goto :eof
 
-
-@REM execute
+@REM ============================================================================
+@REM Run the proxy executable with a configuration file
+@REM Purpose:    Run the proxy executable with a configuration file
+@REM Parameters: <config>, <executable>
+@REM ============================================================================
 :runClash <config> <executable>
 call :trim runConfigFile "%~1"
 if "!runConfigFile:~0,13!" == "goto :runClash" (
@@ -1834,7 +1934,7 @@ if "!runConfigFile!" == "" (
     goto :eof
 )
 
-@REM privilege escalation
+@REM Privilege escalation
 call :enableNoPromptRunAs success
 
 call :splitPath filePath fileName "!runConfigFile!"
@@ -1854,8 +1954,12 @@ if not exist "!filePath!\!runExecutable!" (
 "!filePath!\!runExecutable!" -d "!filePath!" -f "!runConfigFile!"
 goto :eof
 
-
-@REM ensure all plugins exist
+@REM ============================================================================
+@REM Prepare and update required runtime components
+@REM Purpose:    Prepare and update required runtime components
+@REM Parameters: <changed>, <force>, <downloadedAlready>
+@REM Returns:    Sets <changed> with the computed value or status
+@REM ============================================================================
 :prepareComponents <changed> <force> <downloadedAlready>
 set "%~1=0"
 
@@ -1865,22 +1969,22 @@ if "!downloadForce!" == "" set "downloadForce=0"
 call :trim downloadedAlready "%~3"
 if "!downloadedAlready!" == "" set "downloadedAlready=0"
 
-@REM check and update configration
+@REM Check and update the configuration
 if "!downloadedAlready!" == "0" call :updateConfig "!downloadForce!"
 
-@REM parse api server path
+@REM Parse the API server path
 call :extractControllerServer clashServer
 
-@REM dashboard directory name
+@REM Dashboard directory name
 call :extractDashboardPath dashboard
 
-@REM update subscriptions
+@REM Update flag subscriptions
 if "!downloadedAlready!" == "0" if "!excludeUpdates!" == "0" call :updateSubscriptions subscriptionFiles "!downloadForce!"
 
-@REM parse frequently used configuration flags once
+@REM Parse frequently used configuration flags once
 call :loadConfigSummary !subscriptionFiles!
 
-@REM confirm download url and filename
+@REM Resolve download URLs and file names
 call :detectRequiredEdition geoSiteNeeded !subscriptionFiles!
 
 call :resolveProxyExecutableName
@@ -1905,57 +2009,62 @@ if "!useClashPremium!" == "0" if "!useClashMeta!" == "0" (
     call :resolveProxyExecutableName
 )
 
-@REM confirm donwload url
+@REM Resolve the download URL
 call :resolveDownloadUrls "!downloadForce!" "!geoSiteNeeded!"
 
-@REM skip Mihomo download when the local executable already matches the release URL
+@REM Skip Mihomo download when the local executable already matches the release URL
 call :skipMihomoDownloadIfCurrent
 
-@REM precleann workspace
+@REM Clean the workspace before downloading
 call :cleanWorkspace "!temp!"
 
-@REM update dashboard
+@REM Update flag dashboard
 if "!downloadedAlready!" == "0" call :updateDashboard "!downloadForce!"
 
-@REM update rule files
+@REM Update flag rule files
 if "!downloadedAlready!" == "0" call :updateRules "!downloadForce!"
 
-@REM wintun.dll
+@REM Wintun.dll
 call :downloadWintun newWintun "!downloadForce!"
 set "%~1=!newWintun!"
 
-@REM download proxy executable and geoip.data and so on
+@REM Download proxy executable and geoip.data and so on
 call :downloadFiles fileNames "!downloadForce!"
 
-@REM judge file changed with md5
+@REM Detect file changes by MD5
 call :detectChangedFiles changed "!fileNames!"
 if "!changed!" == "1" set "%~1=!changed!"
 
 goto :eof
 
-
-@REM config autostart and auto update
+@REM ============================================================================
+@REM Configure post-install startup and shortcuts
+@REM Purpose:    Configure post-install startup and shortcuts
+@REM ============================================================================
 :postProcess
 call :runElevated "goto :enableNoPromptRunAs" 0
 
-@REM tips
+@REM User prompts
 call :outputProxyHint
 
-@REM add script to user path
+@REM Add the script directory to the user PATH
 call :addToUserPath
 
-@REM allow auto start when user login
+@REM Allow startup at user login
 call :configureAutostart
 
-@REM allow auto check update
+@REM Allow automatic update checks
 call :configureAutoUpdate
 
-@REM create shortcut on desktop
+@REM Create the desktop shortcut
 call :createDesktopShortcut
 goto :eof
 
-
-@REM parse clash server path
+@REM ============================================================================
+@REM Extract the external controller server address
+@REM Purpose:    Extract the external controller server address
+@REM Parameters: <result>
+@REM ============================================================================
 :extractControllerServer <result>
 set "%~1="
 call :parseYamlValue serverHost "external-controller:[ ][ ]*"
@@ -1964,15 +2073,18 @@ if "!serverHost!" NEQ "" if "!serverHost:~0,1!" == ":" set "serverHost=127.0.0.1
 set "%~1=http://!serverHost!"
 goto :eof
 
-
-@REM privilege escalation
+@REM ============================================================================
+@REM Validate and start the proxy core
+@REM Purpose:    Validate and start the proxy core
+@REM Parameters: <shouldCheck>
+@REM ============================================================================
 :runClashWrapper <shouldCheck>
 call :trim shouldCheck "%~1"
 if "!shouldCheck!" == "" set "shouldCheck=0"
 if "!shouldCheck!" == "1" (call :prepareComponents changed 0 0)
 call :resolveProxyExecutableName
 
-@REM verify config
+@REM Verify config
 if not exist "!dest!\!proxyExecutableName!" (
     @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，"%ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m" 缺失
     goto :eof
@@ -1987,10 +2099,10 @@ if "!verifyConfig!" == "1" (
     set "testOutput=!temp!\clashtestout.txt"
     del /f /q "!testOutput!" >nul 2>nul
 
-    @REM test config file
+    @REM Test the configuration file
     "!dest!\!proxyExecutableName!" -d "!dest!" -t "!configFile!" > "!testOutput!"
 
-    @REM failed
+    @REM Handle failure
     if !errorlevel! NEQ 0 (
         set "messages="
         if exist "!testOutput!" (
@@ -2004,18 +2116,18 @@ if "!verifyConfig!" == "1" (
         exit /b 1
     )
 
-    @REM delete test output
+    @REM Delete test output
     del /f /q "!testOutput!" >nul 2>nul
 )
 
-@REM run proxy executable with config
+@REM Run the proxy executable with the configuration
 call :runElevated "goto :runClash !configFile! !proxyExecutableName!" !showWindow!
 
 for /l %%i in (1,1,6) do (
-    @REM check running status
+    @REM Check running status
     call :isProcessRunning status
     if "!status!" == "1" (
-        @REM abnormal detect
+        @REM Detect abnormal process state
         call :isProcessAbnormal state
 
         if "!state!" == "1" (
@@ -2027,10 +2139,10 @@ for /l %%i in (1,1,6) do (
                 choice /t 5 /d y /n
             )
             if !errorlevel! == 1 (
-                @REM delete existing proxy executable
+                @REM Delete the existing proxy executable
                 del /f /q "!dest!\!proxyExecutableName!" >nul 2>nul
 
-                @REM download and restart
+                @REM Download components and restart
                 goto :restartProgram
             ) else (
                 @echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查代理程序 %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m 是否完好
@@ -2049,7 +2161,7 @@ for /l %%i in (1,1,6) do (
             exit /b
         )
     ) else (
-        @REM waiting
+        @REM Wait before continuing
         timeout /t 1 /nobreak >nul 2>nul
     )
 )
@@ -2057,8 +2169,12 @@ for /l %%i in (1,1,6) do (
 @echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查配置 %ESC%[91m!configuration!%ESC%[0m 是否正确
 goto :eof
 
-
-@REM search port on config file with keyword
+@REM ============================================================================
+@REM Search a port value in the configuration file
+@REM Purpose:    Search a port value in the configuration file
+@REM Parameters: <result>, <key>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :searchPort <result> <key>
 set "%~1="
 call :trim key "%~2"
@@ -2068,7 +2184,11 @@ call :findConfigKeyEntry portKey port "!configFile!" "!key!" "[0-9][0-9]*"
 if "!port!" NEQ "" set "%~1=!port!"
 goto :eof
 
-@REM extract proxy port
+@REM ============================================================================
+@REM Extract the HTTP proxy port
+@REM Purpose:    Extract the HTTP proxy port
+@REM Parameters: <result>
+@REM ============================================================================
 :extractProxyPort <result>
 set "%~1=7890"
 set "keys=mixed-port;port;socks-port"
@@ -2081,8 +2201,10 @@ for %%a in (!keys!) do (
 )
 goto :eof
 
-
-@REM print warning if tun is disabled
+@REM ============================================================================
+@REM Print system proxy guidance
+@REM Purpose:    Print system proxy guidance
+@REM ============================================================================
 :outputProxyHint
 call :isTunEnabled enabled
 call :getSystemProxy server
@@ -2097,7 +2219,7 @@ if "!enabled!" == "1" (
 call :extractProxyPort proxyPort
 if "!proxyPort!" == "" set "proxyPort=7890"
 
-@REM set proxy
+@REM Enable the system proxy
 set "proxyServer=127.0.0.1:!proxyPort!"
 if "!proxyServer!" NEQ "!server!" (
     set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 系统代理%ESC%[91m未配置%ESC%[0m，是否设置？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
@@ -2110,20 +2232,22 @@ if "!proxyServer!" NEQ "!server!" (
     if !errorlevel! == 1 call :enableSystemProxy "!proxyServer!"
 )
 
-@REM hint
+@REM Print user guidance
 @echo [%ESC%[!warnColor!m提示%ESC%[0m] 如果无法正常使用网络代理，请到 "%ESC%[!warnColor!m设置 -^> 网络和 Internet -^> 代理%ESC%[0m" 确认是否已设置为 "%ESC%[!warnColor!m!proxyServer!%ESC%[0m"
 goto :eof
 
-
-@REM add current script to user's environment path
+@REM ============================================================================
+@REM Add the script directory to the user PATH
+@REM Purpose:    Add the script directory to the user PATH
+@REM ============================================================================
 :addToUserPath
 set "scriptDir=%~dp0"
 set "scriptDir=!scriptDir:~0,-1!"
 
-@REM get current path values
+@REM Read the current PATH values
 for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "currentPath=%%b"
 
-@REM check if already added
+@REM Check whether the path is already present
 echo !currentPath! | findstr /i /c:"!scriptDir!" >nul
 if !errorlevel! == 0 goto :eof
 
@@ -2136,7 +2260,7 @@ if "!msTerminal!" == "1" (
 )
 
 if !errorlevel! == 1 (
-    @REM rewrite Path environment
+    @REM Rewrite the user PATH environment variable
     set "newPath=!currentPath!;!scriptDir!"
     reg add "HKCU\Environment" /v Path /t REG_EXPAND_SZ /d "!newPath!" /f >nul 2>nul
 
@@ -2145,16 +2269,18 @@ if !errorlevel! == 1 (
 
 goto :eof
 
-
-@REM restart program
+@REM ============================================================================
+@REM Restart the proxy program
+@REM Purpose:    Restart the proxy program
+@REM ============================================================================
 :restartProgram
-@REM check running status
+@REM Check running status
 call :isProcessRunning status
 if "!status!" == "1" (
-    @REM kill process
+    @REM Stop the proxy process
     call :killProcessWrapper
 
-    @REM check running status
+    @REM Check running status
     call :isProcessRunning status
 
     if "!status!" == "1" (
@@ -2163,35 +2289,37 @@ if "!status!" == "1" (
     )
 )
 
-@REM if alpha=1 may cause clash.premiun download failure
+@REM Alpha versions may not provide a Clash Premium download
 if "!useClashPremium!" == "1" set "alpha=0"
 
-@REM startup
+@REM Start the proxy program
 call :runClashWrapper 1
 exit /b
 
-
-@REM run as admin
+@REM ============================================================================
+@REM Stop the proxy program with elevation when needed
+@REM Purpose:    Stop the proxy program with elevation when needed
+@REM ============================================================================
 :killProcessWrapper
 call :isProcessRunning status
 if "!status!" == "0" goto :eof
 
 call :runElevated "goto :killProcess" 0
 
-@REM detect
+@REM Detect current state
 for /l %%i in (1,1,6) do (
     call :isProcessRunning status
     if "!status!" == "0" (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 代理程序关闭%ESC%[!infoColor!m成功%ESC%[0m，可使用 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" 命令重启
 
-        @REM disable proxy
-        @REM call :isTunEnabled enabled
-        @REM if "!enabled!" == "0" call :disableSystemProxy
+        @REM Disable the system proxy
+        @REM Call :isTunEnabled enabled
+        @REM If "!enabled!" == "0" call :disableSystemProxy
 
         call :disableSystemProxy
         exit /b
     ) else (
-        @REM wait a moment
+        @REM Wait briefly before continuing
         timeout /t 1 /nobreak >nul 2>nul
     )
 )
@@ -2199,8 +2327,10 @@ for /l %%i in (1,1,6) do (
 @echo [%ESC%[91m错误%ESC%[0m] 代理程序关闭%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m
 goto :eof
 
-
-@REM stop
+@REM ============================================================================
+@REM Terminate running proxy processes
+@REM Purpose:    Terminate running proxy processes
+@REM ============================================================================
 :killProcess
 call :resolveProxyExecutableName
 tasklist | findstr /i "!proxyExecutableName!" >nul 2>nul && taskkill /im "!proxyExecutableName!" /f >nul 2>nul
@@ -2208,18 +2338,18 @@ if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" tasklist | findstr /i 
 if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" tasklist | findstr /i "!mihomoExecutableName!" >nul 2>nul && taskkill /im "!mihomoExecutableName!" /f >nul 2>nul
 set "exitCode=!errorlevel!"
 
-@REM no prompt
+@REM Disable prompts when possible
 call :enableNoPromptRunAs success
 
-@REM detect
+@REM Detect current state
 for /l %%i in (1,1,6) do (
-    @REM detect running status
+    @REM Detect current state running status
     call :isProcessRunning status
     if "!status!" == "0" (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 网络代理已关闭
         goto :eof
     ) else (
-        @REM waiting for release
+        @REM Wait before continuing for release
         timeout /t 1 /nobreak >nul 2>nul
     )
 )
@@ -2227,8 +2357,11 @@ for /l %%i in (1,1,6) do (
 @echo [%ESC%[91m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[91m任务管理中心%ESC%[0m手动结束 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 进程
 goto :eof
 
-
-@REM delect running status
+@REM ============================================================================
+@REM Detect whether the proxy process is running
+@REM Purpose:    Detect whether the proxy process is running
+@REM Parameters: <result>
+@REM ============================================================================
 :isProcessRunning <result>
 call :resolveProxyExecutableName
 tasklist | findstr /i "!proxyExecutableName!" >nul 2>nul && set "%~1=1" || set "%~1=0"
@@ -2236,12 +2369,15 @@ if "!%~1!" == "0" if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" task
 if "!%~1!" == "0" if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" tasklist | findstr /i "!mihomoExecutableName!" >nul 2>nul && set "%~1=1"
 goto :eof
 
-
-@REM check proxy executable process is normal
+@REM ============================================================================
+@REM Detect abnormal proxy process state
+@REM Purpose:    Detect abnormal proxy process state
+@REM Parameters: <result>
+@REM ============================================================================
 :isProcessAbnormal <result>
 set "%~1=1"
 
-@REM memory usage
+@REM Memory usage check
 set "usage="
 
 call :resolveProxyExecutableName
@@ -2249,7 +2385,7 @@ for /f "tokens=5 delims= " %%a in ('tasklist /nh ^|findstr /i "!proxyExecutableN
 if "!usage!" == "" if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" for /f "tokens=5 delims= " %%a in ('tasklist /nh ^|findstr /i "!clashExecutableName!"') do set "usage=%%a"
 if "!usage!" == "" if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" for /f "tokens=5 delims= " %%a in ('tasklist /nh ^|findstr /i "!mihomoExecutableName!"') do set "usage=%%a"
 if "!usage!" NEQ "" (
-    @REM remove comma from number
+    @REM Remove commas from the numeric value
     set "usage=!usage:,=!"
 
     if !usage! GTR 5120 (set "%~1=0")
@@ -2257,14 +2393,17 @@ if "!usage!" NEQ "" (
 
 goto :eof
 
-
-@REM get donwload url
+@REM ============================================================================
+@REM Resolve component download URLs
+@REM Purpose:    Resolve component download URLs
+@REM Parameters: <force>, <enabled>
+@REM ============================================================================
 :resolveDownloadUrls <force> <enabled>
-@REM country data
+@REM Country database
 call :trim force "%~1"
 if "!force!" == "" set "force=0"
 
-@REM dashboard
+@REM Dashboard
 if "!zashboard!" == "1" (
     set "metaCubeXDashboard=0"
     set "yacd=0"
@@ -2277,20 +2416,20 @@ if "!geoSiteFlag!" == "" set "geoSiteFlag=0"
 set "needDownload=0"
 set "countryUrl=https://raw.githubusercontent.com/Hackl0us/GeoIP2-CN/release/Country.mmdb"
 
-@REM geosite/geoip filename
+@REM GeoSite and GeoIP file names
 set "countryFile=Country.mmdb"
 set "geoSiteFile=GeoSite.dat"
 set "geoIpFile=GeoIP.dat"
 set "geoAsnFile=ASN.mmdb"
 set "lgbmFile=Model.bin"
 
-@REM dashboard url
+@REM Dashboard url
 set "dashboardUrl=https://github.com/Dreamacro/clash-dashboard/archive/refs/heads/gh-pages.zip"
 set "dashboardDirectory=clash-dashboard-gh-pages"
 
 set "clashUrl="
 
-@REM get os and cpu version
+@REM Detect OS and CPU architecture
 call :getArch archVersion
 call :resolveProxyExecutableName
 
@@ -2299,7 +2438,7 @@ if "!archVersion!" == "" (
     goto :eof
 )
 
-@REM determine whether to download proxy executable
+@REM Determine whether the proxy executable must be downloaded
 if not exist "!dest!\!proxyExecutableName!" (set "needDownload=1") else (set "needDownload=!force!")
 
 if "!useClashMeta!" == "0" (
@@ -2311,7 +2450,7 @@ if "!useClashMeta!" == "0" (
         if "!alpha!" == "0" (
             for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/Dreamacro/clash/releases/tags/premium" ^| findstr /i /r /c:"https://github.com/Dreamacro/clash/releases/download/premium/clash-windows-!archVersion!-[^v][^3].*.zip"') do set "clashUrl=%%b"
 
-            @REM remove whitespace
+            @REM Remove whitespace
             call :trim clashUrl "!clashUrl!"
             if !clashUrl! == "" (
                 @echo [%ESC%[91m错误%ESC%[0m] 获取 !clashPremiumName! 下载链接失败
@@ -2364,18 +2503,18 @@ if "!useClashMeta!" == "0" (
         set "clashUrl=!clashUrl:~1,-1!"
     )
 
-    @REM geosite.data download url
+    @REM GeoSite data download URL
     if "!geoSiteFlag!" == "0" (
         set "geoSiteUrl="
     ) else (
         if "!cfgGeoSiteUrl!" NEQ "" set "geoSiteUrl=!cfgGeoSiteUrl!"
     )
 
-    @REM geodata-mode
+    @REM Geo data mode
     set "geoDataMode=!cfgGeoDataMode!"
     if "!geoDataMode!" == "" set "geoDataMode=false"
 
-    @REM geoip.data
+    @REM GeoIP data download URL
     if "!geoDataMode!" == "false" (
         set "geoIpUrl="
         if "!cfgCountryUrl!" NEQ "" set "countryUrl=!cfgCountryUrl!"
@@ -2384,7 +2523,7 @@ if "!useClashMeta!" == "0" (
         if "!cfgGeoIpUrl!" NEQ "" set "geoIpUrl=!cfgGeoIpUrl!"
     )
 
-    @REM ASN database download url
+    @REM ASN database download URL
     set "needGeoAsn=0"
     if "!cfgHasAsnRule!" == "1" set "needGeoAsn=1"
     if "!useVerneMihomo!" == "1" if "!cfgHasSmartPreferAsn!" == "1" set "needGeoAsn=1"
@@ -2406,15 +2545,15 @@ if "!useClashMeta!" == "0" (
     )
 )
 
-@REM prefer external-ui-url from config unless dashboard was explicitly specified
+@REM Prefer external-ui-url from config unless dashboard was explicitly specified
 call :selectDashboardUrl
 
-@REM clashUrl
+@REM Clash download URL
 call :generateDownloadUrl clashUrl "!clashUrl!" "!proxyExecutableName!" "!force!"
 
-@REM dashboardUrl
+@REM Dashboard download URL
 if "!dashboard!" == "" (
-    @REM don't need dashboard
+    @REM Dashboard is not needed
     set "dashboardUrl="
 ) else (
     set "needDashboard=!force!"
@@ -2424,16 +2563,16 @@ if "!dashboard!" == "" (
     )
 )
 
-@REM countryUrl
+@REM Country database URL
 call :generateDownloadUrl countryUrl "!countryUrl!" "!countryFile!" "!force!"
 
-@REM geoSiteUrl
+@REM GeoSite URL
 call :generateDownloadUrl geoSiteUrl "!geoSiteUrl!" "!geoSiteFile!" "!force!"
 
-@REM geoAsnUrl
+@REM GeoASN URL
 call :generateDownloadUrl geoAsnUrl "!geoAsnUrl!" "!geoAsnFile!" "!force!"
 
-@REM geoIpUrl
+@REM GeoIP URL
 call :generateDownloadUrl geoIpUrl "!geoIpUrl!" "!geoIpFile!" "!force!"
 
 @REM LightGBM model
@@ -2441,8 +2580,10 @@ if "!useVerneMihomo!" == "0" set "lgbmUrl="
 call :generateDownloadUrl lgbmUrl "!lgbmUrl!" "!lgbmFile!" "!force!"
 goto :eof
 
-
-@REM select dashboard download url
+@REM ============================================================================
+@REM Select the dashboard download URL
+@REM Purpose:    Select the dashboard download URL
+@REM ============================================================================
 :selectDashboardUrl
 if "!dashboardForced!" == "1" goto :eof
 
@@ -2453,8 +2594,12 @@ set "dashboardUrl=!configDashboardUrl!"
 call :inferDashboardDirectory dashboardDirectory "!dashboardUrl!" "!dashboardDirectory!"
 goto :eof
 
-
-@REM infer dashboard archive directory from common GitHub archive URLs
+@REM ============================================================================
+@REM Infer a dashboard archive directory name
+@REM Purpose:    Infer a dashboard archive directory name
+@REM Parameters: <result>, <url>, <default>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :inferDashboardDirectory <result> <url> <default>
 set "%~1=%~3"
 call :trim rawUrl "%~2"
@@ -2467,8 +2612,10 @@ if "!rawUrl:MetaCubeX/metacubexd=!" NEQ "!rawUrl!" set "%~1=metacubexd-gh-pages"
 if "!rawUrl:Zephyruso/zashboard=!" NEQ "!rawUrl!" set "%~1=zashboard-gh-pages"
 goto :eof
 
-
-@REM skip Mihomo download if the release URL version matches local `mihomo.exe -v`
+@REM ============================================================================
+@REM Skip Mihomo download when the local version is current
+@REM Purpose:    Skip Mihomo download when the local version is current
+@REM ============================================================================
 :skipMihomoDownloadIfCurrent
 if "!clashUrl!" == "" goto :eof
 if "!useClashMeta!" NEQ "1" goto :eof
@@ -2489,8 +2636,12 @@ echo !localMihomoVersionLine! | findstr /l /i /c:"!remoteMihomoVersion!" >nul 2>
 )
 goto :eof
 
-
-@REM extract version from mihomo-windows-<arch>-<version>.zip download URL
+@REM ============================================================================
+@REM Extract the Mihomo version from a download URL
+@REM Purpose:    Extract the Mihomo version from a download URL
+@REM Parameters: <result>, <url>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :extractMihomoVersionFromUrl <result> <url>
 set "%~1="
 call :trim mihomoUrl "%~2"
@@ -2510,8 +2661,12 @@ if "!mihomoVersion!" == "" goto :eof
 set "%~1=!mihomoVersion!"
 goto :eof
 
-
-@REM generate real download url
+@REM ============================================================================
+@REM Generate the final download URL
+@REM Purpose:    Generate the final download URL
+@REM Parameters: <result>, <url>, <fileName>, <force>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :generateDownloadUrl <result> <url> <fileName> <force>
 set "%~1="
 
@@ -2527,8 +2682,11 @@ if "!needDownload!" == "0" goto :eof
 set "%~1=!url!"
 goto :eof
 
-
-@REM get cpu and os version, see: https://github.com/MetaCubeX/mihomo/releases
+@REM ============================================================================
+@REM Detect operating system and CPU architecture
+@REM Purpose:    Detect operating system and CPU architecture
+@REM Parameters: <version>
+@REM ============================================================================
 :getArch <version>
 set "%~1="
 if "!PROCESSOR_ARCHITECTURE!" == "AMD64" (
@@ -2541,8 +2699,12 @@ if "!PROCESSOR_ARCHITECTURE!" == "AMD64" (
 
 goto :eof
 
-
-@REM leading and trailing whitespace
+@REM ============================================================================
+@REM Trim surrounding whitespace
+@REM Purpose:    Trim surrounding whitespace
+@REM Parameters: <result>, <rawText>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :trim <result> <rawText>
 set "rawText=%~2"
 set "%~1="
@@ -2550,22 +2712,26 @@ if "!rawText!" == "" goto :eof
 
 for /f "tokens=* delims= " %%a in ("!rawText!") do set "rawText=%%a"
 
-@REM for /l %%a in (1,1,100) do if "!rawText:~-1!"==" " set "rawText=!rawText:~0,-1!"
+@REM For /l %%a in (1,1,100) do if "!rawText:~-1!"==" " set "rawText=!rawText:~0,-1!"
 
-@REM for speed, iteration set to 10
+@REM Limit iterations for performance
 for /l %%a in (1,1,10) do if "!rawText:~-1!"==" " set "rawText=!rawText:~0,-1!"
 
 set "%~1=!rawText!"
 goto :eof
 
-
-@REM wrapper github
+@REM ============================================================================
+@REM Apply a GitHub download proxy when configured
+@REM Purpose:    Apply a GitHub download proxy when configured
+@REM Parameters: <result>, <rawUrl>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :applyGithubProxy <result> <rawUrl>
 set "%~1="
 call :trim rawUrl "%~2"
 if "!rawUrl!" == "" goto :eof
 
-@REM github proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
+@REM Apply the selected GitHub proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
 set proxy_urls[0]=https://ghfast.top
 set proxy_urls[1]=https://proxy.api.030101.xyz
 set proxy_urls[2]=https://git.udrone.vip
@@ -2573,11 +2739,11 @@ set proxy_urls[3]=https://gh.noki.icu
 set proxy_urls[4]=https://ghproxy.monkeyray.net
 set proxy_urls[5]=https://ghproxy.net
 
-@REM random [0, 5]
+@REM Pick a random index in [0, 5]
 set /a num=!random! %% 6
 set "ghProxy=!proxy_urls[%num%]!"
 
-@REM github proxy
+@REM Apply the selected GitHub proxy
 if "!rawUrl:~0,18!" == "https://github.com" set "rawUrl=!ghProxy!/!rawUrl!"
 if "!rawUrl:~0,33!" == "https://raw.githubusercontent.com" set "rawUrl=!ghProxy!/!rawUrl!"
 if "!rawUrl:~0,34!" == "https://gist.githubusercontent.com" set "rawUrl=!ghProxy!/!rawUrl!"
@@ -2585,8 +2751,11 @@ if "!rawUrl:~0,34!" == "https://gist.githubusercontent.com" set "rawUrl=!ghProxy
 set "%~1=!rawUrl!"
 goto :eof
 
-
-@REM search keywords with powershell
+@REM ============================================================================
+@REM Find matching config context lines
+@REM Purpose:    Find matching config context lines
+@REM Parameters: <filePath>, <regex>, <resultFile>, <lines>
+@REM ============================================================================
 :findByContext <filePath> <regex> <resultFile> <lines>
 call :trim filePath %~1
 if "!filePath!" == "" goto :eof
@@ -2603,7 +2772,12 @@ if not defined context (set "context=5")
 powershell -command "& {&'Get-Content' '!filePath!' | &'Select-String' -Pattern '!regex!' -Context !context!,!context! | &'Set-Content' -Encoding 'utf8' '!result!'}";
 goto :eof
 
-@REM query colon-separated config entry by findstr regex
+@REM ============================================================================
+@REM Find a colon-separated configuration entry
+@REM Purpose:    Find a colon-separated configuration entry
+@REM Parameters: <keyResult>, <valueResult>, <filePath>, <regex>
+@REM Returns:    Sets <keyResult> with the computed value or status
+@REM ============================================================================
 :findConfigEntry <keyResult> <valueResult> <filePath> <regex>
 set "%~1="
 set "%~2="
@@ -2636,8 +2810,12 @@ set "%~1=!key!"
 set "%~2=!value!"
 goto :eof
 
-
-@REM query colon-separated config entry by exact key and value pattern
+@REM ============================================================================
+@REM Find a configuration entry by key and value pattern
+@REM Purpose:    Find a configuration entry by key and value pattern
+@REM Parameters: <keyResult>, <valueResult>, <filePath>, <key>, <valuePattern>
+@REM Returns:    Sets <keyResult> with the computed value or status
+@REM ============================================================================
 :findConfigKeyEntry <keyResult> <valueResult> <filePath> <key> <valuePattern>
 set "%~1="
 set "%~2="
@@ -2667,7 +2845,12 @@ set "%~1=!key!"
 set "%~2=!value!"
 goto :eof
 
-@REM query value under a YAML section, e.g. geox-url.asn
+@REM ============================================================================
+@REM Find a YAML section value
+@REM Purpose:    Find a YAML section value
+@REM Parameters: <result>, <filePath>, <section>, <key>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :findYamlSectionValue <result> <filePath> <section> <key>
 set "%~1="
 call :trim filePath %~2
@@ -2707,7 +2890,12 @@ for /f "usebackq delims=" %%l in ("!filePath!") do (
 )
 goto :eof
 
-@REM remove leading and trailing quotes
+@REM ============================================================================
+@REM Remove surrounding quotes
+@REM Purpose:    Remove surrounding quotes
+@REM Parameters: <result>, <str>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :removeQuotes <result> <str>
 set "%~1="
 call :trim str "%~2"
@@ -2719,22 +2907,34 @@ if "!str:~-1!!str:~-1!" == "''" set "str=!str:~0,-1!"
 set "%~1=!str!"
 goto :eof
 
-
-@REM query value from yaml
+@REM ============================================================================
+@REM Parse a YAML value from the main configuration
+@REM Purpose:    Parse a YAML value from the main configuration
+@REM Parameters: <result>, <regex>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :parseYamlValue <result> <regex>
 call :findConfigEntry yamlKey "%~1" "!configFile!" "%~2"
 goto :eof
 
-@REM query value from geox-url section
+@REM ============================================================================
+@REM Parse a geox-url value
+@REM Purpose:    Parse a geox-url value
+@REM Parameters: <result>, <name>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :parseGeoxUrl <result> <name>
 call :findYamlSectionValue "%~1" "!configFile!" "geox-url" "%~2"
 goto :eof
 
-@REM reload config
+@REM ============================================================================
+@REM Reload proxy configuration through the API
+@REM Purpose:    Reload proxy configuration through the API
+@REM ============================================================================
 :reloadConfig
 if not exist "!configFile!" goto :eof
 
-@REM parse api server path
+@REM Parse the API server path
 if "!clashServer!" == "" call :extractControllerServer clashServer
 
 if "!clashServer!" == "" (
@@ -2744,17 +2944,17 @@ if "!clashServer!" == "" (
 
 set "clashApi=!clashServer!/configs?force=true"
 
-@REM secret
+@REM API secret
 call :parseYamlValue secret "secret:[ ][ ]*"
 
-@REM running detect
+@REM Detect whether the proxy is running
 call :isProcessRunning status
 
 if "!status!" == "1" (
-    @REM '\' to '\\'
+    @REM Escape backslashes for JSON
     set "filePath=!configFile:\=\\!"
 
-    @REM call api for reload
+    @REM Call the API to reload configuration
     set "statusCode=000"
     set "output=!temp!\clashout.txt"
     if exist "!output!" del /f /q "!output!" >nul 2>nul
@@ -2774,7 +2974,7 @@ if "!status!" == "1" (
         set "content="
 
         if exist "!output!" (
-            @REM read output
+            @REM Read API output
             for /f "delims=" %%a in (!output!) do set "content=%%a"
         )
 
@@ -2786,15 +2986,18 @@ if "!status!" == "1" (
         @echo.
     )
 
-    @REM delete
+    @REM Delete the item
     del /f /q "!output!" >nul 2>nul
 ) else (
     @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序%ESC%[91m未启动%ESC%[0m，可使用命令 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" 启动
 )
 goto :eof
 
-
-@REM update config
+@REM ============================================================================
+@REM Update the main configuration file
+@REM Purpose:    Update the main configuration file
+@REM Parameters: <force>
+@REM ============================================================================
 :updateConfig <force>
 call :trim force "%~1"
 if "!force!" == "" set "force=1"
@@ -2803,7 +3006,7 @@ if exist "!configFile!" if "!force!" == "0" goto :eof
 set "downloadPath=!temp!\clashconf.yaml"
 del /f /q "!downloadPath!" >nul 2>nul
 
-@REM extract remote config url
+@REM Extract the remote configuration URL
 set "subscriptionFile=!dest!\subscriptions.txt"
 set "subscription="
 
@@ -2824,7 +3027,7 @@ if "!enableRemoteConfig!" == "1" if "!remoteConfigUrl!" NEQ "" (
 
     call :resolveProxyExecutableName
     if exist "!dest!\!proxyExecutableName!" (
-        @REM check file
+        @REM Check the downloaded file
         for %%a in ("!downloadPath!") do set "fileSize=%%~za"
         if !fileSize! LSS 32 (
             del /f /q "!downloadPath!" >nul 2>nul
@@ -2832,10 +3035,10 @@ if "!enableRemoteConfig!" == "1" if "!remoteConfigUrl!" NEQ "" (
             exit /b 1
         )
 
-        @REM test config file
+        @REM Test the configuration file
         "!dest!\!proxyExecutableName!" -d "!dest!" -t -f "!downloadPath!" >nul 2>nul
 
-        @REM failed
+        @REM Handle failure
         if !errorlevel! NEQ 0 (
             @echo [%ESC%[91m错误%ESC%[0m] 配置文件 %ESC%[!warnColor!m!remoteConfigUrl!%ESC%[0m 存在错误，无法更新
             del /f /q "!downloadPath!" >nul 2>nul
@@ -2843,7 +3046,7 @@ if "!enableRemoteConfig!" == "1" if "!remoteConfigUrl!" NEQ "" (
         )
     )
 
-    @REM compare with md5
+    @REM Compare downloaded files with md5
     call :compareMd5 diff "!downloadPath!" "!configFile!"
     if "!diff!" == "0" (
         del /f /q "!downloadPath!" >nul 2>nul
@@ -2853,17 +3056,20 @@ if "!enableRemoteConfig!" == "1" if "!remoteConfigUrl!" NEQ "" (
     set "backupFile=config.yaml.bak"
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 发现较新配置，原有文件将备份为 %ESC%[!warnColor!m!dest!\!backupFile!%ESC%[0m
 
-    @REM backup
+    @REM Back up the current file
     del /f /q "!dest!\!backupFile!" >nul 2>nul
     ren "!configFile!" !backupFile!
 
-    @REM move new configration file to dest
+    @REM Move the new configuration file into place
     move "!downloadPath!" "!configFile!" >nul 2>nul
 )
 goto :eof
 
-
-@REM update rules
+@REM ============================================================================
+@REM Update managed rule provider files
+@REM Purpose:    Update managed rule provider files
+@REM Parameters: <force>
+@REM ============================================================================
 :updateRules <force>
 call :trim force "%~1"
 if "!force!" == "" set "force=1"
@@ -2875,8 +3081,12 @@ if "!force!" == "1" (
 call :refreshReferencedFiles changed "rule-providers" "!force!" ruleFiles "payload"
 goto :eof
 
-
-@REM count leading spaces for YAML indentation
+@REM ============================================================================
+@REM Count leading spaces in a line
+@REM Purpose:    Count leading spaces in a line
+@REM Parameters: <result>, <line>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :countLeadingSpaces <result> <line>
 set "%~1=0"
 set "indentText=%~2"
@@ -2888,8 +3098,11 @@ if "!indentText:~0,1!" == " " (
 )
 goto :eof
 
-
-@REM append a complete provider/ruleset entry as url|path
+@REM ============================================================================
+@REM Append a referenced provider entry
+@REM Purpose:    Append a referenced provider entry
+@REM Parameters: <resultFile>, <url>, <path>
+@REM ============================================================================
 :appendReferencedEntry <resultFile> <url> <path>
 call :trim entryUrl "%~2"
 call :trim entryPath "%~3"
@@ -2899,8 +3112,11 @@ if /i "!entryUrl:~0,7!" NEQ "http://" if /i "!entryUrl:~0,8!" NEQ "https://" got
 >>"%~1" echo !entryUrl!^|!entryPath!
 goto :eof
 
-
-@REM extract url/path pairs from a YAML provider section without slow per-line batch calls
+@REM ============================================================================
+@REM Extract referenced provider URL and path pairs
+@REM Purpose:    Extract referenced provider URL and path pairs
+@REM Parameters: <section>, <resultFile>
+@REM ============================================================================
 :extractReferencedEntries <section> <resultFile>
 call :trim extractSection "%~1"
 call :trim extractResult "%~2"
@@ -2911,8 +3127,12 @@ if not exist "!configFile!" goto :eof
 powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$section='!extractSection!'; $out='!extractResult!'; $lines=Get-Content -LiteralPath '!configFile!'; $inside=$false; $sectionIndent=-1; $itemIndent=-1; $propertyIndent=-1; $script:url=''; $script:path=''; function Reset-Entry {$script:url=''; $script:path=''; $script:propertyIndent=-1}; function Add-Entry {if (($script:url -match '^https?://') -and $script:path) {($script:url + '|' + $script:path) | Add-Content -Encoding utf8 -LiteralPath $out}}; foreach ($line in $lines) {$text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $indent=$line.Length - $line.TrimStart(' ').Length; if (-not $inside) {if ($text -ieq ($section + ':')) {$inside=$true; $sectionIndent=$indent; $itemIndent=-1; Reset-Entry}; continue}; if ($indent -le $sectionIndent) {Add-Entry; $inside=$false; $itemIndent=-1; Reset-Entry; if ($text -ieq ($section + ':')) {$inside=$true; $sectionIndent=$indent}; continue}; if ($itemIndent -lt 0) {$itemIndent=$indent; Reset-Entry} elseif ($indent -le $itemIndent) {Add-Entry; $itemIndent=$indent; Reset-Entry} else {if ($propertyIndent -lt 0) {$propertyIndent=$indent}; if ($indent -eq $propertyIndent) {$parts=$text -split ':',2; if ($parts.Count -eq 2) {$key=$parts[0].Trim(); $value=$parts[1].Trim().Trim([char]34).Trim([char]39); if ($key -ieq 'url') {$script:url=$value}; if ($key -ieq 'path') {$script:path=$value}}}}}; if ($inside) {Add-Entry}}"
 goto :eof
 
-
-@REM refresh subsribe and rulesets
+@REM ============================================================================
+@REM Refresh referenced subscription or rule files
+@REM Purpose:    Refresh referenced subscription or rule files
+@REM Parameters: <result>, <section>, <force>, <filePaths>, <check>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :refreshReferencedFiles <result> <section> <force> <filePaths> <check>
 set "%~1=0"
 call :trim sectionName "%~2"
@@ -2947,7 +3167,7 @@ for /f "usebackq tokens=1* delims=|" %%u in ("!tempFile!") do (
     call :trim url "%%u"
     call :trim rawPath "%%v"
 
-    @REM generate file path
+    @REM Generate the target file path
     call :convertToAbsolutePath targetFile "!rawPath!"
     if "!targetFile!" == "" (
         @echo [%ESC%[91m错误%ESC%[0m] 配置无效，订阅或代理规则更新失败
@@ -2959,35 +3179,35 @@ for /f "usebackq tokens=1* delims=|" %%u in ("!tempFile!") do (
         set "needDownload=0"
         if not exist "!targetFile!" set "needDownload=1"
         if "!force!" == "1" set "needDownload=1"
-        @REM should download
+        @REM Determine whether the file should be downloaded
         if "!needDownload!" == "1" (
-            @REM get directory
+            @REM Resolve the target directory
             call :splitPath filePath fileName "!targetFile!"
 
-            @REM mkdir if not exists
+            @REM Create the directory when missing
             call :createDirectories success "!filePath!"
 
-            @REM request and save
+            @REM Download and save the file
             del /f /q "!temp!\!fileName!" >nul 2>nul
             call :retryDownload "!url!" "!temp!\!fileName!"
 
-            @REM check file size
+            @REM Check the downloaded file size
             set "fileSize=0"
             if exist "!temp!\!fileName!" (
                 for %%a in ("!temp!\!fileName!") do set "fileSize=%%~za"
             )
 
-            @REM check file content
+            @REM Check the downloaded file content
             call :verifyFileSection match "!temp!\!fileName!" "!check!"
 
             if !fileSize! GTR 16 if "!match!" == "1" (
-                @REM delete if old file exists
+                @REM Delete the old file when present
                 del /f /q "!targetFile!" >nul 2>nul
 
-                @REM move new file to dest
+                @REM Move the new file into the destination directory
                 move "!temp!\!fileName!" "!filePath!" >nul 2>nul
 
-                @REM changed status
+                @REM Mark the change status
                 set "%~1=1"
             ) else (
                 @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!fileName!%ESC%[0m 下载失败，下载链接："!url!"
@@ -3000,7 +3220,11 @@ set "%~4=!filePaths!"
 if exist "!tempFile!" del /f /q "!tempFile!" >nul 2>nul
 goto :eof
 
-@REM extract dashboard path
+@REM ============================================================================
+@REM Extract the dashboard path from configuration
+@REM Purpose:    Extract the dashboard path from configuration
+@REM Parameters: <result>
+@REM ============================================================================
 :extractDashboardPath <result>
 set "%~1="
 
@@ -3008,7 +3232,7 @@ if not exist "!configFile!" goto :eof
 
 call :findConfigEntry keyName content "!configFile!" "external-ui:[ ][ ]*" 1
 
-@REM not found 'external-ui' configuration in config file
+@REM External-ui was not found in the configuration file
 if "!keyName!" NEQ "external-ui" (
     set "flag=1"
     if "!keyName!" NEQ "" set "flag=0"
@@ -3019,15 +3243,15 @@ if "!keyName!" NEQ "external-ui" (
 
     set "tmpConfig=!configFile!.tmp"
 
-    @REM append 'external-ui' configuration
+    @REM Add the external-ui configuration entry
     @echo external-ui: dashboard > "!tmpConfig!"
     type "!configFile!" >> "!tmpConfig!"
 
-    @REM replace config file
+    @REM Replace the configuration file
     del /f /q "!configFile!" >nul 2>nul
     move "!tmpConfig!" "!configFile!" >nul 2>nul
 
-    @REM reset
+    @REM Reset temporary state
     set "tmpConfig="
     set "content=dashboard"
 )
@@ -3039,7 +3263,12 @@ call :convertToAbsolutePath directory "!content!"
 set "%~1=!directory!"
 goto :eof
 
-@REM check file is validate
+@REM ============================================================================
+@REM Verify that a file contains a required section
+@REM Purpose:    Verify that a file contains a required section
+@REM Parameters: <result>, <file>, <check>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :verifyFileSection <result> <file> <check>
 set "%~1=0"
 call :trim candidate "%~2"
@@ -3055,14 +3284,17 @@ if "!check!" == "" (
 set "text="
 for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"!check!:[ ]*" "!candidate!"') do set "text=%%a"
 
-@REM not required
+@REM Skip when not required
 call :trim text "!text!"
 
 if "!text!" == "!check!" set "%~1=1"
 goto :eof
 
-
-@REM upgrade dashboard
+@REM ============================================================================
+@REM Download and replace the dashboard files
+@REM Purpose:    Download and replace the dashboard files
+@REM Parameters: <force>
+@REM ============================================================================
 :updateDashboard <force>
 call :trim force "%~1"
 if "!force!" == "" set "force=0"
@@ -3079,7 +3311,7 @@ if "!dashboard!" == "" (
     goto :eof
 )
 
-@REM exists
+@REM Existing file check
 if exist "!dashboard!\index.html" if "!force!" == "0" goto :eof
 call :createDirectories success "!dashboard!"
 
@@ -3091,11 +3323,11 @@ if not exist "!temp!\dashboard.zip" (
     goto :eof
 )
 
-@REM unzip
+@REM Extract the archive
 tar -xzf "!temp!\dashboard.zip" -C !temp! >nul 2>nul
 del /f /q "!temp!\dashboard.zip" >nul 2>nul
 
-@REM base path and directory name
+@REM Resolve base path and directory name
 call :splitPath dashPath dashName "!dashboard!"
 if "!dashPath!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板保存路径
@@ -3107,10 +3339,10 @@ if "!dashName!" == "" (
     goto :eof
 )
 
-@REM rename
+@REM Rename the extracted directory
 ren "!temp!\!dashboardDirectory!" !dashName!
 
-@REM replace if dashboard download success
+@REM Replace dashboard files after a successful download
 dir /a /s /b "!temp!\!dashName!" | findstr . >nul && (
     call :replaceDirectory "!temp!\!dashName!" "!dashboard!"
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 控制面板已更新至最新版本
@@ -3119,8 +3351,11 @@ dir /a /s /b "!temp!\!dashName!" | findstr . >nul && (
 )
 goto :eof
 
-
-@REM overwrite files
+@REM ============================================================================
+@REM Replace one directory with another
+@REM Purpose:    Replace one directory with another
+@REM Parameters: <src>, <dest>
+@REM ============================================================================
 :replaceDirectory <src> <dest>
 set "src=%~1"
 set "target=%~2"
@@ -3140,18 +3375,20 @@ if not exist "!src!" (
     goto :eof
 )
 
-@REM delete old folder if exists
+@REM Delete the old folder when present
 if exist "!target!" rd "!target!" /s /q >nul 2>nul
 
-@REM copy to dest
+@REM Copy files to the destination
 xcopy "!src!" "!target!" /h /e /y /q /i >nul 2>nul
 
-@REM delete source dashboard
+@REM Delete the item source dashboard
 rd "!src!" /s /q >nul 2>nul
 goto :eof
 
-
-@REM delete if file exists
+@REM ============================================================================
+@REM Clean temporary update files
+@REM Purpose:    Clean temporary update files
+@REM ============================================================================
 :cleanWorkspace
 set "directory=%~1"
 if "!directory!" == "" set "directory=!temp!"
@@ -3160,7 +3397,7 @@ if exist "!directory!\clash.zip" del /f /q "!directory!\clash.zip" >nul
 if exist "!directory!\!clashExecutableName!" del /f /q "!directory!\!clashExecutableName!" >nul
 if exist "!directory!\!mihomoExecutableName!" del /f /q "!directory!\!mihomoExecutableName!" >nul
 
-@REM wintun
+@REM Wintun
 if exist "!directory!\wintun.zip" del /f /q "!directory!\wintun.zip"
 if exist "!directory!\wintun" rd "!directory!\wintun" /s /q >nul 2>nul
 
@@ -3184,7 +3421,7 @@ if "!geoIpFile!" NEQ "" (
     if exist "!directory!\!geoIpFile!" del /f /q "!directory!\!geoIpFile!" >nul
 )
 
-@REM delete directory
+@REM Delete the item directory
 if "!dashboardDirectory!" NEQ "" (
     if exist "!directory!\!dashboardDirectory!" rd "!directory!\!dashboardDirectory!" /s /q >nul
 )
@@ -3194,35 +3431,43 @@ if exist "!directory!\!dashboard!.zip" del /f /q "!directory!\!dashboard!.zip" >
 if exist "!directory!\!dashboard!" rd "!directory!\!dashboard!" /s /q >nul 2>nul
 goto :eof
 
-
-@REM replace '\\' to '\' for directory
+@REM ============================================================================
+@REM Normalize path separators
+@REM Purpose:    Normalize path separators
+@REM Parameters: <result>, <directory>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :normalizePath <result> <directory>
 set "%~1="
 call :trim directory "%~2"
 
 if "!directory!" == "" goto :eof
 
-@REM '\\' to '\'
+@REM Collapse duplicate backslashes
 set "directory=!directory:\\=\!"
 
-@REM '/' to '\'
+@REM Convert forward slashes to backslashes
 set "directory=!directory:/=\!"
 
-@REM remove last '\'
+@REM Remove a trailing backslash
 if "!directory:~-1!" == "\" set "directory=!directory:~0,-1!"
 set "%~1=!directory!"
 goto :eof
 
-
-@REM define exit function
+@REM ============================================================================
+@REM Exit with an update failure message
+@REM Purpose:    Exit with an update failure message
+@REM ============================================================================
 :terminate
 @echo [%ESC%[91m错误%ESC%[0m] 更新失败，代理程序、域名及 IP 地址数据库或控制面板缺失
 call :cleanWorkspace "!temp!"
 exit /b 1
 goto :eof
 
-
-@REM close
+@REM ============================================================================
+@REM Close the running proxy program
+@REM Purpose:    Close the running proxy program
+@REM ============================================================================
 :closeProxy
 call :isProcessRunning status
 if "!status!" == "0" (
@@ -3240,8 +3485,10 @@ if "!msTerminal!" == "1" (
 if !errorlevel! == 2 exit /b 1
 goto :killProcessWrapper
 
-
-@REM Initialize ANSI color support for console output
+@REM ============================================================================
+@REM Initialize ANSI escape sequence support
+@REM Purpose:    Initialize ANSI escape sequence support
+@REM ============================================================================
 :setEsc
 for /F "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1) do rem"') do (
   set ESC=%%b
@@ -3249,8 +3496,11 @@ for /F "tokens=1,2 delims=#" %%a in ('"prompt #$H#$E# & echo on & for %%b in (1)
 )
 exit /b 0
 
-
-@REM set proxy
+@REM ============================================================================
+@REM Enable the Windows system proxy
+@REM Purpose:    Enable the Windows system proxy
+@REM Parameters: <server>
+@REM ============================================================================
 :enableSystemProxy <server>
 call :trim server "%~1"
 if "!server!" == "" goto :eof
@@ -3260,30 +3510,37 @@ reg add "!proxyRegPath!" /v ProxyServer /t REG_SZ /d "!server!" /f >nul 2>nul
 reg add "!proxyRegPath!" /v ProxyOverride /t REG_SZ /d "<local>" /f >nul 2>nul
 goto :eof
 
-
-@REM cancel proxy
+@REM ============================================================================
+@REM Disable the Windows system proxy
+@REM Purpose:    Disable the Windows system proxy
+@REM ============================================================================
 :disableSystemProxy
 reg add "!proxyRegPath!" /v ProxyServer /t REG_SZ /d "" /f >nul 2>nul
 reg add "!proxyRegPath!" /v ProxyEnable /t REG_DWORD /d 0 /f >nul 2>nul
 reg add "!proxyRegPath!" /v ProxyOverride /t REG_SZ /d "" /f >nul 2>nul
 goto :eof
 
-
-@REM query proxy status
+@REM ============================================================================
+@REM Read the current Windows system proxy
+@REM Purpose:    Read the current Windows system proxy
+@REM Parameters: <result>
+@REM ============================================================================
 :getSystemProxy <result>
 set "%~1="
 
-@REM enabled
+@REM Read the enabled flag
 call :queryRegistry enable "!proxyRegPath!" "ProxyEnable" "REG_DWORD"
 if "!enable!" NEQ "0x1" goto :eof
 
-@REM proxy server
+@REM Read the proxy server
 call :queryRegistry server "!proxyRegPath!" "ProxyServer" "REG_SZ"
 if "!server!" NEQ "" set "%~1=!server!"
 goto :eof
 
-
-@REM auto start when user login
+@REM ============================================================================
+@REM Configure startup at user login
+@REM Purpose:    Configure startup at user login
+@REM ============================================================================
 :configureAutostart
 call :queryRegistry exeName "!autostartRegPath!" "Clash" "REG_SZ"
 if "!startupVbs!" NEQ "!exeName!" (
@@ -3312,8 +3569,11 @@ if "!startupVbs!" NEQ "!exeName!" (
 )
 goto :eof
 
-
-@REM disable auto start
+@REM ============================================================================
+@REM Disable startup at user login
+@REM Purpose:    Disable startup at user login
+@REM Parameters: <result>
+@REM ============================================================================
 :disableAutostart <result>
 set "%~1=0"
 call :queryRegistry exeName "!autostartRegPath!" "Clash" "REG_SZ"
@@ -3336,14 +3596,17 @@ if "!exeName!" == "" (
         reg delete "!autostartRegPath!" /v "Clash" /f >nul 2>nul
         if "!errorlevel!" == "0" set "%~1=1"
 
-        @REM disable
+        @REM Disable the integration
         reg delete "!startupApprovedRegPath!" /v "Clash" /f >nul 2>nul
     )
 )
 goto :eof
 
-
-@REM add scheduled tasks
+@REM ============================================================================
+@REM Configure scheduled automatic updates
+@REM Purpose:    Configure scheduled automatic updates
+@REM Parameters: <refresh>
+@REM ============================================================================
 :configureAutoUpdate <refresh>
 call :trim refresh "%~1"
 if "!refresh!" == "" set "refresh=0"
@@ -3362,13 +3625,13 @@ if "!ready!" == "0" (
     )
     if !errorlevel! == 2 exit /b 1
 
-    @REM generate vbs for update
+    @REM Generate the update VBS script
     call :generateUpdateVbs
 
-    @REM delete old task
+    @REM Delete the old scheduled task
     call :deleteScheduledTask success "!taskName!"
 
-    @REM create new task
+    @REM Create the new scheduled task
     call :createScheduledTask success "!updateVbs!" "!taskName!"
     if "!success!" == "1" (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 自动检查更新设置%ESC%[!infoColor!m成功%ESC%[0m
@@ -3378,8 +3641,10 @@ if "!ready!" == "0" (
 )
 goto :eof
 
-
-@REM generate vbs for update
+@REM ============================================================================
+@REM Generate the scheduled update script
+@REM Purpose:    Generate the scheduled update script
+@REM ============================================================================
 :generateUpdateVbs
 set "operation=-u"
 if "!useClashMeta!" == "1" set "operation=!operation! -m"
@@ -3389,13 +3654,17 @@ if "!yacd!" == "1" set "operation=!operation! -y"
 if "!metaCubeXDashboard!" == "1" set "operation=!operation! -x"
 if "!zashboard!" == "1" set "operation=!operation! -z"
 
-@REM generate and write to file
+@REM Generate and write the script file
 call :generateStartupVbs "!updateVbs!" "!operation!"
 
 goto :eof
 
-
-@REM create scheduled tasks
+@REM ============================================================================
+@REM Create the scheduled update task
+@REM Purpose:    Create the scheduled update task
+@REM Parameters: <result>, <path>, <taskName>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :createScheduledTask <result> <path> <taskName>
 set "%~1=0"
 call :trim exeName "%~2"
@@ -3404,22 +3673,25 @@ if "!exeName!" == "" goto :eof
 call :trim taskName "%~3"
 if "!taskName!" == "" goto :eof
 
-@REM input start time
+@REM Resolve the task start time
 call :promptScheduleTime startTime
 
-@REM create
+@REM Create the task
 schtasks /create /tn "!taskName!" /tr "!exeName!" /sc daily /mo 1 /ri 480 /st !startTime! /du 0012:00 /f >nul 2>nul
 if "!errorlevel!" == "0" set "%~1=1"
 goto :eof
 
-
-@REM prompt user input task start time
+@REM ============================================================================
+@REM Prompt for the scheduled update time
+@REM Purpose:    Prompt for the scheduled update time
+@REM Parameters: <time>
+@REM ============================================================================
 :promptScheduleTime <time>
 set "%~1="
 set "userTime="
 set "defaultTime=09:15"
 
-@REM choose
+@REM Choose whether to customize the time
 set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 正在设置更新时间，默认为 %ESC%[!warnColor!m09:15%ESC%[0m，是否需要修改？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
 if "!msTerminal!" == "1" (
     choice /c yn /n /d n /t 5 /m "!tips!"
@@ -3433,13 +3705,17 @@ if !errorlevel! == 2 (
     goto :eof
 )
 
-@REM prompt user input time
+@REM Prompt for a time value
 call :promptTimeInput inputTime "!defaultTime!" 0
 set "%~1=!inputTime!"
 goto :eof
 
-
-@REM input and validate
+@REM ============================================================================
+@REM Prompt for a time value
+@REM Purpose:    Prompt for a time value
+@REM Parameters: <result>, <default>, <retry>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :promptTimeInput <result> <default> <retry>
 set "%~1="
 
@@ -3454,16 +3730,20 @@ if "!retryFlag!" == "1" (
 set /p "userInput=!tips!"
 if not defined userInput (set "userInput=%~2")
 
-@REM validate user input
+@REM Validate user input
 call :validateTimeInput "%~1" "%~2" "!userInput!"
 goto :eof
 
-
-@REM validate user input time
+@REM ============================================================================
+@REM Validate a time value
+@REM Purpose:    Validate a time value
+@REM Parameters: <result>, <default>, <input>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :validateTimeInput <result> <default> <input>
 set "%~1="
 
-@REM trim user input
+@REM Trim user input
 call :trim userTime "%~3"
 
 set "validFlag=0"
@@ -3482,8 +3762,12 @@ for /f "tokens=1-2 delims=:" %%a in ("!userTime!") do (
 if "!validFlag!" == "0" (call :promptTimeInput "%~1" "%~2" 1) else (set "%~1=!userTime!")
 goto :eof
 
-
-@REM check if a variable is zero or a positive integer
+@REM ============================================================================
+@REM Check whether a value is a non-negative integer
+@REM Purpose:    Check whether a value is a non-negative integer
+@REM Parameters: <result>, <variable>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :isNumber <result> <variable>
 set "%~1=0"
 call :trim variable "%~2"
@@ -3492,18 +3776,22 @@ call :trim variable "%~2"
 
 goto :eof
 
-
-@REM query scheduled tasks
+@REM ============================================================================
+@REM Read scheduled task status
+@REM Purpose:    Read scheduled task status
+@REM Parameters: <status>, <taskName>
+@REM Returns:    Sets <status> with the computed value or status
+@REM ============================================================================
 :getTaskStatus <status> <taskName>
 set "%~1=0"
 call :trim taskName "%~2"
 if "!taskName!" == "" goto :eof
 
-@REM query
+@REM Query the current value
 schtasks /query /tn "!taskName!" >nul 2>nul
 if "!errorlevel!" NEQ "0" goto :eof
 
-@REM compare script path is same as current path
+@REM Compare the scheduled script path with the current script path
 set "commandPath="
 for /f "tokens=3 delims=<>" %%a in ('schtasks /query /tn "!taskName!" /xml ^| findstr "<Command>"') do set "commandPath=%%a"
 call :trim commandPath "!commandPath!"
@@ -3518,28 +3806,32 @@ if "!status!" == "Ready" set "%~1=1"
 
 goto :eof
 
-
-@REM delete update tasks
+@REM ============================================================================
+@REM Delete the scheduled update task
+@REM Purpose:    Delete the scheduled update task
+@REM Parameters: <result>, <taskName>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :deleteScheduledTask <result> <taskName>
 set "%~1=0"
 call :trim taskName "%~2"
 if "!taskName!" == "" goto :eof
 
 schtasks /query /tn "!taskName!" >nul 2>nul
-@REM not found
+@REM Item not found
 if "!errorlevel!" NEQ "0" (
     set "%~1=1"
     goto :eof
 )
 
-@REM remove
+@REM Remove the item
 call :runElevated "goto :cancelScheduledTask !taskName!" 0
 
-@REM get delete status
+@REM Check deletion status
 for /l %%i in (1,1,5) do (
     schtasks /query /tn "!taskName!" >nul 2>nul
     if "!errorlevel!" == "0" (
-        @REM wait
+        @REM Wait before continuing
         timeout /t 1 /nobreak >nul 2>nul
     ) else (
         set "%~1=1"
@@ -3548,40 +3840,50 @@ for /l %%i in (1,1,5) do (
 )
 goto :eof
 
-
-@REM remove scheduled task
+@REM ============================================================================
+@REM Cancel a scheduled task using elevation
+@REM Purpose:    Cancel a scheduled task using elevation
+@REM Parameters: <taskName>
+@REM ============================================================================
 :cancelScheduledTask <taskName>
-@REM delete
+@REM Delete the item
 schtasks /delete /tn "%~1" /f  >nul 2>nul
 
-@REM get administrator privileges
+@REM Request administrator privileges
 call :enableNoPromptRunAs result
 goto :eof
 
-
-@REM add to
+@REM ============================================================================
+@REM Register the startup script
+@REM Purpose:    Register the startup script
+@REM Parameters: <result>, <path>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :registerStartupScript <result> <path>
 set "%~1=0"
 call :trim exeName "%~2"
 if "!exeName!" == "" goto :eof
 if not exist "!exeName!" goto :eof
 
-@REM delete
+@REM Delete the item
 reg delete "!autostartRegPath!" /v "Clash" /f >nul 2>nul
-@REM register
+@REM Register the startup command
 reg add "!autostartRegPath!" /v "Clash" /t "REG_SZ" /d "!exeName!" >nul 2>nul
 if "!errorlevel!" NEQ "0" goto :eof
 
-@REM approved
+@REM Approve startup in StartupApproved
 reg delete "!startupApprovedRegPath!" /v "Clash" /f >nul 2>nul
-@REM register
+@REM Register the startup command
 reg add "!startupApprovedRegPath!" /v "Clash" /t "REG_BINARY" /d "02 00 00 00 00 00 00 00 00 00 00 00" >nul 2>nul
 
 if "!errorlevel!" == "0" set "%~1=1"
 goto :eof
 
-
-@REM vbs for startup
+@REM ============================================================================
+@REM Generate the startup VBS script
+@REM Purpose:    Generate the startup VBS script
+@REM Parameters: <path>, <operation>
+@REM ============================================================================
 :generateStartupVbs <path> <operation>
 call :trim startScript "%~1"
 if "!startScript!" == "" goto :eof
@@ -3594,8 +3896,11 @@ if "!operation!" == "" goto :eof
 @echo set ws = Nothing >> "!startScript!"
 goto :eof
 
-
-@REM judge os caption
+@REM ============================================================================
+@REM Detect whether Windows Home edition is running
+@REM Purpose:    Detect whether Windows Home edition is running
+@REM Parameters: <result>
+@REM ============================================================================
 :isHomeEdition <result>
 set "%~1=1"
 
@@ -3611,8 +3916,11 @@ if "!content!" NEQ "2" if "!content!" NEQ "3" if "!content!" NEQ "5" if "!conten
 )
 goto :eof
 
-
-@REM enable run as admin
+@REM ============================================================================
+@REM Enable silent RunAs policy when possible
+@REM Purpose:    Enable silent RunAs policy when possible
+@REM Parameters: <result>
+@REM ============================================================================
 :enableSilentRunAs <result>
 set "%~1=1"
 
@@ -3621,23 +3929,26 @@ if "!edition!" == "0" goto :eof
 
 set "packagesFile=!temp!\grouppolicypackages.txt"
 
-@REM find all groupPolicyRegPath pakcages
+@REM Find Group Policy package files
 dir /b "C:\Windows\servicing\Packages\Microsoft-Windows-GroupPolicy-ClientExtensions-Package~3*.mum" > "!packagesFile!"
 dir /b "C:\Windows\servicing\Packages\Microsoft-Windows-GroupPolicy-ClientTools-Package~3*.mum" >> "!packagesFile!"
 
-@REM install
+@REM Install the package files
 for /f %%i in ('findstr /i . "!packagesFile!" 2^>nul') do dism /online /norestart /add-package:"C:\Windows\servicing\Packages\%%i" >nul 2>nul
 if "!errorlevel!" NEQ "0" set "%~1=0"
 
 del /f /q "!packagesFile!" >nul 2>nul
 goto :eof
 
-
-@REM no prompt when run as admin
+@REM ============================================================================
+@REM Disable UAC prompts for administrator elevation
+@REM Purpose:    Disable UAC prompts for administrator elevation
+@REM Parameters: <result>
+@REM ============================================================================
 :enableNoPromptRunAs <result>
 set "%~1=0"
 
-@REM regedit path and key
+@REM Registry path and key
 set "groupPolicyRegPath=HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System"
 set "groupPolicyRunAsKey=ConsentPromptBehaviorAdmin"
 
@@ -3650,14 +3961,16 @@ if "!code!" == "0x0" (
 call :enableSilentRunAs enable
 if "!enable!" == "0" goto :eof
 
-@REM change regedit
+@REM Update the registry value
 reg delete "!groupPolicyRegPath!" /v ConsentPromptBehaviorAdmin /f >nul 2>nul
 reg add "!groupPolicyRegPath!" /v ConsentPromptBehaviorAdmin /t REG_DWORD /d 0 /f >nul 2>nul
 if "!errorlevel!" == "0" set "%~1=1"
 goto :eof
 
-
-@REM clean data
+@REM ============================================================================
+@REM Remove proxy settings and generated integration
+@REM Purpose:    Remove proxy settings and generated integration
+@REM ============================================================================
 :purge
 set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] 即将关闭系统代理并禁用开机自启，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
 if "!msTerminal!" == "1" (
@@ -3668,49 +3981,53 @@ if "!msTerminal!" == "1" (
 )
 if !errorlevel! == 2 exit /b 1
 
-@REM close system proxy
+@REM Disable the system proxy
 call :disableSystemProxy
 
-@REM disable auto start
+@REM Disable startup at user login
 call :disableAutostart success
 if "!success!" == "0" (
     @echo [%ESC%[91m错误%ESC%[0m] 开机自启%ESC%[91m禁用失败%ESC%[0m，可在%ESC%[!warnColor!m任务管理中心%ESC%[0m手动设置
 )
 
-@REM delete scheduled
+@REM Delete the scheduled update task
 call :deleteScheduledTask success "ClashUpdater"
 if "!success!" == "0" (
     @echo [%ESC%[91m错误%ESC%[0m] 自动检查跟新取消%ESC%[91m失败%ESC%[0m，可在%ESC%[!warnColor!m任务计划程序%ESC%[0m中手动删除
 )
 
-@REM stop process
+@REM Stop the proxy process
 call :killProcessWrapper
 
-@REM remote shortcut
+@REM Remove the desktop shortcut
 call :deleteDesktopShortcut
 
 @echo [%ESC%[!infoColor!m信息%ESC%[0m] 清理%ESC%[!infoColor!m完毕%ESC%[0m, bye~
 goto :eof
 
-
-@REM query value form register
+@REM ============================================================================
+@REM Read a registry value
+@REM Purpose:    Read a registry value
+@REM Parameters: <result>, <path>, <key>, <type>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :queryRegistry <result> <path> <key> <type>
 set "%~1="
 set "value="
 
-@REM path
+@REM Registry path
 call :trim registryPath "%~2"
 if "!registryPath!" == "" goto :eof
 
-@REM key
+@REM Registry key
 call :trim registryKey "%~3"
 if "!registryKey!" == "" goto :eof
 
-@REM type
+@REM Registry value type
 call :trim registryType "%~4"
 if "!registryType!" == "" set "registryType=REG_SZ"
 
-@REM query
+@REM Query the current value
 reg query "!registryPath!" /V "!registryKey!" >nul 2>nul
 if "!errorlevel!" NEQ "0" goto :eof
 
@@ -3719,8 +4036,12 @@ call :trim value "!value!"
 set "%~1=!value!"
 goto :eof
 
-
-@REM icon generation
+@REM ============================================================================
+@REM Download the application icon
+@REM Purpose:    Download the application icon
+@REM Parameters: <result>, <iconName>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :downloadIcon <result> <iconName>
 set "%~1=0"
 
@@ -3738,8 +4059,12 @@ if exist "!iconTempFile!" (
 )
 goto :eof
 
-
-@REM create desktop shortcut
+@REM ============================================================================
+@REM Create a Windows shortcut
+@REM Purpose:    Create a Windows shortcut
+@REM Parameters: <result>, <linkDest>, <target>, <iconName>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :createShortcut <result> <linkDest> <target> <iconName>
 set "%~1=0"
 call :trim linkDest "%~2"
@@ -3770,8 +4095,10 @@ del /f /q "!vbsPath!"
 ) >nul
 goto :eof
 
-
-@REM send to desktop
+@REM ============================================================================
+@REM Create the desktop shortcut
+@REM Purpose:    Create the desktop shortcut
+@REM ============================================================================
 :createDesktopShortcut
 if "!enableShortcut!" == "0" goto :eof
 
@@ -3779,7 +4106,7 @@ set "iconName=clash.ico"
 set "linkDest=!HOMEDRIVE!!HOMEPATH!\Desktop\Clash.lnk"
 
 set "exePath="
-@REM parse target if link exists
+@REM Parse the existing shortcut target
 if exist "!linkDest!" (
     for /f "delims=" %%a in ('wmic path win32_shortcutfile where "name='!linkDest:\=\\!'" get target /value') do (
         for /f "tokens=2 delims==" %%b in ("%%~a") do set "exePath=%%b"
@@ -3814,15 +4141,20 @@ if "!finished!" == "0" (
 )
 goto :eof
 
-
-@REM remove shortcut from desktop
+@REM ============================================================================
+@REM Delete the desktop shortcut
+@REM Purpose:    Delete the desktop shortcut
+@REM ============================================================================
 :deleteDesktopShortcut
 set "linkPath=!HOMEDRIVE!!HOMEPATH!\Desktop\Clash.lnk"
 del /f /q "!linkPath!" >nul 2>nul
 goto :eof
 
-
-@REM determine whether it is a microsoft terminal
+@REM ============================================================================
+@REM Detect whether the script runs in Windows Terminal
+@REM Purpose:    Detect whether the script runs in Windows Terminal
+@REM Parameters: <result>
+@REM ============================================================================
 :isMicrosoftTerminal <result>
 set "%~1=0"
 
@@ -3844,16 +4176,20 @@ if /i "!output!" == "WindowsTerminal" (
 )
 goto :eof
 
-
-@REM get current terminal name
+@REM ============================================================================
+@REM Get the current terminal process name
+@REM Purpose:    Get the current terminal process name
+@REM Parameters: <result>, <num>
+@REM Returns:    Sets <result> with the computed value or status
+@REM ============================================================================
 :getTerminalName <result> <num>
 set "%~1="
 call :trim num "%~2"
 if "!num!" == "" set "num=3"
 
-@REM set "psCommand=$current = Get-CimInstance -ClassName win32_process -filter ('ProcessID='+$pid); $parent = Get-Process -id ($current.parentprocessID); if ($parent.ProcessName -eq 'WindowsTerminal') {echo 'true';} else {$cimgrandparent = Get-CimInstance -ClassName win32_process -filter ('Processid='+($($parent.id))); $grandparent = Get-Process -id ($cimgrandparent.parentProcessId); if (($grandparent.processname) -eq 'WindowsTerminal') {echo 'true';} else {echo 'false';}}"
+@REM Set "psCommand=$current = Get-CimInstance -ClassName win32_process -filter ('ProcessID='+$pid); $parent = Get-Process -id ($current.parentprocessID); if ($parent.ProcessName -eq 'WindowsTerminal') {echo 'true';} else {$cimgrandparent = Get-CimInstance -ClassName win32_process -filter ('Processid='+($($parent.id))); $grandparent = Get-Process -id ($cimgrandparent.parentProcessId); if (($grandparent.processname) -eq 'WindowsTerminal') {echo 'true';} else {echo 'false';}}"
 
-@REM reference: https://stackoverflow.com/questions/53447286/in-a-cmd-batch-file-can-i-determine-if-it-was-run-from-powershell
+@REM Reference: https://stackoverflow.com/questions/53447286/in-a-cmd-batch-file-can-i-determine-if-it-was-run-from-powershell
 set "psCommand=$ppid=$pid;while($i++ -lt !num! -and ($ppid=(Get-CimInstance Win32_Process -Filter ('ProcessID='+$ppid)).ParentProcessId)) {}; (Get-Process -EA Ignore -ID $ppid).Name"
 
 for /f "tokens=*" %%a in ('powershell -noprofile -command "!psCommand!"') do set "%~1=%%a"
