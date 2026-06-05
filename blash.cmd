@@ -3951,12 +3951,12 @@ goto :eof
 set "%~1=1"
 
 set "content="
-for /f %%a in ('wmic os get OperatingSystemSKU ^| findstr /r /i /c:"^[1-9][0-9]*"') do set "content=%%a"
+for /f %%a in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).OperatingSystemSKU"') do set "content=%%a"
 call :trim content "!content!"
 
 @REM 2/3/5/26 represent home edition
 if "!content!" NEQ "2" if "!content!" NEQ "3" if "!content!" NEQ "5" if "!content!" NEQ "26" (
-    for /f "delims=" %%a in ('wmic os get caption ^| findstr /i /c:"pro" /c:"professional"') do set "content=%%a"
+    for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption" ^| findstr /i /c:"pro" /c:"professional"') do set "content=%%a"
     call :trim content "!content!"
     if "!content!" NEQ "" set "%~1=0"
 )
@@ -4154,9 +4154,9 @@ set "linkDest=!HOMEDRIVE!!HOMEPATH!\Desktop\Clash.lnk"
 set "exePath="
 @REM Parse the existing shortcut target
 if exist "!linkDest!" (
-    for /f "delims=" %%a in ('wmic path win32_shortcutfile where "name='!linkDest:\=\\!'" get target /value') do (
-        for /f "tokens=2 delims==" %%b in ("%%~a") do set "exePath=%%b"
-    )
+    set "shortcutPath=!linkDest!"
+    for /f "usebackq delims=" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($env:shortcutPath); $shortcut.TargetPath"`) do set "exePath=%%a"
+    set "shortcutPath="
 )
 
 call :trim exePath "!exePath!"
@@ -4243,5 +4243,3 @@ goto :eof
 
 
 endlocal
-
-
