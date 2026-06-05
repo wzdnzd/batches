@@ -1096,7 +1096,7 @@ set "cfgExternalUiUrl="
 set "cfgSummaryFile=!temp!\clash-config-summary.txt"
 del /f /q "!cfgSummaryFile!" >nul 2>nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$config='!configFile!'; $out='!cfgSummaryFile!'; $subs='%~1'; $vars=[ordered]@{cfgHasSmartGroup='0';cfgHasSmartPreferAsn='0';cfgHasAsnRule='0';cfgHasGeoSiteRule='0';cfgHasMetaRule='0';cfgHasScriptRule='0';cfgHasSniffer='0';cfgHasExcludeFilter='0';cfgHasMetaProxy='0';cfgUseLightGbm='';cfgLgbmUrl='';cfgGeoSiteUrl='';cfgGeoDataMode='false';cfgCountryUrl='';cfgGeoIpUrl='';cfgGeoAsnUrl='';cfgExternalUiUrl=''}; function CleanValue([string]$value) {if ($null -eq $value) {return ''}; return $value.Trim().Trim([char]34).Trim([char]39)}; function Read-Lines([string]$path) {if ($path -and (Test-Path -LiteralPath $path)) {Get-Content -LiteralPath $path}}; $files=@($config); if ($subs) {$files += $subs -split ','}; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); $isRule=$lower.StartsWith('- '); if ($lower -eq 'type: smart') {$vars.cfgHasSmartGroup='1'}; if ($lower -eq 'prefer-asn: true') {$vars.cfgHasSmartPreferAsn='1'}; if ($lower.StartsWith('- ip-asn,') -or $lower.StartsWith('- src-ip-asn,')) {$vars.cfgHasAsnRule='1'}; if ($isRule -and ($lower -like '*geosite,*')) {$vars.cfgHasGeoSiteRule='1'}; if ($isRule -and ($lower -like '*sub-rule,*' -or $lower -like '*and,*' -or $lower -like '*or,*' -or $lower -like '*not,*' -or $lower -like '*in-type,*')) {$vars.cfgHasMetaRule='1'}; if ($isRule -and ($lower -like '*script,*')) {$vars.cfgHasScriptRule='1'}; if ($lower -eq 'sniffer:') {$vars.cfgHasSniffer='1'}; if ($lower.StartsWith('exclude-filter:')) {$vars.cfgHasExcludeFilter='1'}; if ($lower.StartsWith('uselightgbm:')) {$vars.cfgUseLightGbm=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('lgbm-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgLgbmUrl=$value}}; if ($lower.StartsWith('geosite:')) {$vars.cfgGeoSiteUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geodata-mode:')) {$vars.cfgGeoDataMode=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('mmdb:')) {$vars.cfgCountryUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geoip:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgGeoIpUrl=$value}}; if ($lower.StartsWith('external-ui-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgExternalUiUrl=$value}}}; $insideGeox=$false; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; if ($text -ieq 'geox-url:') {$insideGeox=$true; continue}; if ($insideGeox) {if ((-not $line.StartsWith(' ')) -and (-not $line.StartsWith('-'))) {$insideGeox=$false; continue}; $parts=$text -split ':',2; if ($parts.Count -eq 2 -and $parts[0].Trim() -ieq 'asn') {$vars.cfgGeoAsnUrl=CleanValue $parts[1]}}}; foreach ($file in $files) {foreach ($raw in Read-Lines $file) {$text=([string]$raw).Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); if ($lower -match '^(type:\s+(vless|hysteria)|client-fingerprint:|flow:\s+xtls-)') {$vars.cfgHasMetaProxy='1'}}}; $vars.GetEnumerator() | ForEach-Object {($_.Key + '=' + $_.Value)} | Set-Content -Encoding utf8 -LiteralPath $out}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$config='!configFile!'; $out='!cfgSummaryFile!'; $subs='%~1'; $vars=[ordered]@{cfgHasSmartGroup='0';cfgHasSmartPreferAsn='0';cfgHasAsnRule='0';cfgHasGeoSiteRule='0';cfgHasMetaRule='0';cfgHasScriptRule='0';cfgHasSniffer='0';cfgHasExcludeFilter='0';cfgHasMetaProxy='0';cfgUseLightGbm='';cfgLgbmUrl='';cfgGeoSiteUrl='';cfgGeoDataMode='false';cfgCountryUrl='';cfgGeoIpUrl='';cfgGeoAsnUrl='';cfgExternalUiUrl=''}; function CleanValue([string]$value) {if ($null -eq $value) {return ''}; return $value.Trim().Trim([char]34).Trim([char]39)}; function Read-Lines([string]$path) {if ($path -and (Test-Path -LiteralPath $path)) {Get-Content -LiteralPath $path}}; $files=@($config); if ($subs) {$files += $subs -split ','}; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); $isRule=$lower.StartsWith('- '); if ($lower -eq 'type: smart') {$vars.cfgHasSmartGroup='1'}; if ($lower -eq 'prefer-asn: true') {$vars.cfgHasSmartPreferAsn='1'}; if ($lower.StartsWith('- ip-asn,') -or $lower.StartsWith('- src-ip-asn,')) {$vars.cfgHasAsnRule='1'}; if ($isRule -and ($lower -like '*geosite,*')) {$vars.cfgHasGeoSiteRule='1'}; if ($isRule -and ($lower -like '*sub-rule,*' -or $lower -like '*and,*' -or $lower -like '*or,*' -or $lower -like '*not,*' -or $lower -like '*in-type,*')) {$vars.cfgHasMetaRule='1'}; if ($isRule -and ($lower -like '*script,*')) {$vars.cfgHasScriptRule='1'}; if ($lower -eq 'sniffer:') {$vars.cfgHasSniffer='1'}; if ($lower.StartsWith('exclude-filter:')) {$vars.cfgHasExcludeFilter='1'}; if ($lower.StartsWith('uselightgbm:')) {$vars.cfgUseLightGbm=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('lgbm-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgLgbmUrl=$value}}; if ($lower.StartsWith('geosite:')) {$vars.cfgGeoSiteUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geodata-mode:')) {$vars.cfgGeoDataMode=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('mmdb:')) {$vars.cfgCountryUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geoip:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgGeoIpUrl=$value}}; if ($lower.StartsWith('external-ui-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgExternalUiUrl=$value}}}; $insideGeox=$false; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; if ($text -ieq 'geox-url:') {$insideGeox=$true; continue}; if ($insideGeox) {if ((-not $line.StartsWith(' ')) -and (-not $line.StartsWith('-'))) {$insideGeox=$false; continue}; $parts=$text -split ':',2; if ($parts.Count -eq 2 -and $parts[0].Trim() -ieq 'asn') {$vars.cfgGeoAsnUrl=CleanValue $parts[1]}}}; foreach ($file in $files) {foreach ($raw in Read-Lines $file) {$text=([string]$raw).Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); if ($lower -match '^(type:\s+(vless|hysteria)|client-fingerprint:|flow:\s+xtls-)') {$vars.cfgHasMetaProxy='1'}}}; $lines=$vars.GetEnumerator() | ForEach-Object {($_.Key + '=' + $_.Value)}; [System.IO.File]::WriteAllLines($out, [string[]]$lines, (New-Object System.Text.UTF8Encoding $false))}"
 
 if exist "!cfgSummaryFile!" (
     for /f "usebackq tokens=1* delims==" %%a in ("!cfgSummaryFile!") do set "%%a=%%b"
@@ -2266,7 +2266,9 @@ if "!status!" == "1" (
     call :isProcessRunning status
 
     if "!status!" == "1" (
-        @echo [%ESC%[91m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m
+        call :getRunningProxyExecutable runningExecutable
+        if "!runningExecutable!" == "" set "runningExecutable=!proxyExecutableName!"
+        @echo [%ESC%[91m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m
         goto :eof
     )
 )
@@ -2283,6 +2285,8 @@ exit /b
 @REM Purpose:    Stop the proxy program with elevation when needed
 @REM ============================================================================
 :killProcessWrapper
+call :getRunningProxyExecutable runningExecutable
+if "!runningExecutable!" == "" set "runningExecutable=!proxyExecutableName!"
 call :isProcessRunning status
 if "!status!" == "0" goto :eof
 
@@ -2306,7 +2310,9 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 代理程序关闭%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m
+call :getRunningProxyExecutable runningExecutable
+if "!runningExecutable!" == "" set "runningExecutable=!proxyExecutableName!"
+@echo [%ESC%[91m错误%ESC%[0m] 代理程序关闭%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m
 goto :eof
 
 @REM ============================================================================
@@ -2314,11 +2320,8 @@ goto :eof
 @REM Purpose:    Terminate running proxy processes
 @REM ============================================================================
 :killProcess
-call :resolveProxyExecutableName
-tasklist | findstr /i "!proxyExecutableName!" >nul 2>nul && taskkill /im "!proxyExecutableName!" /f >nul 2>nul
-if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" tasklist | findstr /i "!clashExecutableName!" >nul 2>nul && taskkill /im "!clashExecutableName!" /f >nul 2>nul
-if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" tasklist | findstr /i "!mihomoExecutableName!" >nul 2>nul && taskkill /im "!mihomoExecutableName!" /f >nul 2>nul
-set "exitCode=!errorlevel!"
+call :terminateProxyExecutable "!clashExecutableName!"
+call :terminateProxyExecutable "!mihomoExecutableName!"
 
 @REM Disable prompts when possible
 call :enableNoPromptRunAs success
@@ -2336,7 +2339,77 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[91m任务管理中心%ESC%[0m手动结束 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 进程
+call :getRunningProxyExecutable runningExecutable
+if "!runningExecutable!" == "" set "runningExecutable=!proxyExecutableName!"
+@echo [%ESC%[91m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[91m任务管理中心%ESC%[0m手动结束 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m 进程
+goto :eof
+
+@REM ============================================================================
+@REM Resolve the currently running proxy executable name
+@REM Purpose:    Report and close the actual process without relying on target core
+@REM Parameters: <result>
+@REM ============================================================================
+:getRunningProxyExecutable <result>
+set "%~1="
+call :resolveProxyExecutableName
+call :isExecutableRunning running "!proxyExecutableName!"
+if "!running!" == "1" set "%~1=!proxyExecutableName!"
+if "!%~1!" == "" if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" (
+    call :isExecutableRunning running "!clashExecutableName!"
+    if "!running!" == "1" set "%~1=!clashExecutableName!"
+)
+if "!%~1!" == "" if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" (
+    call :isExecutableRunning running "!mihomoExecutableName!"
+    if "!running!" == "1" set "%~1=!mihomoExecutableName!"
+)
+goto :eof
+
+@REM ============================================================================
+@REM Detect whether an executable image is running
+@REM Purpose:    Match exact proxy image names instead of loose text search
+@REM Parameters: <result>, <executable>
+@REM ============================================================================
+:isExecutableRunning <result> <executable>
+set "%~1=0"
+call :trim executableName "%~2"
+if "!executableName!" == "" goto :eof
+tasklist /fi "imagename eq !executableName!" /nh | findstr /i /c:"!executableName!" >nul 2>nul && set "%~1=1"
+goto :eof
+
+@REM ============================================================================
+@REM Terminate a proxy executable image
+@REM Purpose:    Try taskkill first, then Stop-Process, and keep useful errors
+@REM Parameters: <executable>
+@REM ============================================================================
+:terminateProxyExecutable <executable>
+call :trim executableName "%~1"
+if "!executableName!" == "" goto :eof
+
+call :isExecutableRunning running "!executableName!"
+if "!running!" == "0" goto :eof
+
+set "killOutput=!temp!\kill-!executableName!.txt"
+del /f /q "!killOutput!" >nul 2>nul
+
+taskkill /im "!executableName!" /f /t > "!killOutput!" 2>&1
+call :isExecutableRunning running "!executableName!"
+if "!running!" == "0" (
+    del /f /q "!killOutput!" >nul 2>nul
+    goto :eof
+)
+
+set "processName=!executableName:.exe=!"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process -Name '!processName!' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction Stop" >> "!killOutput!" 2>&1
+call :isExecutableRunning running "!executableName!"
+if "!running!" == "0" (
+    del /f /q "!killOutput!" >nul 2>nul
+    goto :eof
+)
+
+if exist "!killOutput!" (
+    for /f "usebackq delims=" %%a in ("!killOutput!") do @echo [%ESC%[91m错误%ESC%[0m] %%a
+    del /f /q "!killOutput!" >nul 2>nul
+)
 goto :eof
 
 @REM ============================================================================
@@ -2345,10 +2418,8 @@ goto :eof
 @REM Parameters: <result>
 @REM ============================================================================
 :isProcessRunning <result>
-call :resolveProxyExecutableName
-tasklist | findstr /i "!proxyExecutableName!" >nul 2>nul && set "%~1=1" || set "%~1=0"
-if "!%~1!" == "0" if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" tasklist | findstr /i "!clashExecutableName!" >nul 2>nul && set "%~1=1"
-if "!%~1!" == "0" if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" tasklist | findstr /i "!mihomoExecutableName!" >nul 2>nul && set "%~1=1"
+call :getRunningProxyExecutable runningExecutable
+if "!runningExecutable!" == "" (set "%~1=0") else (set "%~1=1")
 goto :eof
 
 @REM ============================================================================
@@ -2410,6 +2481,7 @@ set "dashboardUrl=https://github.com/Dreamacro/clash-dashboard/archive/refs/head
 set "dashboardDirectory=clash-dashboard-gh-pages"
 
 set "clashUrl="
+set "proxyDownloadUrl="
 
 @REM Detect OS and CPU architecture
 call :getArch archVersion
@@ -2431,18 +2503,18 @@ if "!useClashMeta!" == "0" (
 
     if "!needDownload!" == "1" (
         if "!alpha!" == "0" (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/Dreamacro/clash/releases/tags/premium" ^| findstr /i /r /c:"https://github.com/Dreamacro/clash/releases/download/premium/clash-windows-!archVersion!-[^v][^3].*.zip"') do set "clashUrl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/Dreamacro/clash/releases/tags/premium" ^| findstr /i /r /c:"https://github.com/Dreamacro/clash/releases/download/premium/clash-windows-!archVersion!-[^v][^3].*.zip"') do set "proxyDownloadUrl=%%b"
 
             @REM Remove whitespace
-            call :trim clashUrl "!clashUrl!"
-            if !clashUrl! == "" (
+            call :trim proxyDownloadUrl "!proxyDownloadUrl!"
+            if !proxyDownloadUrl! == "" (
                 @echo [%ESC%[91m错误%ESC%[0m] 获取 !clashPremiumName! 下载链接失败
                 goto :eof
             )
-            set "clashUrl=!clashUrl:~1,-1!"
+            set "proxyDownloadUrl=!proxyDownloadUrl:~1,-1!"
         ) else (
             @echo [%ESC%[!warnColor!m警告%ESC%[0m] %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 预览版下载链接可能%ESC%[91m无法访问%ESC%[0m，想要使用该版本请确保网络正常
-            set "clashUrl=https://release.dreamacro.workers.dev/latest/clash-windows-!archVersion!-latest.zip"
+            set "proxyDownloadUrl=https://release.dreamacro.workers.dev/latest/clash-windows-!archVersion!-latest.zip"
         )
     )
 
@@ -2468,22 +2540,22 @@ if "!useClashMeta!" == "0" (
 
     if "!needDownload!" == "1" (
         if "!useVerneMihomo!" == "1" (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/vernesong/mihomo/releases/tags/Prerelease-Alpha" ^| findstr /i /r /c:"https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!archVersion!-alpha-smart-.*.zip"') do set "clashUrl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/vernesong/mihomo/releases/tags/Prerelease-Alpha" ^| findstr /i /r /c:"https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!archVersion!-alpha-smart-.*.zip"') do set "proxyDownloadUrl=%%b"
         ) else if "!alpha!" == "1" (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases?prerelease=true&per_page=10" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!archVersion!-alpha-.*.zip"') do set "clashUrl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases?prerelease=true&per_page=10" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!archVersion!-alpha-.*.zip"') do set "proxyDownloadUrl=%%b"
         ) else (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-!archVersion!-v[0-9]*\.[0-9]*\.[0-9]*.zip"') do set "clashUrl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-!archVersion!-v[0-9]*\.[0-9]*\.[0-9]*.zip"') do set "proxyDownloadUrl=%%b"
         )
 
-        call :trim clashUrl "!clashUrl!"
-        if !clashUrl! == "" (
+        call :trim proxyDownloadUrl "!proxyDownloadUrl!"
+        if !proxyDownloadUrl! == "" (
             if "!alpha!" == "1" (set "version=预览版") else (set "version=稳定版")
             if "!useVerneMihomo!" == "1" (set "coreName=!smartMihomoName!") else (set "coreName=!metaCubeXMihomoName!")
             @echo [%ESC%[91m错误%ESC%[0m] 获取 !coreName! 下载链接失败，版本："!version!"
             goto :eof
         )
 
-        set "clashUrl=!clashUrl:~1,-1!"
+        set "proxyDownloadUrl=!proxyDownloadUrl:~1,-1!"
     )
 
     @REM GeoSite data download URL
@@ -2532,7 +2604,9 @@ if "!useClashMeta!" == "0" (
 call :selectDashboardUrl
 
 @REM Clash download URL
-call :generateDownloadUrl clashUrl "!clashUrl!" "!proxyExecutableName!" "!force!"
+set "proxyDownloadForce=!force!"
+if "!proxyEditionChanged!" == "1" set "proxyDownloadForce=1"
+call :generateDownloadUrl clashUrl "!proxyDownloadUrl!" "!proxyExecutableName!" "!proxyDownloadForce!"
 
 @REM Dashboard download URL
 if "!dashboard!" == "" (
@@ -2660,7 +2734,10 @@ if "!url!" == "" goto :eof
 call :trim fileName "%~3"
 if "!fileName!" == "" goto :eof
 
-if not exist "!dest!\!fileName!" (set "needDownload=1") else (set "needDownload=!force!")
+call :trim downloadForce "%~4"
+if "!downloadForce!" == "" set "downloadForce=0"
+
+if not exist "!dest!\!fileName!" (set "needDownload=1") else (set "needDownload=!downloadForce!")
 if "!needDownload!" == "0" goto :eof
 
 set "%~1=!url!"
