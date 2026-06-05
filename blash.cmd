@@ -290,10 +290,10 @@ if "!isWebLink!" == "1" (
             )
 
             del /f /q "!configLocation!" >nul 2>nul
-            call :splitPath filepath filename "!configLocation!"
-            call :createDirectories success "!filepath!"
+            call :splitPath filePath fileName "!configLocation!"
+            call :createDirectories success "!filePath!"
             if "!success!" == "0" (
-                @echo [%ESC%[91m错误%ESC%[0m] 创建文件夹 "%ESC%[!warnColor!m!filepath!%ESC%[0m" %ESC%[91m失败%ESC%[0m，请确认路径是否合法
+                @echo [%ESC%[91m错误%ESC%[0m] 创建文件夹 "%ESC%[!warnColor!m!filePath!%ESC%[0m" %ESC%[91m失败%ESC%[0m，请确认路径是否合法
                 exit /b 1
             )
 
@@ -301,7 +301,7 @@ if "!isWebLink!" == "1" (
             @echo [%ESC%[!infoColor!m信息%ESC%[0m] 订阅下载%ESC%[!infoColor!m成功%ESC%[0m
 
             @REM 保存订阅链接
-            @echo !subscriptionLink! > "!filepath!\subscriptions.txt"
+            @echo !subscriptionLink! > "!filePath!\subscriptions.txt"
         ) else (
             @REM output is empty
             set "statusCode=000"
@@ -807,18 +807,18 @@ if "%1" == "" goto :eof
 if "%1" NEQ "" (
     call :trim syntax "%~1"
     if "!syntax!" == "goto" (
-        call :trim funcname "%~2"
-        if "!funcname!" == "" (
+        call :trim funcName "%~2"
+        if "!funcName!" == "" (
             @echo [%ESC%[91m错误%ESC%[0m] 无效的语法，调用 "%ESC%[!warnColor!mgoto%ESC%[0m" 时必须提供函数名
             goto :usage
         )
 
         for /f "tokens=1-2,* delims= " %%a in ("%*") do set "params=%%c"
         if "!params!" == "" (
-            call !funcname!
+            call !funcName!
             exit /b
         ) else (
-            call !funcname! !params!
+            call !funcName! !params!
             exit /b
         )
     )
@@ -875,15 +875,15 @@ set "usageLine=-e, --exclude         更新时跳过代理集中配置的订阅"
 @echo(!usageLine!
 set "usageLine=-g, --generate        重新生成自动检查更新的脚本，搭配 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
-set "usageLine=-m, --meta            如果配置兼容，使用 !metacubexMihomoName! 代替 !clashPremiumName!，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
+set "usageLine=-m, --meta            使用 %ESC%[!warnColor!m!metacubexMihomoName!%ESC%[0m 代理内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
-set "usageLine=-n, --native          使用 !clashPremiumName!，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
+set "usageLine=-n, --native          使用 %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 代理内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
 set "usageLine=-q, --quick           仅更新新订阅和代理规则，搭配 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
 set "usageLine=-s, --show            新窗口中执行，默认为当前窗口"
 @echo(!usageLine!
-set "usageLine=-v, --verne           使用 !smartMihomoName! 内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
+set "usageLine=-v, --verne           使用 使用 %ESC%[!warnColor!m!smartMihomoName!%ESC%[0m 代理内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
 set "usageLine=-w, --workspace       代理程序运行路径，默认为当前脚本所在目录"
 @echo(!usageLine!
@@ -963,8 +963,8 @@ if "!useClashPremium!" == "1" (
 
 if "!coreForced!" == "0" (
     set "useVerneMihomo=0"
-    call :detectSmartGroup smartgroup
-    if "!smartgroup!" == "1" (
+    call :detectSmartGroup smartGroup
+    if "!smartGroup!" == "1" (
         set "useVerneMihomo=1"
         set "useClashMeta=1"
         set "useClashPremium=0"
@@ -976,8 +976,8 @@ if "!useVerneMihomo!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
 
-    call :parseYamlValue uselightgbm "uselightgbm:[ ][ ]*true"
-    if /i "!uselightgbm:~0,4!" == "true" (
+    call :parseYamlValue useLightGbm "uselightgbm:[ ][ ]*true"
+    if /i "!useLightGbm:~0,4!" == "true" (
         call :parseYamlValue lgbmUrl "lgbm-url:.*http.*://"
         if "!lgbmUrl!" == "" set "lgbmUrl=https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model.bin"
     )
@@ -1003,8 +1003,8 @@ if "!useClashMeta!" == "1" (
 )
 
 @REM rules include IP-ASN/SRC-IP-ASN, must be MetaCubeX Mihomo
-call :detectAsnRules needgeoasn
-if "!needgeoasn!" == "1" (
+call :detectAsnRules needGeoAsn
+if "!needGeoAsn!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
     set "%~1=!needGeoSite!"
@@ -1038,9 +1038,9 @@ for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"sniffer:[ ]*" "!configFil
 
 @REM proxy-groups include exclude-filter, must be MetaCubeX Mihomo
 for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*exclude-filter:[ ][ ]*.*" "!configFile!"') do (
-    call :trim excludekey %%a
+    call :trim excludeKey %%a
 
-    if /i "!excludekey:~0,1!" NEQ "#" (
+    if /i "!excludeKey:~0,1!" NEQ "#" (
         set "useClashMeta=1"
         set "useClashPremium=0"
         call :resolveProxyExecutableName
@@ -1229,15 +1229,15 @@ goto :eof
 :detectAsnNeeded <result>
 set "%~1=0"
 
-call :detectAsnRules asnrules
-if "!asnrules!" == "1" (
+call :detectAsnRules asnRules
+if "!asnRules!" == "1" (
     set "%~1=1"
     goto :eof
 )
 
 if "!useVerneMihomo!" == "1" (
-    call :detectSmartPreferAsn smartasn
-    if "!smartasn!" == "1" set "%~1=1"
+    call :detectSmartPreferAsn smartAsn
+    if "!smartAsn!" == "1" set "%~1=1"
 )
 goto :eof
 
@@ -1316,7 +1316,7 @@ set "%~1=!subscriptionFiles!"
 goto :eof
 
 
-:splitPath <directory> <filename> <filepath>
+:splitPath <directory> <fileName> <filePath>
 set "%~1=%~dp3"
 set "%~2=%~nx3"
 
@@ -1325,31 +1325,31 @@ goto :eof
 
 
 @REM to absolute path
-:convertToAbsolutePath <result> <filename>
-call :trim filepath %~2
+:convertToAbsolutePath <result> <fileName>
+call :trim filePath %~2
 set "%~1="
 
-if "!filepath!" == "" goto :eof
+if "!filePath!" == "" goto :eof
 
-@echo "!filepath!" | findstr ":" >nul 2>nul && (
-    set "%~1=!filepath!"
+@echo "!filePath!" | findstr ":" >nul 2>nul && (
+    set "%~1=!filePath!"
     goto :eof
 ) || (
     if "!dest!" NEQ "" (set "baseDir=!dest!") else (set "baseDir=%~dp0")
     if "!baseDir:~-1!" == "\" set "baseDir=!baseDir:~0,-1!"
 
-    if "!filepath!" == "." (
+    if "!filePath!" == "." (
         set "%~1=!baseDir!"
         goto :eof
     )
 
-    set "filepath=!filepath:/=\!"
-    if "!filepath:~0,3!" == ".\\" (
-        set "%~1=!baseDir!\!filepath:~3!"
-    ) else if "!filepath:~0,2!" == ".\" (
-        set "%~1=!baseDir!\!filepath:~2!"
+    set "filePath=!filePath:/=\!"
+    if "!filePath:~0,3!" == ".\\" (
+        set "%~1=!baseDir!\!filePath:~3!"
+    ) else if "!filePath:~0,2!" == ".\" (
+        set "%~1=!baseDir!\!filePath:~2!"
     ) else (
-        set "%~1=!baseDir!\!filepath!"
+        set "%~1=!baseDir!\!filePath!"
     )
 )
 goto :eof
@@ -1548,7 +1548,7 @@ goto :eof
 
 
 @REM download binary file and data
-:downloadFiles <filenames> <outputEnabled>
+:downloadFiles <fileNames> <outputEnabled>
 set "%~1="
 call :trim outputEnabled "%~2"
 if "!outputEnabled!" == "" set "outputEnabled=1"
@@ -1603,7 +1603,7 @@ goto :eof
 
 
 @REM download a regular file to temp and report success
-:downloadManagedFile <result> <url> <filename>
+:downloadManagedFile <result> <url> <fileName>
 set "%~1=0"
 call :trim managedUrl "%~2"
 call :trim managedFile "%~3"
@@ -1628,7 +1628,7 @@ goto :eof
 
 
 @REM append a filename to a semicolon-separated downloaded file list
-:appendDownloadedFile <listVar> <filename>
+:appendDownloadedFile <listVar> <fileName>
 call :trim appendedFile "%~2"
 if "!appendedFile!" == "" goto :eof
 
@@ -1641,7 +1641,7 @@ goto :eof
 
 
 @REM download with retry
-:retryDownload <url> <filename>
+:retryDownload <url> <fileName>
 set maxretries=3
 call :trim downloadUrl "%~1"
 call :trim savePath "%~2"
@@ -1674,11 +1674,11 @@ goto :eof
 
 
 @REM compare
-:detectChangedFiles <result> <filenames>
+:detectChangedFiles <result> <fileNames>
 set "%~1=0"
-set "filenames=%~2"
+set "fileNames=%~2"
 
-for %%a in (!filenames!) do (
+for %%a in (!fileNames!) do (
     set "fileName=%%a"
 
     if not exist "!temp!\!fileName!" (
@@ -1694,7 +1694,7 @@ for %%a in (!filenames!) do (
     @REM found new file
     if not exist "!dest!\!fileName!" (
         set "%~1=1"
-        call :upgradeFiles "!filenames!"
+        call :upgradeFiles "!fileNames!"
         exit /b
     )
 
@@ -1703,7 +1703,7 @@ for %%a in (!filenames!) do (
     if "!diff!" == "1" (
         set "%~1=1"
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 发现新版本，文件名：%ESC%[!warnColor!m!fileName!%ESC%[0m
-        call :upgradeFiles "!filenames!"
+        call :upgradeFiles "!fileNames!"
         exit /b
     )
 )
@@ -1734,13 +1734,13 @@ goto :eof
 
 
 @REM update proxy executable and data
-:upgradeFiles <filenames>
-call :trim filenames "%~1"
-if "!filenames!" == "" goto :eof
+:upgradeFiles <fileNames>
+call :trim fileNames "%~1"
+if "!fileNames!" == "" goto :eof
 
 @REM make sure the file exists
 set "existingFiles="
-for %%a in (!filenames!) do (
+for %%a in (!fileNames!) do (
     if exist "!temp!\%%a" (
         if "!existingFiles!" == "" (
             set "existingFiles=%%a"
@@ -1757,7 +1757,7 @@ if "!existingFiles!" == "" goto :terminate
 call :killProcessWrapper
 
 @REM copy file
-for %%a in (!filenames!) do (
+for %%a in (!fileNames!) do (
     set "fileName=%%a"
 
     @REM delete if old file exists
@@ -1823,13 +1823,13 @@ goto :eof
 
 @REM execute
 :runClash <config> <executable>
-call :trim cfile "%~1"
-if "!cfile:~0,13!" == "goto :runClash" (
-    for /f "tokens=1-4 delims= " %%a in ("!cfile!") do set "cfile=%%c"
+call :trim runConfigFile "%~1"
+if "!runConfigFile:~0,13!" == "goto :runClash" (
+    for /f "tokens=1-4 delims= " %%a in ("!runConfigFile!") do set "runConfigFile=%%c"
 )
 call :trim runExecutable "%~2"
 
-if "!cfile!" == "" (
+if "!runConfigFile!" == "" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 配件文件路径无效，无法启动代理程序
     goto :eof
 )
@@ -1837,12 +1837,12 @@ if "!cfile!" == "" (
 @REM privilege escalation
 call :enableNoPromptRunAs success
 
-call :splitPath filepath filename "!cfile!"
+call :splitPath filePath fileName "!runConfigFile!"
 if "!runExecutable!" == "" (
     call :resolveProxyExecutableName
     set "runExecutable=!proxyExecutableName!"
 )
-"!filepath!\!runExecutable!" -d "!filepath!" -f "!cfile!"
+"!filePath!\!runExecutable!" -d "!filePath!" -f "!runConfigFile!"
 goto :eof
 
 
@@ -1905,18 +1905,18 @@ call :cleanWorkspace "!temp!"
 @REM update dashboard
 if "!downloadedAlready!" == "0" call :updateDashboard "!downloadForce!"
 
-@REM update rulefiles
+@REM update rule files
 if "!downloadedAlready!" == "0" call :updateRules "!downloadForce!"
 
 @REM wintun.dll
-call :downloadWintun newwintun "!downloadForce!"
-set "%~1=!newwintun!"
+call :downloadWintun newWintun "!downloadForce!"
+set "%~1=!newWintun!"
 
 @REM download proxy executable and geoip.data and so on
-call :downloadFiles filenames "!downloadForce!"
+call :downloadFiles fileNames "!downloadForce!"
 
 @REM judge file changed with md5
-call :detectChangedFiles changed "!filenames!"
+call :detectChangedFiles changed "!fileNames!"
 if "!changed!" == "1" set "%~1=!changed!"
 
 goto :eof
@@ -2052,7 +2052,7 @@ set "%~1="
 call :trim key "%~2"
 if "!key!" == "" goto :eof
 
-call :findConfigKeyEntry _portKey port "!configFile!" "!key!" "[0-9][0-9]*"
+call :findConfigKeyEntry portKey port "!configFile!" "!key!" "[0-9][0-9]*"
 if "!port!" NEQ "" set "%~1=!port!"
 goto :eof
 
@@ -2357,20 +2357,20 @@ if "!useClashMeta!" == "0" (
         set "geoSiteUrl="
     ) else (
         for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*geosite:[ ][ ]*" "!configFile!"') do (
-            call :trim geositekey %%a
+            call :trim geoSiteKey %%a
 
             @REM commented
-            if /i "!geositekey:~0,1!" NEQ "#" call :trim geoSiteUrl %%b
+            if /i "!geoSiteKey:~0,1!" NEQ "#" call :trim geoSiteUrl %%b
         )
     )
 
     @REM geodata-mode
     set "geoDataMode=false"
     for /f "tokens=1,2 delims=:" %%a in ('findstr /i /r /c:"^geodata-mode:[ ][ ]*" "!configFile!"') do (
-        call :trim gmn %%a
+        call :trim geoDataModeKey %%a
 
         @REM commented
-        if /i "!gmn:~0,1!" NEQ "#" call :trim geoDataMode %%b
+        if /i "!geoDataModeKey:~0,1!" NEQ "#" call :trim geoDataMode %%b
     )
 
     @REM geoip.data
@@ -2378,25 +2378,25 @@ if "!useClashMeta!" == "0" (
         set "geoIpUrl="
 
         for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*mmdb:[ ][ ]*" "!configFile!"') do (
-            call :trim mmdbkey %%a
+            call :trim mmdbKey %%a
 
             @REM commented
-            if /i "!mmdbkey:~0,1!" NEQ "#" call :trim countryUrl %%b
+            if /i "!mmdbKey:~0,1!" NEQ "#" call :trim countryUrl %%b
         )
     ) else (
         set "countryUrl="
 
         for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*geoip:[ ][ ]*http.*://" "!configFile!"') do (
-            call :trim geoipkey %%a
+            call :trim geoIpKey %%a
 
             @REM commented
-            if /i "!geoipkey:~0,1!" NEQ "#" call :trim geoIpUrl %%b
+            if /i "!geoIpKey:~0,1!" NEQ "#" call :trim geoIpUrl %%b
         )
     )
 
     @REM ASN database download url
-    call :detectAsnNeeded needgeoasn
-    if "!needgeoasn!" == "0" (
+    call :detectAsnNeeded needGeoAsn
+    if "!needGeoAsn!" == "0" (
         set "geoAsnUrl="
     ) else (
         call :parseGeoxUrl customGeoAsnUrl "asn"
@@ -2494,7 +2494,7 @@ for /f "usebackq delims=" %%a in (`""!dest!\!proxyExecutableName!" -v 2^>nul"`) 
 if "!localMihomoVersionLine!" == "" goto :eof
 
 echo !localMihomoVersionLine! | findstr /l /i /c:"!remoteMihomoVersion!" >nul 2>nul && (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] !proxyExecutableName! 当前已是最新版本 %ESC%[!infoColor!m!remoteMihomoVersion!%ESC%[0m，跳过下载
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 代理程序 !proxyExecutableName! 当前已是最新版本 %ESC%[!infoColor!m!remoteMihomoVersion!%ESC%[0m，跳过下载
     set "clashUrl="
 )
 goto :eof
@@ -2522,16 +2522,16 @@ goto :eof
 
 
 @REM generate real download url
-:generateDownloadUrl <result> <url> <filename> <force>
+:generateDownloadUrl <result> <url> <fileName> <force>
 set "%~1="
 
 call :trim url "%~2"
 if "!url!" == "" goto :eof
 
-call :trim filename "%~3"
-if "!filename!" == "" goto :eof
+call :trim fileName "%~3"
+if "!fileName!" == "" goto :eof
 
-if not exist "!dest!\!filename!" (set "needDownload=1") else (set "needDownload=!force!")
+if not exist "!dest!\!fileName!" (set "needDownload=1") else (set "needDownload=!force!")
 if "!needDownload!" == "0" goto :eof
 
 set "%~1=!url!"
@@ -2597,9 +2597,9 @@ goto :eof
 
 
 @REM search keywords with powershell
-:findByContext <filepath> <regex> <resultfile> <lines>
-call :trim filepath %~1
-if "!filepath!" == "" goto :eof
+:findByContext <filePath> <regex> <resultFile> <lines>
+call :trim filePath %~1
+if "!filePath!" == "" goto :eof
 
 set "regex=%~2"
 if "!regex!" == "" goto :eof
@@ -2610,16 +2610,16 @@ if "!result!" == "" goto :eof
 call :trim context %~4
 if not defined context (set "context=5")
 
-powershell -command "& {&'Get-Content' '!filepath!' | &'Select-String' -Pattern '!regex!' -Context !context!,!context! | &'Set-Content' -Encoding 'utf8' '!result!'}";
+powershell -command "& {&'Get-Content' '!filePath!' | &'Select-String' -Pattern '!regex!' -Context !context!,!context! | &'Set-Content' -Encoding 'utf8' '!result!'}";
 goto :eof
 
 @REM query colon-separated config entry by findstr regex
-:findConfigEntry <keyResult> <valueResult> <filepath> <regex>
+:findConfigEntry <keyResult> <valueResult> <filePath> <regex>
 set "%~1="
 set "%~2="
-call :trim filepath %~3
-if "!filepath!" == "" goto :eof
-if not exist "!filepath!" goto :eof
+call :trim filePath %~3
+if "!filePath!" == "" goto :eof
+if not exist "!filePath!" goto :eof
 
 set "regex=%~4"
 if "!regex!" == "" goto :eof
@@ -2629,7 +2629,7 @@ if "!keepCommentedKey!" == "" set "keepCommentedKey=0"
 
 set "key="
 set "text="
-for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"!regex!" "!filepath!"') do (
+for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"!regex!" "!filePath!"') do (
     set "key=%%a"
     set "text=%%b"
 )
@@ -2648,12 +2648,12 @@ goto :eof
 
 
 @REM query colon-separated config entry by exact key and value pattern
-:findConfigKeyEntry <keyResult> <valueResult> <filepath> <key> <valuePattern>
+:findConfigKeyEntry <keyResult> <valueResult> <filePath> <key> <valuePattern>
 set "%~1="
 set "%~2="
-call :trim filepath %~3
-if "!filepath!" == "" goto :eof
-if not exist "!filepath!" goto :eof
+call :trim filePath %~3
+if "!filePath!" == "" goto :eof
+if not exist "!filePath!" goto :eof
 
 call :trim entryKey "%~4"
 if "!entryKey!" == "" goto :eof
@@ -2663,7 +2663,7 @@ if "!valuePattern!" == "" set "valuePattern=.*"
 
 set "key="
 set "text="
-for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^^!entryKey!:[ ][ ]*!valuePattern!" "!filepath!"') do (
+for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^^!entryKey!:[ ][ ]*!valuePattern!" "!filePath!"') do (
     set "key=%%a"
     set "text=%%b"
 )
@@ -2678,11 +2678,11 @@ set "%~2=!value!"
 goto :eof
 
 @REM query value under a YAML section, e.g. geox-url.asn
-:findYamlSectionValue <result> <filepath> <section> <key>
+:findYamlSectionValue <result> <filePath> <section> <key>
 set "%~1="
-call :trim filepath %~2
-if "!filepath!" == "" goto :eof
-if not exist "!filepath!" goto :eof
+call :trim filePath %~2
+if "!filePath!" == "" goto :eof
+if not exist "!filePath!" goto :eof
 
 call :trim sectionName "%~3"
 if "!sectionName!" == "" goto :eof
@@ -2691,7 +2691,7 @@ call :trim targetKey "%~4"
 if "!targetKey!" == "" goto :eof
 
 set "insideSection=0"
-for /f "usebackq delims=" %%l in ("!filepath!") do (
+for /f "usebackq delims=" %%l in ("!filePath!") do (
     set "line=%%l"
     call :trim configLine "!line!"
 
@@ -2732,7 +2732,7 @@ goto :eof
 
 @REM query value from yaml
 :parseYamlValue <result> <regex>
-call :findConfigEntry _yamlKey "%~1" "!configFile!" "%~2"
+call :findConfigEntry yamlKey "%~1" "!configFile!" "%~2"
 goto :eof
 
 @REM query value from geox-url section
@@ -2762,7 +2762,7 @@ call :isProcessRunning status
 
 if "!status!" == "1" (
     @REM '\' to '\\'
-    set "filepath=!configFile:\=\\!"
+    set "filePath=!configFile:\=\\!"
 
     @REM call api for reload
     set "statusCode=000"
@@ -2770,9 +2770,9 @@ if "!status!" == "1" (
     if exist "!output!" del /f /q "!output!" >nul 2>nul
 
     if "!secret!" NEQ "" (
-        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer !secret!" -X PUT -d "{""path"":""!filepath!""}" "!clashApi!"') do set "statusCode=%%a"
+        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer !secret!" -X PUT -d "{""path"":""!filePath!""}" "!clashApi!"') do set "statusCode=%%a"
     ) else (
-        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -X PUT -d "{""path"":""!filepath!""}" "!clashApi!"') do set "statusCode=%%a"
+        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -X PUT -d "{""path"":""!filePath!""}" "!clashApi!"') do set "statusCode=%%a"
     )
 
     if "!statusCode!" == "204" (
@@ -2882,7 +2882,7 @@ if "!force!" == "1" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始检查并更新类型为 %ESC%[!warnColor!mHTTP%ESC%[0m 的代理规则
 )
 
-call :refreshReferencedFiles changed "rule-providers" "!force!" rulefiles "payload"
+call :refreshReferencedFiles changed "rule-providers" "!force!" ruleFiles "payload"
 goto :eof
 
 
@@ -2900,7 +2900,7 @@ goto :eof
 
 
 @REM append a complete provider/ruleset entry as url|path
-:appendReferencedEntry <resultfile> <url> <path>
+:appendReferencedEntry <resultFile> <url> <path>
 call :trim entryUrl "%~2"
 call :trim entryPath "%~3"
 if "!entryUrl!" == "" goto :eof
@@ -3021,35 +3021,35 @@ for /f "usebackq tokens=1* delims=|" %%u in ("!tempFile!") do (
         @REM should download
         if "!needDownload!" == "1" (
             @REM get directory
-            call :splitPath filepath filename "!targetFile!"
+            call :splitPath filePath fileName "!targetFile!"
 
             @REM mkdir if not exists
-            call :createDirectories success "!filepath!"
+            call :createDirectories success "!filePath!"
 
             @REM request and save
-            del /f /q "!temp!\!filename!" >nul 2>nul
-            call :retryDownload "!url!" "!temp!\!filename!"
+            del /f /q "!temp!\!fileName!" >nul 2>nul
+            call :retryDownload "!url!" "!temp!\!fileName!"
 
             @REM check file size
             set "fileSize=0"
-            if exist "!temp!\!filename!" (
-                for %%a in ("!temp!\!filename!") do set "fileSize=%%~za"
+            if exist "!temp!\!fileName!" (
+                for %%a in ("!temp!\!fileName!") do set "fileSize=%%~za"
             )
 
             @REM check file content
-            call :verifyFileSection match "!temp!\!filename!" "!check!"
+            call :verifyFileSection match "!temp!\!fileName!" "!check!"
 
             if !fileSize! GTR 16 if "!match!" == "1" (
                 @REM delete if old file exists
                 del /f /q "!targetFile!" >nul 2>nul
 
                 @REM move new file to dest
-                move "!temp!\!filename!" "!filepath!" >nul 2>nul
+                move "!temp!\!fileName!" "!filePath!" >nul 2>nul
 
                 @REM changed status
                 set "%~1=1"
             ) else (
-                @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!filename!%ESC%[0m 下载失败，下载链接："!url!"
+                @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!fileName!%ESC%[0m 下载失败，下载链接："!url!"
             )
         )
     )
@@ -3155,23 +3155,23 @@ tar -xzf "!temp!\dashboard.zip" -C !temp! >nul 2>nul
 del /f /q "!temp!\dashboard.zip" >nul 2>nul
 
 @REM base path and directory name
-call :splitPath dashpath dashname "!dashboard!"
-if "!dashpath!" == "" (
+call :splitPath dashPath dashName "!dashboard!"
+if "!dashPath!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板保存路径
     goto :eof
 )
 
-if "!dashname!" == "" (
+if "!dashName!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板文件夹名
     goto :eof
 )
 
 @REM rename
-ren "!temp!\!dashboardDirectory!" !dashname!
+ren "!temp!\!dashboardDirectory!" !dashName!
 
 @REM replace if dashboard download success
-dir /a /s /b "!temp!\!dashname!" | findstr . >nul && (
-    call :replaceDirectory "!temp!\!dashname!" "!dashboard!"
+dir /a /s /b "!temp!\!dashName!" | findstr . >nul && (
+    call :replaceDirectory "!temp!\!dashName!" "!dashboard!"
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 控制面板已更新至最新版本
 ) || (
     @echo [%ESC%[!warnColor!m警告%ESC%[0m] 控制面板下载失败，下载链接："!dashboardUrl!"
@@ -3530,10 +3530,10 @@ for /f "tokens=1-2 delims=:" %%a in ("!userTime!") do (
     set "hours=%%a" 2>nul
     set "minutes=%%b" 2>nul
 
-    call :isNumber hour_flag !hours!
-    call :isNumber minute_flag !minutes!
+    call :isNumber hourFlag !hours!
+    call :isNumber minuteFlag !minutes!
 
-    if !hour_flag! == 1 if !minute_flag! == 1 if !hours! lss 24 if !minutes! lss 60 if !hours! geq 0 if !minutes! geq 0 (
+    if !hourFlag! == 1 if !minuteFlag! == 1 if !hours! lss 24 if !minutes! lss 60 if !hours! geq 0 if !minutes! geq 0 (
         set "validFlag=1"
     )
 )
@@ -3758,22 +3758,22 @@ set "%~1="
 set "value="
 
 @REM path
-call :trim rpath "%~2"
-if "!rpath!" == "" goto :eof
+call :trim registryPath "%~2"
+if "!registryPath!" == "" goto :eof
 
 @REM key
-call :trim rkey "%~3"
-if "!rkey!" == "" goto :eof
+call :trim registryKey "%~3"
+if "!registryKey!" == "" goto :eof
 
 @REM type
-call :trim rtype "%~4"
-if "!rtype!" == "" set "rtype=REG_SZ"
+call :trim registryType "%~4"
+if "!registryType!" == "" set "registryType=REG_SZ"
 
 @REM query
-reg query "!rpath!" /V "!rkey!" >nul 2>nul
+reg query "!registryPath!" /V "!registryKey!" >nul 2>nul
 if "!errorlevel!" NEQ "0" goto :eof
 
-for /f "tokens=3" %%a in ('reg query "!rpath!" /V "!rkey!" ^| findstr /r /i "!rtype!"') do set "value=%%a"
+for /f "tokens=3" %%a in ('reg query "!registryPath!" /V "!registryKey!" ^| findstr /r /i "!registryType!"') do set "value=%%a"
 call :trim value "!value!"
 set "%~1=!value!"
 goto :eof
