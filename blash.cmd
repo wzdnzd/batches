@@ -963,8 +963,7 @@ if "!useClashPremium!" == "1" (
 
 if "!coreForced!" == "0" (
     set "useVerneMihomo=0"
-    call :detectSmartGroup smartGroup
-    if "!smartGroup!" == "1" (
+    if "!cfgHasSmartGroup!" == "1" (
         set "useVerneMihomo=1"
         set "useClashMeta=1"
         set "useClashPremium=0"
@@ -976,22 +975,18 @@ if "!useVerneMihomo!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
 
-    call :parseYamlValue useLightGbm "uselightgbm:[ ][ ]*true"
-    if /i "!useLightGbm:~0,4!" == "true" (
-        call :parseYamlValue lgbmUrl "lgbm-url:.*http.*://"
+    if /i "!cfgUseLightGbm:~0,4!" == "true" (
+        set "lgbmUrl=!cfgLgbmUrl!"
         if "!lgbmUrl!" == "" set "lgbmUrl=https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model.bin"
     )
 )
 
-for /f "tokens=*" %%i in ('findstr /i /r "GEOSITE,.*" "!configFile!"') do set "content=!content!;%%i"
-call :searchRules notFound "!content!"
-
-if "!notFound!" == "1" (
-    for /f "tokens=*" %%i in ('findstr /i /r "SUB-RULE,.* AND,.* OR,.* NOT,.* IN-TYPE,.*" "!configFile!"') do set "content=!content!;%%i"
-    call :searchRules notFound "!content!"
-) else (
+set "notFound=1"
+if "!cfgHasGeositeRule!" == "1" (
+    set "notFound=0"
     set "needGeoSite=1"
 )
+if "!cfgHasMetaRule!" == "1" set "notFound=0"
 
 @REM rulesets include GEOSITE, must be MetaCubeX Mihomo
 if "!notFound!" == "0" (set "useClashMeta=1")
@@ -1003,8 +998,7 @@ if "!useClashMeta!" == "1" (
 )
 
 @REM rules include IP-ASN/SRC-IP-ASN, must be MetaCubeX Mihomo
-call :detectAsnRules needGeoAsn
-if "!needGeoAsn!" == "1" (
+if "!cfgHasAsnRule!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
     set "%~1=!needGeoSite!"
@@ -1013,12 +1007,7 @@ if "!needGeoAsn!" == "1" (
 )
 
 @REM MetaCubeX Mihomo does not support SCRIPT rule
-set "content="
-for /f "tokens=*" %%i in ('findstr /i /r "SCRIPT,.*" "!configFile!"') do set "content=!content!;%%i"
-call :searchRules notFound "!content!"
-
-@REM rulesets include SCRIPT, must be Clash Premium
-if "!notFound!" == "0" (
+if "!cfgHasScriptRule!" == "1" (
     set "useClashMeta=0"
     set "useClashPremium=1"
     call :resolveProxyExecutableName
@@ -1026,47 +1015,27 @@ if "!notFound!" == "0" (
 )
 
 @REM include sniffer, must be MetaCubeX Mihomo
-for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"sniffer:[ ]*" "!configFile!"') do (
-    call :trim sniffer %%a
-    if "!sniffer!" == "sniffer" (
-        set "useClashMeta=1"
-        set "useClashPremium=0"
-        call :resolveProxyExecutableName
-        goto :eof
-    )
+if "!cfgHasSniffer!" == "1" (
+    set "useClashMeta=1"
+    set "useClashPremium=0"
+    call :resolveProxyExecutableName
+    goto :eof
 )
 
 @REM proxy-groups include exclude-filter, must be MetaCubeX Mihomo
-for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*exclude-filter:[ ][ ]*.*" "!configFile!"') do (
-    call :trim excludeKey %%a
-
-    if /i "!excludeKey:~0,1!" NEQ "#" (
-        set "useClashMeta=1"
-        set "useClashPremium=0"
-        call :resolveProxyExecutableName
-        goto :eof
-    )
+if "!cfgHasExcludeFilter!" == "1" (
+    set "useClashMeta=1"
+    set "useClashPremium=0"
+    call :resolveProxyExecutableName
+    goto :eof
 )
 
 @REM include vless or hysteria, must be MetaCubeX Mihomo
-call :trim subscriptionFiles "%~2"
-
-set "subscriptionFiles=!configFile!,!subscriptionFiles!"
-set "tempFile=!temp!\clashproxies.txt"
-set "regex=^\s+(type:\s+(vless|hysteria)|client-fingerprint:\s+|flow:\s+xtls-).*"
-
-del /f /q "!tempFile!" >nul 2>nul
-for %%f in (!subscriptionFiles!) do (
-    if "%%f" NEQ "" if exist %%f (
-        call :findByContext "%%f" "!regex!" "!tempFile!" 1
-        if exist "!tempFile!" (
-            set "useClashMeta=1"
-            set "useClashPremium=0"
-            call :resolveProxyExecutableName
-            del /f /q "!tempFile!" >nul 2>nul
-            goto :eof
-        )
-    )
+if "!cfgHasMetaProxy!" == "1" (
+    set "useClashMeta=1"
+    set "useClashPremium=0"
+    call :resolveProxyExecutableName
+    goto :eof
 )
 
 @REM proxy-groups include filter, must be MetaCubeX Mihomo
@@ -1096,6 +1065,37 @@ if exist "!dest!\!mihomoExecutableName!" ("!dest!\!mihomoExecutableName!" -v | f
     )
 )
 call :resolveProxyExecutableName
+goto :eof
+
+
+@REM parse frequently used configuration facts once to avoid repeated slow batch scans
+:loadConfigSummary <subscriptionFiles>
+set "cfgHasSmartGroup=0"
+set "cfgHasSmartPreferAsn=0"
+set "cfgHasAsnRule=0"
+set "cfgHasGeositeRule=0"
+set "cfgHasMetaRule=0"
+set "cfgHasScriptRule=0"
+set "cfgHasSniffer=0"
+set "cfgHasExcludeFilter=0"
+set "cfgHasMetaProxy=0"
+set "cfgUseLightGbm="
+set "cfgLgbmUrl="
+set "cfgGeoSiteUrl="
+set "cfgGeoDataMode=false"
+set "cfgCountryUrl="
+set "cfgGeoIpUrl="
+set "cfgGeoAsnUrl="
+set "cfgExternalUiUrl="
+set "cfgSummaryFile=!temp!\clash-config-summary.txt"
+del /f /q "!cfgSummaryFile!" >nul 2>nul
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$config='!configFile!'; $out='!cfgSummaryFile!'; $subs='%~1'; $vars=[ordered]@{cfgHasSmartGroup='0';cfgHasSmartPreferAsn='0';cfgHasAsnRule='0';cfgHasGeositeRule='0';cfgHasMetaRule='0';cfgHasScriptRule='0';cfgHasSniffer='0';cfgHasExcludeFilter='0';cfgHasMetaProxy='0';cfgUseLightGbm='';cfgLgbmUrl='';cfgGeoSiteUrl='';cfgGeoDataMode='false';cfgCountryUrl='';cfgGeoIpUrl='';cfgGeoAsnUrl='';cfgExternalUiUrl=''}; function CleanValue([string]$value) {if ($null -eq $value) {return ''}; return $value.Trim().Trim([char]34).Trim([char]39)}; function Read-Lines([string]$path) {if ($path -and (Test-Path -LiteralPath $path)) {Get-Content -LiteralPath $path}}; $files=@($config); if ($subs) {$files += $subs -split ','}; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); $isRule=$lower.StartsWith('- '); if ($lower -eq 'type: smart') {$vars.cfgHasSmartGroup='1'}; if ($lower -eq 'prefer-asn: true') {$vars.cfgHasSmartPreferAsn='1'}; if ($lower.StartsWith('- ip-asn,') -or $lower.StartsWith('- src-ip-asn,')) {$vars.cfgHasAsnRule='1'}; if ($isRule -and ($lower -like '*geosite,*')) {$vars.cfgHasGeositeRule='1'}; if ($isRule -and ($lower -like '*sub-rule,*' -or $lower -like '*and,*' -or $lower -like '*or,*' -or $lower -like '*not,*' -or $lower -like '*in-type,*')) {$vars.cfgHasMetaRule='1'}; if ($isRule -and ($lower -like '*script,*')) {$vars.cfgHasScriptRule='1'}; if ($lower -eq 'sniffer:') {$vars.cfgHasSniffer='1'}; if ($lower.StartsWith('exclude-filter:')) {$vars.cfgHasExcludeFilter='1'}; if ($lower.StartsWith('uselightgbm:')) {$vars.cfgUseLightGbm=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('lgbm-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgLgbmUrl=$value}}; if ($lower.StartsWith('geosite:')) {$vars.cfgGeoSiteUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geodata-mode:')) {$vars.cfgGeoDataMode=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('mmdb:')) {$vars.cfgCountryUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geoip:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgGeoIpUrl=$value}}; if ($lower.StartsWith('external-ui-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgExternalUiUrl=$value}}}; $insideGeox=$false; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; if ($text -ieq 'geox-url:') {$insideGeox=$true; continue}; if ($insideGeox) {if ((-not $line.StartsWith(' ')) -and (-not $line.StartsWith('-'))) {$insideGeox=$false; continue}; $parts=$text -split ':',2; if ($parts.Count -eq 2 -and $parts[0].Trim() -ieq 'asn') {$vars.cfgGeoAsnUrl=CleanValue $parts[1]}}}; foreach ($file in $files) {foreach ($raw in Read-Lines $file) {$text=([string]$raw).Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); if ($lower -match '^(type:\s+(vless|hysteria)|client-fingerprint:|flow:\s+xtls-)') {$vars.cfgHasMetaProxy='1'}}}; $vars.GetEnumerator() | ForEach-Object {($_.Key + '=' + $_.Value)} | Set-Content -Encoding utf8 -LiteralPath $out}"
+
+if exist "!cfgSummaryFile!" (
+    for /f "usebackq tokens=1* delims==" %%a in ("!cfgSummaryFile!") do set "%%a=%%b"
+    del /f /q "!cfgSummaryFile!" >nul 2>nul
+)
 goto :eof
 
 
@@ -1567,8 +1567,7 @@ if "!clashUrl!" NEQ "" (
     if /i "!clashUrl:~0,8!" NEQ "https://" (
         @echo [%ESC%[91m错误%ESC%[0m] !proxyExecutableName! 下载地址解析失败："!clashUrl!"
     ) else (
-        @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m, 下载地址: !clashUrl!
-
+        @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
         call :retryDownload "!clashUrl!" "!temp!\clash.zip"
         if exist "!temp!\clash.zip" (
             @REM unzip
@@ -1877,6 +1876,9 @@ call :extractDashboardPath dashboard
 
 @REM update subscriptions
 if "!downloadedAlready!" == "0" if "!excludeUpdates!" == "0" call :updateSubscriptions subscriptionFiles "!downloadForce!"
+
+@REM parse frequently used configuration flags once
+call :loadConfigSummary !subscriptionFiles!
 
 @REM confirm download url and filename
 call :detectRequiredEdition geoSiteNeeded !subscriptionFiles!
@@ -2370,51 +2372,30 @@ if "!useClashMeta!" == "0" (
     if "!geoSiteFlag!" == "0" (
         set "geoSiteUrl="
     ) else (
-        for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*geosite:[ ][ ]*" "!configFile!"') do (
-            call :trim geoSiteKey %%a
-
-            @REM commented
-            if /i "!geoSiteKey:~0,1!" NEQ "#" call :trim geoSiteUrl %%b
-        )
+        if "!cfgGeoSiteUrl!" NEQ "" set "geoSiteUrl=!cfgGeoSiteUrl!"
     )
 
     @REM geodata-mode
-    set "geoDataMode=false"
-    for /f "tokens=1,2 delims=:" %%a in ('findstr /i /r /c:"^geodata-mode:[ ][ ]*" "!configFile!"') do (
-        call :trim geoDataModeKey %%a
-
-        @REM commented
-        if /i "!geoDataModeKey:~0,1!" NEQ "#" call :trim geoDataMode %%b
-    )
+    set "geoDataMode=!cfgGeoDataMode!"
+    if "!geoDataMode!" == "" set "geoDataMode=false"
 
     @REM geoip.data
     if "!geoDataMode!" == "false" (
         set "geoIpUrl="
-
-        for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*mmdb:[ ][ ]*" "!configFile!"') do (
-            call :trim mmdbKey %%a
-
-            @REM commented
-            if /i "!mmdbKey:~0,1!" NEQ "#" call :trim countryUrl %%b
-        )
+        if "!cfgCountryUrl!" NEQ "" set "countryUrl=!cfgCountryUrl!"
     ) else (
         set "countryUrl="
-
-        for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*geoip:[ ][ ]*http.*://" "!configFile!"') do (
-            call :trim geoIpKey %%a
-
-            @REM commented
-            if /i "!geoIpKey:~0,1!" NEQ "#" call :trim geoIpUrl %%b
-        )
+        if "!cfgGeoIpUrl!" NEQ "" set "geoIpUrl=!cfgGeoIpUrl!"
     )
 
     @REM ASN database download url
-    call :detectAsnNeeded needGeoAsn
+    set "needGeoAsn=0"
+    if "!cfgHasAsnRule!" == "1" set "needGeoAsn=1"
+    if "!useVerneMihomo!" == "1" if "!cfgHasSmartPreferAsn!" == "1" set "needGeoAsn=1"
     if "!needGeoAsn!" == "0" (
         set "geoAsnUrl="
     ) else (
-        call :parseGeoxUrl customGeoAsnUrl "asn"
-        if "!customGeoAsnUrl!" NEQ "" set "geoAsnUrl=!customGeoAsnUrl!"
+        if "!cfgGeoAsnUrl!" NEQ "" set "geoAsnUrl=!cfgGeoAsnUrl!"
     )
 
     if "!yacd!" == "1" (
@@ -2469,8 +2450,7 @@ goto :eof
 :selectDashboardUrl
 if "!dashboardForced!" == "1" goto :eof
 
-set "configDashboardUrl="
-call :parseYamlValue configDashboardUrl "external-ui-url:.*http.*://"
+set "configDashboardUrl=!cfgExternalUiUrl!"
 if "!configDashboardUrl!" == "" goto :eof
 
 set "dashboardUrl=!configDashboardUrl!"
@@ -2924,6 +2904,18 @@ if /i "!entryUrl:~0,7!" NEQ "http://" if /i "!entryUrl:~0,8!" NEQ "https://" got
 goto :eof
 
 
+@REM extract url/path pairs from a YAML provider section without slow per-line batch calls
+:extractReferencedEntries <section> <resultFile>
+call :trim extractSection "%~1"
+call :trim extractResult "%~2"
+if "!extractSection!" == "" goto :eof
+if "!extractResult!" == "" goto :eof
+if not exist "!configFile!" goto :eof
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$section='!extractSection!'; $out='!extractResult!'; $lines=Get-Content -LiteralPath '!configFile!'; $inside=$false; $sectionIndent=-1; $itemIndent=-1; $propertyIndent=-1; $script:url=''; $script:path=''; function Reset-Entry {$script:url=''; $script:path=''; $script:propertyIndent=-1}; function Add-Entry {if (($script:url -match '^https?://') -and $script:path) {($script:url + '|' + $script:path) | Add-Content -Encoding utf8 -LiteralPath $out}}; foreach ($line in $lines) {$text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $indent=$line.Length - $line.TrimStart(' ').Length; if (-not $inside) {if ($text -ieq ($section + ':')) {$inside=$true; $sectionIndent=$indent; $itemIndent=-1; Reset-Entry}; continue}; if ($indent -le $sectionIndent) {Add-Entry; $inside=$false; $itemIndent=-1; Reset-Entry; if ($text -ieq ($section + ':')) {$inside=$true; $sectionIndent=$indent}; continue}; if ($itemIndent -lt 0) {$itemIndent=$indent; Reset-Entry} elseif ($indent -le $itemIndent) {Add-Entry; $itemIndent=$indent; Reset-Entry} else {if ($propertyIndent -lt 0) {$propertyIndent=$indent}; if ($indent -eq $propertyIndent) {$parts=$text -split ':',2; if ($parts.Count -eq 2) {$key=$parts[0].Trim(); $value=$parts[1].Trim().Trim([char]34).Trim([char]39); if ($key -ieq 'url') {$script:url=$value}; if ($key -ieq 'path') {$script:path=$value}}}}}; if ($inside) {Add-Entry}}"
+goto :eof
+
+
 @REM refresh subsribe and rulesets
 :refreshReferencedFiles <result> <section> <force> <filePaths> <check>
 set "%~1=0"
@@ -2946,68 +2938,7 @@ set "tempFile=!temp!\clashupdate.txt"
 del /f /q "!tempFile!" >nul 2>nul
 set "filePaths="
 
-set "insideSection=0"
-set "sectionIndent=-1"
-set "itemIndent=-1"
-set "propertyIndent=-1"
-set "entryUrl="
-set "entryPath="
-
-for /f "usebackq delims=" %%l in ("!configFile!") do (
-    set "line=%%l"
-    call :trim yamlText "!line!"
-
-    if "!yamlText!" NEQ "" if "!yamlText:~0,1!" NEQ "#" (
-        call :countLeadingSpaces indent "!line!"
-
-        if "!insideSection!" == "0" (
-            if /i "!yamlText!" == "!sectionName!:" (
-                set "insideSection=1"
-                set "sectionIndent=!indent!"
-                set "itemIndent=-1"
-                set "propertyIndent=-1"
-                set "entryUrl="
-                set "entryPath="
-            )
-        ) else (
-            if !indent! LEQ !sectionIndent! (
-                call :appendReferencedEntry "!tempFile!" "!entryUrl!" "!entryPath!"
-                set "insideSection=0"
-                set "itemIndent=-1"
-                set "propertyIndent=-1"
-                set "entryUrl="
-                set "entryPath="
-            ) else (
-                if "!itemIndent!" == "-1" (
-                    set "itemIndent=!indent!"
-                    set "propertyIndent=-1"
-                    set "entryUrl="
-                    set "entryPath="
-                ) else if !indent! LEQ !itemIndent! (
-                    call :appendReferencedEntry "!tempFile!" "!entryUrl!" "!entryPath!"
-                    set "itemIndent=!indent!"
-                    set "propertyIndent=-1"
-                    set "entryUrl="
-                    set "entryPath="
-                ) else (
-                    if "!propertyIndent!" == "-1" set "propertyIndent=!indent!"
-
-                    if !indent! EQU !propertyIndent! (
-                        for /f "tokens=1* delims=:" %%a in ("!yamlText!") do (
-                            call :trim entryKey "%%a"
-                            call :removeQuotes entryValue "%%b"
-
-                            if /i "!entryKey!" == "url" set "entryUrl=!entryValue!"
-                            if /i "!entryKey!" == "path" set "entryPath=!entryValue!"
-                        )
-                    )
-                )
-            )
-        )
-    )
-)
-
-if "!insideSection!" == "1" call :appendReferencedEntry "!tempFile!" "!entryUrl!" "!entryPath!"
+call :extractReferencedEntries "!sectionName!" "!tempFile!"
 
 if not exist "!tempFile!" (
     if "!force!" == "0" goto :eof
