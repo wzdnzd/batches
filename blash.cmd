@@ -1896,6 +1896,9 @@ if "!useClashPremium!" == "0" if "!useClashMeta!" == "0" (
 @REM confirm donwload url
 call :resolveDownloadUrls "!downloadForce!" "!geoSiteNeeded!"
 
+@REM skip Mihomo download when the local executable already matches the release URL
+call :skipMihomoDownloadIfCurrent
+
 @REM precleann workspace
 call :cleanWorkspace "!temp!"
 
@@ -2472,6 +2475,49 @@ if "!rawUrl:haishanh/yacd=!" NEQ "!rawUrl!" set "%~1=yacd-gh-pages"
 if "!rawUrl:MetaCubeX/Yacd-meta=!" NEQ "!rawUrl!" set "%~1=Yacd-meta-gh-pages"
 if "!rawUrl:MetaCubeX/metacubexd=!" NEQ "!rawUrl!" set "%~1=metacubexd-gh-pages"
 if "!rawUrl:Zephyruso/zashboard=!" NEQ "!rawUrl!" set "%~1=zashboard-gh-pages"
+goto :eof
+
+
+@REM skip Mihomo download if the release URL version matches local `mihomo.exe -v`
+:skipMihomoDownloadIfCurrent
+if "!clashUrl!" == "" goto :eof
+if "!useClashMeta!" NEQ "1" goto :eof
+if not exist "!dest!\!proxyExecutableName!" goto :eof
+
+if "!clashUrl:MetaCubeX/mihomo=!" == "!clashUrl!" if "!clashUrl:vernesong/mihomo=!" == "!clashUrl!" goto :eof
+
+call :extractMihomoVersionFromUrl remoteMihomoVersion "!clashUrl!"
+if "!remoteMihomoVersion!" == "" goto :eof
+
+set "localMihomoVersionLine="
+for /f "usebackq delims=" %%a in (`""!dest!\!proxyExecutableName!" -v 2^>nul"`) do if "!localMihomoVersionLine!" == "" set "localMihomoVersionLine=%%a"
+if "!localMihomoVersionLine!" == "" goto :eof
+
+echo !localMihomoVersionLine! | findstr /l /i /c:"!remoteMihomoVersion!" >nul 2>nul && (
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] !proxyExecutableName! 当前已是最新版本 %ESC%[!infoColor!m!remoteMihomoVersion!%ESC%[0m，跳过下载
+    set "clashUrl="
+)
+goto :eof
+
+
+@REM extract version from mihomo-windows-<arch>-<version>.zip download URL
+:extractMihomoVersionFromUrl <result> <url>
+set "%~1="
+call :trim mihomoUrl "%~2"
+if "!mihomoUrl!" == "" goto :eof
+
+set "mihomoFile=!mihomoUrl:/= !"
+for %%a in (!mihomoFile!) do set "mihomoFile=%%a"
+set "mihomoFile=!mihomoFile:"=!"
+set "mihomoFile=!mihomoFile:,=!"
+
+set "mihomoVersion=!mihomoFile:.zip=!"
+set "mihomoVersion=!mihomoVersion:mihomo-windows-=!"
+set "mihomoVersion=!mihomoVersion:%archVersion%-=!"
+
+if "!mihomoVersion!" == "!mihomoFile!" goto :eof
+if "!mihomoVersion!" == "" goto :eof
+set "%~1=!mihomoVersion!"
 goto :eof
 
 
