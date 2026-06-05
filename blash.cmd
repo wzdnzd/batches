@@ -974,6 +974,20 @@ if "!coreForced!" == "0" (
         set "useClashMeta=1"
         set "useClashPremium=0"
     )
+
+    if "!useVerneMihomo!" == "0" (
+        call :detectInstalledProxyEdition localEdition localEditionFound
+        if "!localEditionFound!" == "1" (
+            if "!localEdition!" == "2" (
+                set "useVerneMihomo=1"
+                set "useClashMeta=1"
+                set "useClashPremium=0"
+            ) else if "!localEdition!" == "1" (
+                set "useClashMeta=1"
+                set "useClashPremium=0"
+            )
+        )
+    )
 )
 
 set "lgbmUrl="
@@ -1044,26 +1058,6 @@ if "!cfgHasMetaProxy!" == "1" (
     goto :eof
 )
 
-@REM Proxy-groups include filter, must be MetaCubeX Mihomo
-@REM Set "tempFile=!temp!\clashproxygroups.txt"
-@REM Set "regex=^\s+type:\s+(select|url-test|fallback|load-balance|relay).*"
-
-@REM Del /f /q "!tempFile!" >nul 2>nul
-@REM Call :findByContext "!configFile!" "!regex!" "!tempFile!" 10
-@REM If exist "!tempFile!" (
-@REM     for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*filter:[ ][ ]*.*" "!tempFile!"') do (
-@REM         call :trim includeKey %%a
-@REM         if /i "!includeKey:~0,1!" NEQ "#" (
-@REM             set "useClashMeta=1"
-@REM             set "useClashPremium=0"
-@REM             del /f /q "!tempFile!" >nul 2>nul
-@REM             goto :eof
-@REM         )
-@REM     )
-
-@REM     del /f /q "!tempFile!" >nul 2>nul
-@REM )
-
 @REM Old edition
 if exist "!dest!\!mihomoExecutableName!" ("!dest!\!mihomoExecutableName!" -v | findstr /i "Meta" >nul 2>nul && (
         set "useClashMeta=1"
@@ -1115,6 +1109,70 @@ goto :eof
 set "proxyExecutableName=!clashExecutableName!"
 if "!useClashMeta!" == "1" set "proxyExecutableName=!mihomoExecutableName!"
 if "!useVerneMihomo!" == "1" set "proxyExecutableName=!mihomoExecutableName!"
+goto :eof
+
+@REM ============================================================================
+@REM Detect the proxy core edition from executable version output
+@REM Purpose:    Classify a proxy executable by running its -v argument
+@REM Parameters: <edition>, <found>, <executable>
+@REM Returns:    <edition>: 0=Clash Premium/unknown, 1=MetaCubeX Mihomo, 2=Smart Mihomo
+@REM             <found>:   0=not found, 1=executable exists
+@REM ============================================================================
+:detectProxyEditionFromExecutable <edition> <found> <executable>
+set "%~1=0"
+set "%~2=0"
+set "proxyVersionLine="
+call :trim proxyExecutablePath "%~3"
+
+if "!proxyExecutablePath!" == "" goto :eof
+if not exist "!proxyExecutablePath!" goto :eof
+
+set "%~2=1"
+for /f "usebackq delims=" %%a in (`""!proxyExecutablePath!" -v 2^>nul"`) do if "!proxyVersionLine!" == "" set "proxyVersionLine=%%a"
+if "!proxyVersionLine!" == "" goto :eof
+
+echo !proxyVersionLine! | findstr /l /i /c:"-smart-" >nul 2>nul && (
+    set "%~1=2"
+    goto :eof
+)
+
+echo !proxyVersionLine! | findstr /l /i /c:"Mihomo Meta" >nul 2>nul && set "%~1=1"
+goto :eof
+
+@REM ============================================================================
+@REM Detect the installed proxy core edition
+@REM Purpose:    Prefer the selected executable, then managed fallback names
+@REM Parameters: <edition>, <found>
+@REM Returns:    <edition>: 0=Clash Premium/unknown, 1=MetaCubeX Mihomo, 2=Smart Mihomo
+@REM             <found>:   0=not found, 1=executable exists
+@REM ============================================================================
+:detectInstalledProxyEdition <edition> <found>
+set "%~1=0"
+set "%~2=0"
+
+call :detectProxyEditionFromExecutable detectedEdition detectedFound "!dest!\!proxyExecutableName!"
+if "!detectedFound!" == "1" (
+    set "%~1=!detectedEdition!"
+    set "%~2=1"
+    goto :eof
+)
+
+if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" (
+    call :detectProxyEditionFromExecutable detectedEdition detectedFound "!dest!\!mihomoExecutableName!"
+    if "!detectedFound!" == "1" (
+        set "%~1=!detectedEdition!"
+        set "%~2=1"
+        goto :eof
+    )
+)
+
+if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" (
+    call :detectProxyEditionFromExecutable detectedEdition detectedFound "!dest!\!clashExecutableName!"
+    if "!detectedFound!" == "1" (
+        set "%~1=!detectedEdition!"
+        set "%~2=1"
+    )
+)
 goto :eof
 
 @REM ============================================================================
@@ -1286,15 +1344,7 @@ if "!excludeUpdates!" == "0" call :updateSubscriptions subscriptionFiles 1
 call :updateRules 1
 
 @REM Detect the new core edition
-set "clashEdition=0"
-if exist "!dest!\!mihomoExecutableName!" (
-    "!dest!\!mihomoExecutableName!" -v | findstr /i "Meta" >nul 2>nul && (set "clashEdition=1")
-    "!dest!\!mihomoExecutableName!" -v | findstr /i "smart" >nul 2>nul && (set "clashEdition=2")
-)
-if "!clashEdition!" == "0" if exist "!dest!\!clashExecutableName!" (
-    "!dest!\!clashExecutableName!" -v | findstr /i "Meta" >nul 2>nul && (set "clashEdition=1")
-    "!dest!\!clashExecutableName!" -v | findstr /i "smart" >nul 2>nul && (set "clashEdition=2")
-)
+call :detectInstalledProxyEdition clashEdition clashFound
 call :detectRequiredEdition geoSiteNeeded !subscriptionFiles!
 
 set "targetEdition=0"
@@ -1997,14 +2047,10 @@ if "!useClashPremium!" == "1" if not exist "!dest!\!proxyExecutableName!" (
 
 if "!useClashPremium!" == "0" if "!useClashMeta!" == "0" (
     set "useClashMeta=1"
-    if exist "!dest!\!mihomoExecutableName!" ("!dest!\!mihomoExecutableName!" -v | findstr /i "Meta" >nul 2>nul || (
+    call :detectInstalledProxyEdition localEdition localEditionFound
+    if "!localEditionFound!" == "1" if "!localEdition!" == "0" (
             set "useClashPremium=1"
             set "useClashMeta=0"
-        )
-    ) else if exist "!dest!\!clashExecutableName!" ("!dest!\!clashExecutableName!" -v | findstr /i "Meta" >nul 2>nul || (
-            set "useClashPremium=1"
-            set "useClashMeta=0"
-        )
     )
     call :resolveProxyExecutableName
 )
@@ -2631,7 +2677,7 @@ for /f "usebackq delims=" %%a in (`""!dest!\!proxyExecutableName!" -v 2^>nul"`) 
 if "!localMihomoVersionLine!" == "" goto :eof
 
 echo !localMihomoVersionLine! | findstr /l /i /c:"!remoteMihomoVersion!" >nul 2>nul && (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 代理程序 !proxyExecutableName! 当前已是最新版本 %ESC%[!infoColor!m!remoteMihomoVersion!%ESC%[0m，跳过下载
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 代理程序 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 当前已是最新版本 %ESC%[!infoColor!m!remoteMihomoVersion!%ESC%[0m，跳过下载
     set "clashUrl="
 )
 goto :eof
