@@ -3836,8 +3836,13 @@ goto :eof
 @REM ============================================================================
 :generateUpdateVbs
 set "operation=-u"
-if "!useClashMeta!" == "1" set "operation=!operation! -m"
 if "!useClashPremium!" == "1" set "operation=!operation! -n"
+if "!useVerneMihomo!" == "1" (
+    set "operation=!operation! -v"
+) else (
+    if "!useClashMeta!" == "1" set "operation=!operation! -m"
+)
+
 if "!alpha!" == "1" set "operation=!operation! -a"
 if "!yacd!" == "1" set "operation=!operation! -y"
 if "!metaCubeXDashboard!" == "1" set "operation=!operation! -x"
