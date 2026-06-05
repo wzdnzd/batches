@@ -2046,18 +2046,12 @@ goto :eof
 @REM search port on config file with keyword
 :searchPort <result> <key>
 set "%~1="
-set "content="
 call :trim key "%~2"
 if "!key!" == "" goto :eof
 
-@REM search
-for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^^!key!:[ ][ ]*[0-9][0-9]*" "!configFile!"') do set "content=%%b"
-if "!content!" == "" goto :eof
-
-call :trim port "!content!"
+call :findConfigKeyEntry _portKey port "!configFile!" "!key!" "[0-9][0-9]*"
 if "!port!" NEQ "" set "%~1=!port!"
 goto :eof
-
 
 @REM extract proxy port
 :extractProxyPort <result>
@@ -2573,6 +2567,109 @@ if not defined context (set "context=5")
 powershell -command "& {&'Get-Content' '!filepath!' | &'Select-String' -Pattern '!regex!' -Context !context!,!context! | &'Set-Content' -Encoding 'utf8' '!result!'}";
 goto :eof
 
+@REM query colon-separated config entry by findstr regex
+:findConfigEntry <keyResult> <valueResult> <filepath> <regex>
+set "%~1="
+set "%~2="
+call :trim filepath %~3
+if "!filepath!" == "" goto :eof
+if not exist "!filepath!" goto :eof
+
+set "regex=%~4"
+if "!regex!" == "" goto :eof
+
+call :trim keepCommentedKey "%~5"
+if "!keepCommentedKey!" == "" set "keepCommentedKey=0"
+
+set "key="
+set "text="
+for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"!regex!" "!filepath!"') do (
+    set "key=%%a"
+    set "text=%%b"
+)
+
+call :trim key "!key!"
+if "!key!" == "" goto :eof
+if "!key:~0,1!" == "#" (
+    if "!keepCommentedKey!" == "1" set "%~1=!key!"
+    goto :eof
+)
+
+call :removeQuotes value "!text!"
+set "%~1=!key!"
+set "%~2=!value!"
+goto :eof
+
+
+@REM query colon-separated config entry by exact key and value pattern
+:findConfigKeyEntry <keyResult> <valueResult> <filepath> <key> <valuePattern>
+set "%~1="
+set "%~2="
+call :trim filepath %~3
+if "!filepath!" == "" goto :eof
+if not exist "!filepath!" goto :eof
+
+call :trim entryKey "%~4"
+if "!entryKey!" == "" goto :eof
+
+set "valuePattern=%~5"
+if "!valuePattern!" == "" set "valuePattern=.*"
+
+set "key="
+set "text="
+for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^^!entryKey!:[ ][ ]*!valuePattern!" "!filepath!"') do (
+    set "key=%%a"
+    set "text=%%b"
+)
+
+call :trim key "!key!"
+if "!key!" == "" goto :eof
+if "!key:~0,1!" == "#" goto :eof
+
+call :removeQuotes value "!text!"
+set "%~1=!key!"
+set "%~2=!value!"
+goto :eof
+
+@REM query value under a YAML section, e.g. geox-url.asn
+:findYamlSectionValue <result> <filepath> <section> <key>
+set "%~1="
+call :trim filepath %~2
+if "!filepath!" == "" goto :eof
+if not exist "!filepath!" goto :eof
+
+call :trim sectionName "%~3"
+if "!sectionName!" == "" goto :eof
+
+call :trim targetKey "%~4"
+if "!targetKey!" == "" goto :eof
+
+set "insideSection=0"
+for /f "usebackq delims=" %%l in ("!filepath!") do (
+    set "line=%%l"
+    call :trim configLine "!line!"
+
+    if "!configLine!" NEQ "" if "!configLine:~0,1!" NEQ "#" (
+        if /i "!configLine!" == "!sectionName!:" (
+            set "insideSection=1"
+        ) else if "!insideSection!" == "1" (
+            set "firstChar=!line:~0,1!"
+            if "!firstChar!" NEQ " " if "!firstChar!" NEQ "-" set "insideSection=0"
+
+            if "!insideSection!" == "1" (
+                for /f "tokens=1* delims=:" %%a in ("!configLine!") do (
+                    call :trim sectionKey "%%a"
+                    if /i "!sectionKey!" == "!targetKey!" (
+                        call :removeQuotes sectionValue "%%b"
+                        set "%~1=!sectionValue!"
+                        goto :eof
+                    )
+                )
+            )
+        )
+    )
+)
+goto :eof
 
 @REM remove leading and trailing quotes
 :removeQuotes <result> <str>
@@ -2589,61 +2686,13 @@ goto :eof
 
 @REM query value from yaml
 :parseYamlValue <result> <regex>
-set "%~1="
-set "regex=%~2"
-if "!regex!" == "" goto :eof
-
-set "key="
-set "text="
-for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"!regex!" "!configFile!"') do (
-    set "key=%%a"
-    set "text=%%b"
-)
-
-call :trim key "!key!"
-if "!key!" == "" goto :eof
-@REM commened
-if "!key:~0,1!" == "#" goto :eof
-
-call :removeQuotes value "!text!"
-set "%~1=!value!"
+call :findConfigEntry _yamlKey "%~1" "!configFile!" "%~2"
 goto :eof
-
 
 @REM query value from geox-url section
 :parseGeoxUrl <result> <name>
-set "%~1="
-call :trim targetKey "%~2"
-if "!targetKey!" == "" goto :eof
-if not exist "!configFile!" goto :eof
-
-set "insideGeoxUrl=0"
-for /f "usebackq delims=" %%l in ("!configFile!") do (
-    set "line=%%l"
-    call :trim configLine "!line!"
-
-    if "!configLine!" NEQ "" if "!configLine:~0,1!" NEQ "#" (
-        if /i "!configLine!" == "geox-url:" (
-            set "insideGeoxUrl=1"
-        ) else if "!insideGeoxUrl!" == "1" (
-            set "firstChar=!line:~0,1!"
-            if "!firstChar!" NEQ " " if "!firstChar!" NEQ "-" set "insideGeoxUrl=0"
-
-            if "!insideGeoxUrl!" == "1" (
-                for /f "tokens=1* delims=:" %%a in ("!configLine!") do (
-                    call :trim geoxkey "%%a"
-                    if /i "!geoxkey!" == "!targetKey!" (
-                        call :removeQuotes geoxvalue "%%b"
-                        set "%~1=!geoxvalue!"
-                        goto :eof
-                    )
-                )
-            )
-        )
-    )
-)
+call :findYamlSectionValue "%~1" "!configFile!" "geox-url" "%~2"
 goto :eof
-
 
 @REM reload config
 :reloadConfig
@@ -2909,16 +2958,9 @@ set "%~1="
 
 if not exist "!configFile!" goto :eof
 
-set "keyName="
-set "content="
-for /f "tokens=1,* delims=:" %%a in ('findstr /i /r /c:"external-ui:[ ][ ]*" "!configFile!"') do (
-    set "keyName=%%a"
-    set "content=%%b"
-)
+call :findConfigEntry keyName content "!configFile!" "external-ui:[ ][ ]*" 1
 
 @REM not found 'external-ui' configuration in config file
-call :trim keyName "!keyName!"
-
 if "!keyName!" NEQ "external-ui" (
     set "flag=1"
     if "!keyName!" NEQ "" set "flag=0"
@@ -2948,7 +2990,6 @@ if "!content!" == "" goto :eof
 call :convertToAbsolutePath directory "!content!"
 set "%~1=!directory!"
 goto :eof
-
 
 @REM check file is validate
 :verifyFileSection <result> <file> <check>
