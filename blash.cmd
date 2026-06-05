@@ -1,7 +1,7 @@
 ﻿@REM ============================================================================
 @REM Clash / Mihomo Network Proxy Controller
 @REM ============================================================================
-@REM Description: Comprehensive management tool for Clash.Meta and Mihomo proxy
+@REM Description: Comprehensive management tool for Clash Premium and Mihomo proxy
 @REM              service on Windows. Supports installation, configuration,
 @REM              updates, dashboard management, startup tasks, and maintenance.
 @REM Author:      wzdnzd
@@ -39,7 +39,7 @@ set "batchName=%~nx0"
 @REM call :isMicrosoftTerminal msTerminal
 set "msTerminal=1"
 
-@REM enable create shortcut 
+@REM enable create shortcut
 set "enableShortcut=1"
 
 @REM enable download config from remote
@@ -74,6 +74,16 @@ set "initFlag=0"
 @REM configuration file name
 set "configuration=config.yaml"
 
+@REM common core names
+set "clashExecutableName=clash.exe"
+set "mihomoExecutableName=mihomo.exe"
+set "proxyExecutableName=!clashExecutableName!"
+
+@REM core display names
+set "clashPremiumName=Clash Premium"
+set "metacubexMihomoName=MetaCubeX Mihomo"
+set "smartMihomoName=Smart Mihomo"
+
 @REM subscription link
 set "subscriptionLink="
 set "isWebLink=0"
@@ -87,7 +97,7 @@ set "repairFlag=0"
 @REM only reload
 set "reloadOnly=0"
 
-@REM restart clash.exe
+@REM restart proxy executable
 set "restartFlag=0"
 
 @REM close proxy
@@ -105,13 +115,13 @@ set "quickFlag=0"
 @REM don't update subscription
 set "excludeUpdates=0"
 
-@REM use clash.meta
+@REM use MetaCubeX Mihomo
 set "useClashMeta=0"
 
-@REM use clash.premium
+@REM use Clash Premium
 set "useClashPremium=0"
 
-@REM use vernesong/mihomo smart group core
+@REM use Smart Mihomo smart group core
 set "useVerneMihomo=0"
 
 @REM core edition explicitly specified by arguments
@@ -167,6 +177,7 @@ if "!shouldExit!" == "1" exit /b 1
 @REM regular file path
 if "!dest!" == "" set "dest=%~dp0"
 call :normalizePath dest "!dest!"
+call :resolveProxyExecutableName
 
 @REM auto start vb script
 set "startupVbs=!dest!\startup.vbs"
@@ -282,7 +293,7 @@ if "!isWebLink!" == "1" (
             call :splitPath filepath filename "!configLocation!"
             call :createDirectories success "!filepath!"
             if "!success!" == "0" (
-                @echo [%ESC%[91m错误%ESC%[0m] 创建文件夹 "%ESC%[!warnColor!m!filepath!%ESC%[0m" %ESC%[91m失败%ESC%[0m，请确认路径是否合法 
+                @echo [%ESC%[91m错误%ESC%[0m] 创建文件夹 "%ESC%[!warnColor!m!filepath!%ESC%[0m" %ESC%[91m失败%ESC%[0m，请确认路径是否合法
                 exit /b 1
             )
 
@@ -547,7 +558,7 @@ if "!result!" == "true" (
             @echo [%ESC%[91m错误%ESC%[0m] 无效的订阅链接 "%ESC%[!warnColor!m!subscription!%ESC%[0m"
             @echo.
             goto :eof
-        ) 
+        )
         set "subscriptionLink=!subscription!"
     ) else (
         set "invalid=1"
@@ -717,7 +728,7 @@ if "%1" == "-v" set result=true
 if "%1" == "--verne" set result=true
 if "!result!" == "true" (
     set "useVerneMihomo=1"
-    @REM vernesong/mihomo still uses the mihomo download and geodata branch
+    @REM Smart Mihomo still uses the mihomo download and geodata branch
     set "useClashMeta=1"
     set "useClashPremium=0"
     set "coreForced=1"
@@ -847,7 +858,7 @@ set "usageLine=-r, --restart         重启网络代理程序"
 @echo(!usageLine!
 set "usageLine=-t, --test            测试代理网络是否可用"
 @echo(!usageLine!
-set "usageLine=-u, --update          更有所有组件，包括 clash.exe、订阅、代理规则以及 IP 地址数据库等"
+set "usageLine=-u, --update          更有所有组件，包括代理程序、订阅、代理规则以及 IP 地址数据库等"
 @echo(!usageLine!
 @echo.
 set "usageLine=其他参数："
@@ -864,15 +875,15 @@ set "usageLine=-e, --exclude         更新时跳过代理集中配置的订阅"
 @echo(!usageLine!
 set "usageLine=-g, --generate        重新生成自动检查更新的脚本，搭配 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
-set "usageLine=-m, --meta            如果配置兼容，使用 clash.meta 代替 clash.premium，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
+set "usageLine=-m, --meta            如果配置兼容，使用 !metacubexMihomoName! 代替 !clashPremiumName!，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
-set "usageLine=-n, --native          使用 clash.premium，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
+set "usageLine=-n, --native          使用 !clashPremiumName!，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
 set "usageLine=-q, --quick           仅更新新订阅和代理规则，搭配 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
 set "usageLine=-s, --show            新窗口中执行，默认为当前窗口"
 @echo(!usageLine!
-set "usageLine=-v, --verne           使用 vernesong/mihomo 内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
+set "usageLine=-v, --verne           使用 !smartMihomoName! 内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
 set "usageLine=-w, --workspace       代理程序运行路径，默认为当前脚本所在目录"
 @echo(!usageLine!
@@ -890,7 +901,7 @@ goto :eof
 
 @REM draw heart
 :printHeart
-set "whitespace="  
+set "whitespace="
 
 @echo.
 @echo !whitespace!        *********           *********
@@ -941,11 +952,12 @@ if "!yacd!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!da
 @REM zashboard dashboard
 if "!yacd!" == "0" if "!metacubexd!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\pwa-maskable-512x512.png" set "zashboard=1"
 
-@REM force use clash.premium
+@REM force use Clash Premium
 if "!useClashPremium!" == "1" (
     set "useVerneMihomo=0"
     set "lgbmUrl="
     set "useClashMeta=0"
+    call :resolveProxyExecutableName
     goto :eof
 )
 
@@ -981,57 +993,62 @@ if "!notFound!" == "1" (
     set "needGeoSite=1"
 )
 
-@REM rulesets include GEOSITE, must be clash.meta
+@REM rulesets include GEOSITE, must be MetaCubeX Mihomo
 if "!notFound!" == "0" (set "useClashMeta=1")
 if "!useClashMeta!" == "1" (
     set "%~1=!needGeoSite!"
     set "useClashPremium=0"
+    call :resolveProxyExecutableName
     goto :eof
 )
 
-@REM rules include IP-ASN/SRC-IP-ASN, must be clash.meta
+@REM rules include IP-ASN/SRC-IP-ASN, must be MetaCubeX Mihomo
 call :detectAsnRules needgeoasn
 if "!needgeoasn!" == "1" (
     set "useClashMeta=1"
     set "useClashPremium=0"
     set "%~1=!needGeoSite!"
+    call :resolveProxyExecutableName
     goto :eof
 )
 
-@REM clash.meta not support SCRIPT rule
+@REM MetaCubeX Mihomo does not support SCRIPT rule
 set "content="
 for /f "tokens=*" %%i in ('findstr /i /r "SCRIPT,.*" "!configFile!"') do set "content=!content!;%%i"
 call :searchRules notFound "!content!"
 
-@REM rulesets include SCRIPT, must be clash.premium
+@REM rulesets include SCRIPT, must be Clash Premium
 if "!notFound!" == "0" (
     set "useClashMeta=0"
     set "useClashPremium=1"
+    call :resolveProxyExecutableName
     goto :eof
 )
 
-@REM include sniffer, must be clash.meta
+@REM include sniffer, must be MetaCubeX Mihomo
 for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"sniffer:[ ]*" "!configFile!"') do (
     call :trim sniffer %%a
     if "!sniffer!" == "sniffer" (
         set "useClashMeta=1"
         set "useClashPremium=0"
+        call :resolveProxyExecutableName
         goto :eof
     )
 )
 
-@REM proxy-groups include exclude-filter, must be clash.meta
+@REM proxy-groups include exclude-filter, must be MetaCubeX Mihomo
 for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*exclude-filter:[ ][ ]*.*" "!configFile!"') do (
     call :trim excludekey %%a
 
     if /i "!excludekey:~0,1!" NEQ "#" (
         set "useClashMeta=1"
         set "useClashPremium=0"
+        call :resolveProxyExecutableName
         goto :eof
     )
 )
 
-@REM include vless or hysteria, must be clash.meta
+@REM include vless or hysteria, must be MetaCubeX Mihomo
 call :trim subscriptionFiles "%~2"
 
 set "subscriptionFiles=!configFile!,!subscriptionFiles!"
@@ -1045,13 +1062,14 @@ for %%f in (!subscriptionFiles!) do (
         if exist "!tempFile!" (
             set "useClashMeta=1"
             set "useClashPremium=0"
+            call :resolveProxyExecutableName
             del /f /q "!tempFile!" >nul 2>nul
             goto :eof
-        )   
+        )
     )
 )
 
-@REM proxy-groups include filter, must be clash.meta
+@REM proxy-groups include filter, must be MetaCubeX Mihomo
 @REM set "tempFile=!temp!\clashproxygroups.txt"
 @REM set "regex=^\s+type:\s+(select|url-test|fallback|load-balance|relay).*"
 
@@ -1071,12 +1089,29 @@ for %%f in (!subscriptionFiles!) do (
 @REM     del /f /q "!tempFile!" >nul 2>nul
 @REM )
 
-@REM old edittion
-if exist "!dest!\clash.exe" ("!dest!\clash.exe" -v | findstr /i "Meta" >nul 2>nul && (
+@REM old edition
+if exist "!dest!\!mihomoExecutableName!" ("!dest!\!mihomoExecutableName!" -v | findstr /i "Meta" >nul 2>nul && (
         set "useClashMeta=1"
         set "useClashPremium=0"
     )
 )
+call :resolveProxyExecutableName
+goto :eof
+
+
+@REM resolve proxy executable filename from selected core edition
+:resolveProxyExecutableName
+set "proxyExecutableName=!clashExecutableName!"
+if "!useClashMeta!" == "1" set "proxyExecutableName=!mihomoExecutableName!"
+if "!useVerneMihomo!" == "1" set "proxyExecutableName=!mihomoExecutableName!"
+goto :eof
+
+
+@REM resolve core display name from edition number: 0=Clash Premium, 1=MetaCubeX Mihomo, 2=Smart Mihomo
+:resolveCoreDisplayName <result> <edition>
+set "%~1=!clashPremiumName!"
+if "%~2" == "1" set "%~1=!metacubexMihomoName!"
+if "%~2" == "2" set "%~1=!smartMihomoName!"
 goto :eof
 
 
@@ -1222,9 +1257,13 @@ call :updateRules 1
 
 @REM detect new edition
 set "clashEdition=0"
-if exist "!dest!\clash.exe" (
-    "!dest!\clash.exe" -v | findstr /i "Meta" >nul 2>nul && (set "clashEdition=1")
-    "!dest!\clash.exe" -v | findstr /i "smart" >nul 2>nul && (set "clashEdition=2")
+if exist "!dest!\!mihomoExecutableName!" (
+    "!dest!\!mihomoExecutableName!" -v | findstr /i "Meta" >nul 2>nul && (set "clashEdition=1")
+    "!dest!\!mihomoExecutableName!" -v | findstr /i "smart" >nul 2>nul && (set "clashEdition=2")
+)
+if "!clashEdition!" == "0" if exist "!dest!\!clashExecutableName!" (
+    "!dest!\!clashExecutableName!" -v | findstr /i "Meta" >nul 2>nul && (set "clashEdition=1")
+    "!dest!\!clashExecutableName!" -v | findstr /i "smart" >nul 2>nul && (set "clashEdition=2")
 )
 call :detectRequiredEdition geoSiteNeeded !subscriptionFiles!
 
@@ -1234,13 +1273,8 @@ if "!useVerneMihomo!" == "1" set "targetEdition=2"
 
 if "!clashEdition!" NEQ "!targetEdition!" (
     set "%~1=1"
-    set "oldEdition=clash.premium"
-    if "!clashEdition!" == "1" set "oldEdition=clash.meta"
-    if "!clashEdition!" == "2" set "oldEdition=vernesong/mihomo"
-
-    set "newEdition=clash.premium"
-    if "!targetEdition!" == "1" set "newEdition=clash.meta"
-    if "!targetEdition!" == "2" set "newEdition=vernesong/mihomo"
+    call :resolveCoreDisplayName oldEdition !clashEdition!
+    call :resolveCoreDisplayName newEdition !targetEdition!
 
     @echo [%ESC%[!warnColor!m提示%ESC%[0m] 配置%ESC%[91m不兼容%ESC%[0m，代理程序需从 %ESC%[!warnColor!m!oldEdition!%ESC%[0m 切换至 %ESC%[!warnColor!m!newEdition!%ESC%[0m
     goto :eof
@@ -1303,7 +1337,7 @@ if "!filepath!" == "" goto :eof
 ) || (
     if "!dest!" NEQ "" (set "baseDir=!dest!") else (set "baseDir=%~dp0")
     if "!baseDir:~-1!" == "\" set "baseDir=!baseDir:~0,-1!"
-    
+
     if "!filepath!" == "." (
         set "%~1=!baseDir!"
         goto :eof
@@ -1452,7 +1486,7 @@ set "%~1=0"
 call :trim force "%~2"
 if "!force!" == "" set "force=0"
 
-@REM has been integrated in clash.meta
+@REM has been integrated in MetaCubeX Mihomo
 if "!useClashMeta!" == "1" exit /b
 
 @REM check if required
@@ -1523,7 +1557,7 @@ if "!outputEnabled!" == "" set "outputEnabled=1"
 set "outputEnabled=0"
 
 if "!outputEnabled!" == "1" (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 clash.exe、域名及 IP 地址等数据
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载代理程序、域名及 IP 地址等数据
 )
 
 set "downloadedFileList="
@@ -1531,9 +1565,9 @@ set "downloadedFileList="
 @REM download clash
 if "!clashUrl!" NEQ "" (
     if /i "!clashUrl:~0,8!" NEQ "https://" (
-        @echo [%ESC%[91m错误%ESC%[0m] clash.exe 下载地址解析失败："!clashUrl!"
+        @echo [%ESC%[91m错误%ESC%[0m] !proxyExecutableName! 下载地址解析失败："!clashUrl!"
     ) else (
-        @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!mclash.exe%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
+        @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m, 下载地址: !clashUrl!
 
         call :retryDownload "!clashUrl!" "!temp!\clash.zip"
         if exist "!temp!\clash.zip" (
@@ -1543,14 +1577,14 @@ if "!clashUrl!" NEQ "" (
             @REM clean workspace
             del /f /q "!temp!\clash.zip"
         ) else (
-            @echo [%ESC%[91m错误%ESC%[0m] clash.exe 下载失败，下载链接："!clashUrl!"
+            @echo [%ESC%[91m错误%ESC%[0m] !proxyExecutableName! 下载失败，下载链接："!clashUrl!"
         )
 
         if exist "!temp!\!clashExe!" (
             @REM rename file
-            ren "!temp!\!clashExe!" clash.exe
+            ren "!temp!\!clashExe!" !proxyExecutableName!
 
-            set "downloadedFileList=clash.exe"
+            set "downloadedFileList=!proxyExecutableName!"
         ) else (
             @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!clashExe!" 不存在，下载链接："!clashUrl!"
         )
@@ -1577,7 +1611,7 @@ if "!countryUrl!" NEQ "" (
 if "!geoSiteUrl!" NEQ "" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!geoSiteFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
 
-    call :retryDownload "!geoSiteUrl!" "!temp!\!geoSiteFile!" 
+    call :retryDownload "!geoSiteUrl!" "!temp!\!geoSiteFile!"
     if exist "!temp!\!geoSiteFile!" (
         if "!downloadedFileList!" == "" (
             set "downloadedFileList=!geoSiteFile!"
@@ -1593,7 +1627,7 @@ if "!geoSiteUrl!" NEQ "" (
 if "!geoAsnUrl!" NEQ "" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!geoAsnFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
 
-    call :retryDownload "!geoAsnUrl!" "!temp!\!geoAsnFile!" 
+    call :retryDownload "!geoAsnUrl!" "!temp!\!geoAsnFile!"
     if exist "!temp!\!geoAsnFile!" (
         if "!downloadedFileList!" == "" (
             set "downloadedFileList=!geoAsnFile!"
@@ -1664,7 +1698,7 @@ if not exist "!savePath!" set "failFlag=1"
 
 if "!failFlag!" NEQ "0" (
     set /a "count+=1"
-    
+
     @echo [%ESC%[!warnColor!m提示%ESC%[0m] 文件下载失败，正在进行第 %ESC%[!warnColor!m!count!%ESC%[0m 次重试，下载链接：!downloadUrl!
     goto :retry
 )
@@ -1731,7 +1765,7 @@ if "!original!" NEQ "!received!" (set "%~1=1")
 goto :eof
 
 
-@REM update clash.exe and data
+@REM update proxy executable and data
 :upgradeFiles <filenames>
 call :trim filenames "%~1"
 if "!filenames!" == "" goto :eof
@@ -1762,7 +1796,7 @@ for %%a in (!filenames!) do (
     if exist "!dest!\!fileName!" (
         del /f /q "!dest!\!fileName!" >nul 2>nul
     )
-    
+
     @REM move new file to dest
     move "!temp!\!fileName!" "!dest!" >nul 2>nul
 )
@@ -1787,6 +1821,7 @@ goto :eof
 :runElevated <args> <showWindow>
 set "showwindow=0"
 set "operation=%~1"
+set "scriptPath=%~f0"
 if "!operation!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 非法操作，必须指定函数名
     exit /b 1
@@ -1804,14 +1839,14 @@ cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
         !operation!
         exit /b
     ) else (
-        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
+        powershell -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs"
         exit /b
     )
 ) || (
     if "!showwindow!" == "0" (
-        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
+        powershell -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
     ) else (
-        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
+        powershell -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs"
     )
     exit /b
 )
@@ -1819,11 +1854,12 @@ goto :eof
 
 
 @REM execute
-:runClash <config>
+:runClash <config> <executable>
 call :trim cfile "%~1"
 if "!cfile:~0,13!" == "goto :runClash" (
     for /f "tokens=1-4 delims= " %%a in ("!cfile!") do set "cfile=%%c"
 )
+call :trim runExecutable "%~2"
 
 if "!cfile!" == "" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 配件文件路径无效，无法启动代理程序
@@ -1833,8 +1869,12 @@ if "!cfile!" == "" (
 @REM privilege escalation
 call :enableNoPromptRunAs success
 
-call :splitPath filepath filename "!cfile!" 
-"!filepath!\clash.exe" -d "!filepath!" -f "!cfile!"
+call :splitPath filepath filename "!cfile!"
+if "!runExecutable!" == "" (
+    call :resolveProxyExecutableName
+    set "runExecutable=!proxyExecutableName!"
+)
+"!filepath!\!runExecutable!" -d "!filepath!" -f "!cfile!"
 goto :eof
 
 
@@ -1863,19 +1903,26 @@ if "!downloadedAlready!" == "0" if "!excludeUpdates!" == "0" call :updateSubscri
 @REM confirm download url and filename
 call :detectRequiredEdition geoSiteNeeded !subscriptionFiles!
 
-@REM clash.core or clash.premium is not available now
-if "!useClashPremium!" == "1" if not exist "!dest!\clash.exe" (
-    @echo [%ESC%[91m错误%ESC%[0m] 代理程序 %ESC%[!warnColor!mclash.core%ESC%[0m 或 %ESC%[!warnColor!mclash.premium%ESC%[0m 暂时 %ESC%[91m无法使用%ESC%[0m，请选择 %ESC%[!warnColor!mclash.meta%ESC%[0m
+call :resolveProxyExecutableName
+
+@REM Clash Premium is not available now
+if "!useClashPremium!" == "1" if not exist "!dest!\!proxyExecutableName!" (
+    @echo [%ESC%[91m错误%ESC%[0m] 代理程序 %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂时 %ESC%[91m无法使用%ESC%[0m，请选择 %ESC%[!warnColor!m!metacubexMihomoName!%ESC%[0m
     exit /b 1
 )
 
 if "!useClashPremium!" == "0" if "!useClashMeta!" == "0" (
     set "useClashMeta=1"
-    if exist "!dest!\clash.exe" ("!dest!\clash.exe" -v | findstr /i "Meta" >nul 2>nul || (
+    if exist "!dest!\!mihomoExecutableName!" ("!dest!\!mihomoExecutableName!" -v | findstr /i "Meta" >nul 2>nul || (
+            set "useClashPremium=1"
+            set "useClashMeta=0"
+        )
+    ) else if exist "!dest!\!clashExecutableName!" ("!dest!\!clashExecutableName!" -v | findstr /i "Meta" >nul 2>nul || (
             set "useClashPremium=1"
             set "useClashMeta=0"
         )
     )
+    call :resolveProxyExecutableName
 )
 
 @REM confirm donwload url
@@ -1894,7 +1941,7 @@ if "!downloadedAlready!" == "0" call :updateRules "!downloadForce!"
 call :downloadWintun newwintun "!downloadForce!"
 set "%~1=!newwintun!"
 
-@REM download clah.exe and geoip.data and so on
+@REM download proxy executable and geoip.data and so on
 call :downloadFiles filenames "!downloadForce!"
 
 @REM judge file changed with md5
@@ -1940,10 +1987,11 @@ goto :eof
 call :trim shouldCheck "%~1"
 if "!shouldCheck!" == "" set "shouldCheck=0"
 if "!shouldCheck!" == "1" (call :prepareComponents changed 0 0)
+call :resolveProxyExecutableName
 
 @REM verify config
-if not exist "!dest!\clash.exe" (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，"%ESC%[!warnColor!m!dest!\clash.exe%ESC%[0m" 缺失
+if not exist "!dest!\!proxyExecutableName!" (
+    @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，"%ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m" 缺失
     goto :eof
 )
 
@@ -1957,7 +2005,7 @@ if "!verifyConfig!" == "1" (
     del /f /q "!testOutput!" >nul 2>nul
 
     @REM test config file
-    "!dest!\clash.exe" -d "!dest!" -t "!configFile!" > "!testOutput!"
+    "!dest!\!proxyExecutableName!" -d "!dest!" -t "!configFile!" > "!testOutput!"
 
     @REM failed
     if !errorlevel! NEQ 0 (
@@ -1967,7 +2015,7 @@ if "!verifyConfig!" == "1" (
             del /f /q "!testOutput!" >nul 2>nul
         )
 
-        if "!messages!" == "" set "messages=文件校验失败，%ESC%[!warnColor!mclash.exe%ESC%[0m 或配置文件 %ESC%[!warnColor!m!configFile!%ESC%[0m 存在问题"
+        if "!messages!" == "" set "messages=文件校验失败，%ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 或配置文件 %ESC%[!warnColor!m!configFile!%ESC%[0m 存在问题"
         @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，配置文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 存在错误
         @echo [%ESC%[91m错误%ESC%[0m] 错误信息："!messages!"
         exit /b 1
@@ -1977,8 +2025,8 @@ if "!verifyConfig!" == "1" (
     del /f /q "!testOutput!" >nul 2>nul
 )
 
-@REM run clash.exe with config
-call :runElevated "goto :runClash !configFile!" !showWindow!
+@REM run proxy executable with config
+call :runElevated "goto :runClash !configFile! !proxyExecutableName!" !showWindow!
 
 for /l %%i in (1,1,6) do (
     @REM check running status
@@ -1988,7 +2036,7 @@ for /l %%i in (1,1,6) do (
         call :isProcessAbnormal state
 
         if "!state!" == "1" (
-            set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] 代理进程%ESC%[91m异常%ESC%[0m，需%ESC%[91m删除并重新下载%ESC%[0m %ESC%[!warnColor!m!dest!\clash.exe%ESC%[0m，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
+            set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] 代理进程%ESC%[91m异常%ESC%[0m，需%ESC%[91m删除并重新下载%ESC%[0m %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
             if "!msTerminal!" == "1" (
                 choice /t 5 /d y /n /m "!tips!"
             ) else (
@@ -1996,13 +2044,13 @@ for /l %%i in (1,1,6) do (
                 choice /t 5 /d y /n
             )
             if !errorlevel! == 1 (
-                @REM delete exist clash.exe
-                del /f /q "!dest!\clash.exe" >nul 2>nul
+                @REM delete existing proxy executable
+                del /f /q "!dest!\!proxyExecutableName!" >nul 2>nul
 
                 @REM download and restart
                 goto :restartProgram
             ) else (
-                @echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查代理程序 %ESC%[!warnColor!m!dest!\clash.exe%ESC%[0m 是否完好
+                @echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查代理程序 %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m 是否完好
                 goto :eof
             )
         ) else (
@@ -2116,7 +2164,7 @@ if !errorlevel! == 1 (
     reg add "HKCU\Environment" /v Path /t REG_EXPAND_SZ /d "!newPath!" /f >nul 2>nul
 
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 添加 %ESC%[!warnColor!m!scriptDir!%ESC%[0m 到用户 PATH 路径%ESC%[!infoColor!m成功%ESC%[0m
-) 
+)
 
 goto :eof
 
@@ -2133,7 +2181,7 @@ if "!status!" == "1" (
     call :isProcessRunning status
 
     if "!status!" == "1" (
-        @echo [%ESC%[91m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!mclash.exe%ESC%[0m
+        @echo [%ESC%[91m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m
         goto :eof
     )
 )
@@ -2171,13 +2219,16 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 代理程序关闭%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!mclash.exe%ESC%[0m
+@echo [%ESC%[91m错误%ESC%[0m] 代理程序关闭%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m
 goto :eof
 
 
 @REM stop
 :killProcess
-tasklist | findstr /i "clash.exe" >nul 2>nul && taskkill /im "clash.exe" /f >nul 2>nul
+call :resolveProxyExecutableName
+tasklist | findstr /i "!proxyExecutableName!" >nul 2>nul && taskkill /im "!proxyExecutableName!" /f >nul 2>nul
+if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" tasklist | findstr /i "!clashExecutableName!" >nul 2>nul && taskkill /im "!clashExecutableName!" /f >nul 2>nul
+if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" tasklist | findstr /i "!mihomoExecutableName!" >nul 2>nul && taskkill /im "!mihomoExecutableName!" /f >nul 2>nul
 set "exitCode=!errorlevel!"
 
 @REM no prompt
@@ -2196,24 +2247,30 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[91m任务管理中心%ESC%[0m手动结束 %ESC%[!warnColor!mclash.exe%ESC%[0m 进程
+@echo [%ESC%[91m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[91m任务管理中心%ESC%[0m手动结束 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 进程
 goto :eof
 
 
 @REM delect running status
 :isProcessRunning <result>
-tasklist | findstr /i "clash.exe" >nul 2>nul && set "%~1=1" || set "%~1=0"
+call :resolveProxyExecutableName
+tasklist | findstr /i "!proxyExecutableName!" >nul 2>nul && set "%~1=1" || set "%~1=0"
+if "!%~1!" == "0" if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" tasklist | findstr /i "!clashExecutableName!" >nul 2>nul && set "%~1=1"
+if "!%~1!" == "0" if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" tasklist | findstr /i "!mihomoExecutableName!" >nul 2>nul && set "%~1=1"
 goto :eof
 
 
-@REM check clash.exe process is normal
+@REM check proxy executable process is normal
 :isProcessAbnormal <result>
 set "%~1=1"
 
 @REM memory usage
 set "usage="
 
-for /f "tokens=5 delims= " %%a in ('tasklist /nh ^|findstr /i clash.exe') do set "usage=%%a"
+call :resolveProxyExecutableName
+for /f "tokens=5 delims= " %%a in ('tasklist /nh ^|findstr /i "!proxyExecutableName!"') do set "usage=%%a"
+if "!usage!" == "" if /i "!proxyExecutableName!" NEQ "!clashExecutableName!" for /f "tokens=5 delims= " %%a in ('tasklist /nh ^|findstr /i "!clashExecutableName!"') do set "usage=%%a"
+if "!usage!" == "" if /i "!proxyExecutableName!" NEQ "!mihomoExecutableName!" for /f "tokens=5 delims= " %%a in ('tasklist /nh ^|findstr /i "!mihomoExecutableName!"') do set "usage=%%a"
 if "!usage!" NEQ "" (
     @REM remove comma from number
     set "usage=!usage:,=!"
@@ -2258,33 +2315,34 @@ set "clashUrl="
 
 @REM get os and cpu version
 call :getArch archVersion
+call :resolveProxyExecutableName
 
 if "!archVersion!" == "" (
     @echo [%ESC%[91m错误%ESC%[0m] 未知 操作系统 及 CPU 架构信息，获取 clash 下载链接失败
     goto :eof
 )
 
-@REM determine whether to download clash.exe
-if not exist "!dest!\clash.exe" (set "needDownload=1") else (set "needDownload=!force!")
+@REM determine whether to download proxy executable
+if not exist "!dest!\!proxyExecutableName!" (set "needDownload=1") else (set "needDownload=!force!")
 
 if "!useClashMeta!" == "0" (
-    @echo [%ESC%[!warnColor!m提示%ESC%[0m] %ESC%[!warnColor!mclash.premium%ESC%[0m 暂%ESC%[!warnColor!m不提供%ESC%[0m下载，建议切使用 %ESC%[!warnColor!m-m%ESC%[0m 或 %ESC%[!warnColor!m--meta%ESC%[0m 换到 %ESC%[!warnColor!mclash.meta%ESC%[0m
+    @echo [%ESC%[!warnColor!m提示%ESC%[0m] %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂%ESC%[!warnColor!m不提供%ESC%[0m下载，建议使用 %ESC%[!warnColor!m-m%ESC%[0m 或 %ESC%[!warnColor!m--meta%ESC%[0m 切换到 %ESC%[!warnColor!m!metacubexMihomoName!%ESC%[0m
 
     set "clashExe=clash-windows-!archVersion!.exe"
 
     if "!needDownload!" == "1" (
         if "!alpha!" == "0" (
             for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/Dreamacro/clash/releases/tags/premium" ^| findstr /i /r /c:"https://github.com/Dreamacro/clash/releases/download/premium/clash-windows-!archVersion!-[^v][^3].*.zip"') do set "clashUrl=%%b"
-            
+
             @REM remove whitespace
             call :trim clashUrl "!clashUrl!"
             if !clashUrl! == "" (
-                @echo [%ESC%[91m错误%ESC%[0m] 获取 clash.premium 下载链接失败
+                @echo [%ESC%[91m错误%ESC%[0m] 获取 !clashPremiumName! 下载链接失败
                 goto :eof
             )
             set "clashUrl=!clashUrl:~1,-1!"
         ) else (
-            @echo [%ESC%[!warnColor!m警告%ESC%[0m] %ESC%[!warnColor!mclash.premium%ESC%[0m 预览版下载链接可能%ESC%[91m无法访问%ESC%[0m，想要使用该版本请确保网络正常
+            @echo [%ESC%[!warnColor!m警告%ESC%[0m] %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 预览版下载链接可能%ESC%[91m无法访问%ESC%[0m，想要使用该版本请确保网络正常
             set "clashUrl=https://release.dreamacro.workers.dev/latest/clash-windows-!archVersion!-latest.zip"
         )
     )
@@ -2321,7 +2379,8 @@ if "!useClashMeta!" == "0" (
         call :trim clashUrl "!clashUrl!"
         if !clashUrl! == "" (
             if "!alpha!" == "1" (set "version=预览版") else (set "version=稳定版")
-            @echo [%ESC%[91m错误%ESC%[0m] 获取 clash.meta 下载链接失败，版本："!version!"
+            if "!useVerneMihomo!" == "1" (set "coreName=!smartMihomoName!") else (set "coreName=!metacubexMihomoName!")
+            @echo [%ESC%[91m错误%ESC%[0m] 获取 !coreName! 下载链接失败，版本："!version!"
             goto :eof
         )
 
@@ -2364,7 +2423,7 @@ if "!useClashMeta!" == "0" (
 
         for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^[ ][ ]*geoip:[ ][ ]*http.*://" "!configFile!"') do (
             call :trim geoipkey %%a
-            
+
             @REM commented
             if /i "!geoipkey:~0,1!" NEQ "#" call :trim geoIpUrl %%b
         )
@@ -2385,7 +2444,7 @@ if "!useClashMeta!" == "0" (
     ) else if "!metacubexd!" == "1" (
         set "dashboardUrl=https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
         set "dashboardDirectory=metacubexd-gh-pages"
-    ) else (        
+    ) else (
         set "dashboardUrl=https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip"
         set "dashboardDirectory=zashboard-gh-pages"
     )
@@ -2395,7 +2454,7 @@ if "!useClashMeta!" == "0" (
 call :selectDashboardUrl
 
 @REM clashUrl
-call :generateDownloadUrl clashUrl "!clashUrl!" "clash.exe" "!force!"
+call :generateDownloadUrl clashUrl "!clashUrl!" "!proxyExecutableName!" "!force!"
 
 @REM dashboardUrl
 if "!dashboard!" == "" (
@@ -2579,7 +2638,7 @@ for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"!regex!" "!configFile!"')
 
 call :trim key "!key!"
 if "!key!" == "" goto :eof
-@REM commened 
+@REM commened
 if "!key:~0,1!" == "#" goto :eof
 
 call :removeQuotes value "!text!"
@@ -2714,7 +2773,8 @@ if "!enableRemoteConfig!" == "1" if "!remoteConfigUrl!" NEQ "" (
         goto :eof
     )
 
-    if exist "!dest!\clash.exe" (
+    call :resolveProxyExecutableName
+    if exist "!dest!\!proxyExecutableName!" (
         @REM check file
         for %%a in ("!downloadPath!") do set "fileSize=%%~za"
         if !fileSize! LSS 32 (
@@ -2722,9 +2782,9 @@ if "!enableRemoteConfig!" == "1" if "!remoteConfigUrl!" NEQ "" (
             @echo [%ESC%[!warnColor!m警告%ESC%[0m] 配置文件下载失败，如有需要，请重试或点击 %ESC%[!warnColor!m!remoteConfigUrl!%ESC%[0m 手动下载并替换
             exit /b 1
         )
-        
+
         @REM test config file
-        "!dest!\clash.exe" -d "!dest!" -t -f "!downloadPath!" >nul 2>nul
+        "!dest!\!proxyExecutableName!" -d "!dest!" -t -f "!downloadPath!" >nul 2>nul
 
         @REM failed
         if !errorlevel! NEQ 0 (
@@ -2793,7 +2853,7 @@ if not exist "!configFile!" goto :eof
 
 @REM temp file
 set "tempFile=!temp!\clashupdate.txt"
-set "filePaths=" 
+set "filePaths="
 
 call :findByContext "!configFile!" "!regex!" "!tempFile!" 5
 if not exist "!tempFile!" (
@@ -2823,7 +2883,7 @@ for %%r in (!localFiles!) do (
     call :convertToAbsolutePath targetFile %%r
     if "!targetFile!" == "" (
         @echo [%ESC%[91m错误%ESC%[0m] 配置无效，订阅或代理规则更新失败
-        goto :eof  
+        goto :eof
     )
 
     set "filePaths=!filePaths!,!targetFile!"
@@ -2866,7 +2926,7 @@ for %%r in (!localFiles!) do (
                     @REM move new file to dest
                     move "!temp!\!filename!" "!filepath!" >nul 2>nul
 
-                    @REM changed status 
+                    @REM changed status
                     set "%~1=1"
                 ) else (
                     @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!filename!%ESC%[0m 下载失败，下载链接："!url!"
@@ -3027,7 +3087,7 @@ if "!target!" == "" (
 
 if not exist "!src!" (
     @echo [%ESC%[91m错误%ESC%[0m] 文件夹移动失败，源文件夹不存在："!src!"
-    goto :eof  
+    goto :eof
 )
 
 @REM delete old folder if exists
@@ -3047,7 +3107,8 @@ set "directory=%~1"
 if "!directory!" == "" set "directory=!temp!"
 
 if exist "!directory!\clash.zip" del /f /q "!directory!\clash.zip" >nul
-if exist "!directory!\clash.exe" del /f /q "!directory!\clash.exe" >nul
+if exist "!directory!\!clashExecutableName!" del /f /q "!directory!\!clashExecutableName!" >nul
+if exist "!directory!\!mihomoExecutableName!" del /f /q "!directory!\!mihomoExecutableName!" >nul
 
 @REM wintun
 if exist "!directory!\wintun.zip" del /f /q "!directory!\wintun.zip"
@@ -3084,7 +3145,7 @@ if exist "!directory!\!dashboard!" rd "!directory!\!dashboard!" /s /q >nul 2>nul
 goto :eof
 
 
-@REM replace '\\' to '\' for directory 
+@REM replace '\\' to '\' for directory
 :normalizePath <result> <directory>
 set "%~1="
 call :trim directory "%~2"
@@ -3302,7 +3363,7 @@ if "!errorlevel!" == "0" set "%~1=1"
 goto :eof
 
 
-@REM prompt user input task start time 
+@REM prompt user input task start time
 :promptScheduleTime <time>
 set "%~1="
 set "userTime="
@@ -3448,7 +3509,7 @@ call :enableNoPromptRunAs result
 goto :eof
 
 
-@REM add to 
+@REM add to
 :registerStartupScript <result> <path>
 set "%~1=0"
 call :trim exeName "%~2"
@@ -3488,7 +3549,7 @@ goto :eof
 :isHomeEdition <result>
 set "%~1=1"
 
-set "content=" 
+set "content="
 for /f %%a in ('wmic os get OperatingSystemSKU ^| findstr /r /i /c:"^[1-9][0-9]*"') do set "content=%%a"
 call :trim content "!content!"
 
@@ -3533,7 +3594,7 @@ set "groupPolicyRunAsKey=ConsentPromptBehaviorAdmin"
 call :queryRegistry code "!groupPolicyRegPath!" "!groupPolicyRunAsKey!" "REG_DWORD"
 if "!code!" == "0x0" (
     set "%~1=1"
-    exit /b  
+    exit /b
 )
 
 call :enableSilentRunAs enable
@@ -3569,7 +3630,7 @@ if "!success!" == "0" (
 @REM delete scheduled
 call :deleteScheduledTask success "ClashUpdater"
 if "!success!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 自动检查跟新取消%ESC%[91m失败%ESC%[0m，可在%ESC%[!warnColor!m任务计划程序%ESC%[0m中手动删除 
+    @echo [%ESC%[91m错误%ESC%[0m] 自动检查跟新取消%ESC%[91m失败%ESC%[0m，可在%ESC%[!warnColor!m任务计划程序%ESC%[0m中手动删除
 )
 
 @REM stop process
@@ -3639,9 +3700,9 @@ if exist "!linkDest!" del /f /q "!linkDest!" >nul
 
 set "vbsPath=!temp!\createshortcut.vbs"
 ((
-    @echo set ows = WScript.CreateObject^("WScript.Shell"^) 
+    @echo set ows = WScript.CreateObject^("WScript.Shell"^)
     @echo slinkfile = ows.ExpandEnvironmentStrings^("!linkDest!"^)
-    @echo set olink = ows.CreateShortcut^(slinkfile^) 
+    @echo set olink = ows.CreateShortcut^(slinkfile^)
     @echo olink.TargetPath = ows.ExpandEnvironmentStrings^("!target!"^)
     @echo olink.IconLocation = ows.ExpandEnvironmentStrings^("!dest!\!iconName!"^)
     @echo olink.WorkingDirectory = ows.ExpandEnvironmentStrings^("!dest!"^)
