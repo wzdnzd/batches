@@ -128,6 +128,9 @@ set "useVerneMihomo=0"
 @REM Core edition explicitly selected by arguments
 set "coreForced=0"
 
+@REM Installed proxy core differs from the required edition
+set "proxyEditionChanged=0"
+
 @REM LightGBM model
 set "lgbmUrl="
 set "lgbmFile=Model.bin"
@@ -1188,6 +1191,31 @@ if "%~2" == "2" set "%~1=!smartMihomoName!"
 goto :eof
 
 @REM ============================================================================
+@REM Detect whether the installed proxy edition must be switched
+@REM Purpose:    Compare installed and required proxy core editions
+@REM Parameters: <geosite>, <subscriptionFiles>
+@REM Returns:    Sets proxyEditionChanged to 1 when the installed edition differs
+@REM ============================================================================
+:detectProxyEditionChange <geosite> <subscriptionFiles>
+set "proxyEditionChanged=0"
+
+call :detectInstalledProxyEdition installedEdition installedEditionFound
+call :detectRequiredEdition "%~1" %~2
+
+set "targetEdition=0"
+if "!useClashMeta!" == "1" set "targetEdition=1"
+if "!useVerneMihomo!" == "1" set "targetEdition=2"
+
+if "!installedEditionFound!" == "1" if "!installedEdition!" NEQ "!targetEdition!" (
+    set "proxyEditionChanged=1"
+    call :resolveCoreDisplayName oldEdition !installedEdition!
+    call :resolveCoreDisplayName newEdition !targetEdition!
+
+    @echo [%ESC%[!warnColor!m提示%ESC%[0m] 配置%ESC%[91m不兼容%ESC%[0m，代理程序需从 %ESC%[!warnColor!m!oldEdition!%ESC%[0m 切换至 %ESC%[!warnColor!m!newEdition!%ESC%[0m
+)
+goto :eof
+
+@REM ============================================================================
 @REM Detect Smart proxy groups
 @REM Purpose:    Detect Smart proxy groups
 @REM Parameters: <result>
@@ -1257,20 +1285,10 @@ if "!excludeUpdates!" == "0" call :updateSubscriptions subscriptionFiles 1
 @REM Rulesets
 call :updateRules 1
 
-@REM Detect the new core edition
-call :detectInstalledProxyEdition clashEdition clashFound
-call :detectRequiredEdition geoSiteNeeded !subscriptionFiles!
-
-set "targetEdition=0"
-if "!useClashMeta!" == "1" set "targetEdition=1"
-if "!useVerneMihomo!" == "1" set "targetEdition=2"
-
-if "!clashEdition!" NEQ "!targetEdition!" (
+@REM Detect whether the core edition must be switched
+call :detectProxyEditionChange geoSiteNeeded !subscriptionFiles!
+if "!proxyEditionChanged!" == "1" (
     set "%~1=1"
-    call :resolveCoreDisplayName oldEdition !clashEdition!
-    call :resolveCoreDisplayName newEdition !targetEdition!
-
-    @echo [%ESC%[!warnColor!m提示%ESC%[0m] 配置%ESC%[91m不兼容%ESC%[0m，代理程序需从 %ESC%[!warnColor!m!oldEdition!%ESC%[0m 切换至 %ESC%[!warnColor!m!newEdition!%ESC%[0m
     goto :eof
 )
 
@@ -1926,6 +1944,7 @@ goto :eof
 @REM ============================================================================
 :prepareComponents <changed> <force> <downloadedAlready>
 set "%~1=0"
+set "componentChanged=0"
 
 call :trim downloadForce "%~2"
 if "!downloadForce!" == "" set "downloadForce=0"
@@ -1949,7 +1968,8 @@ if "!downloadedAlready!" == "0" if "!excludeUpdates!" == "0" call :updateSubscri
 call :loadConfigSummary !subscriptionFiles!
 
 @REM Resolve download URLs and file names
-call :detectRequiredEdition geoSiteNeeded !subscriptionFiles!
+call :detectProxyEditionChange geoSiteNeeded !subscriptionFiles!
+if "!proxyEditionChanged!" == "1" set "componentChanged=1"
 
 call :resolveProxyExecutableName
 
@@ -1986,14 +2006,16 @@ if "!downloadedAlready!" == "0" call :updateRules "!downloadForce!"
 
 @REM Wintun.dll
 call :downloadWintun newWintun "!downloadForce!"
-set "%~1=!newWintun!"
+if "!newWintun!" == "1" set "componentChanged=1"
 
 @REM Download proxy executable and geoip.data and so on
 call :downloadFiles fileNames "!downloadForce!"
 
 @REM Detect file changes by MD5
 call :detectChangedFiles changed "!fileNames!"
-if "!changed!" == "1" set "%~1=!changed!"
+if "!changed!" == "1" set "componentChanged=1"
+
+set "%~1=!componentChanged!"
 
 goto :eof
 
@@ -2400,6 +2422,7 @@ if "!archVersion!" == "" (
 
 @REM Determine whether the proxy executable must be downloaded
 if not exist "!dest!\!proxyExecutableName!" (set "needDownload=1") else (set "needDownload=!force!")
+if "!proxyEditionChanged!" == "1" set "needDownload=1"
 
 if "!useClashMeta!" == "0" (
     @echo [%ESC%[!warnColor!m提示%ESC%[0m] %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂%ESC%[!warnColor!m不提供%ESC%[0m下载，建议使用 %ESC%[!warnColor!m-m%ESC%[0m 或 %ESC%[!warnColor!m--meta%ESC%[0m 切换到 %ESC%[!warnColor!m!metaCubeXMihomoName!%ESC%[0m
@@ -2579,6 +2602,7 @@ goto :eof
 :skipMihomoDownloadIfCurrent
 if "!clashUrl!" == "" goto :eof
 if "!useClashMeta!" NEQ "1" goto :eof
+if "!proxyEditionChanged!" == "1" goto :eof
 if not exist "!dest!\!proxyExecutableName!" goto :eof
 
 if "!clashUrl:MetaCubeX/mihomo=!" == "!clashUrl!" if "!clashUrl:vernesong/mihomo=!" == "!clashUrl!" goto :eof
