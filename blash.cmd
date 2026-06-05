@@ -1311,7 +1311,7 @@ if "!force!" == "1" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 检查并更新订阅，仅刷新 %ESC%[!warnColor!mHTTP%ESC%[0m 类型的订阅
 )
 
-call :refreshReferencedFiles changed "^\s+(health-check:(\s+)?|<<:\s+\*.*)$|^proxy-providers:(\s+)?$" "www.gstatic.com cp.cloudflare.com" "!force!" subscriptionFiles "proxies"
+call :refreshReferencedFiles changed "proxy-providers" "!force!" subscriptionFiles "proxies"
 set "%~1=!subscriptionFiles!"
 goto :eof
 
@@ -2836,39 +2836,119 @@ if "!force!" == "1" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始检查并更新类型为 %ESC%[!warnColor!mHTTP%ESC%[0m 的代理规则
 )
 
-call :refreshReferencedFiles changed "^\s+behavior:\s+.*" "www.gstatic.com cp.cloudflare.com" "!force!" rulefiles "payload"
+call :refreshReferencedFiles changed "rule-providers" "!force!" rulefiles "payload"
+goto :eof
+
+
+@REM count leading spaces for YAML indentation
+:countLeadingSpaces <result> <line>
+set "%~1=0"
+set "indentText=%~2"
+:countLeadingSpacesLoop
+if "!indentText:~0,1!" == " " (
+    set /a %~1+=1
+    set "indentText=!indentText:~1!"
+    goto :countLeadingSpacesLoop
+)
+goto :eof
+
+
+@REM append a complete provider/ruleset entry as url|path
+:appendReferencedEntry <resultfile> <url> <path>
+call :trim entryUrl "%~2"
+call :trim entryPath "%~3"
+if "!entryUrl!" == "" goto :eof
+if "!entryPath!" == "" goto :eof
+if /i "!entryUrl:~0,7!" NEQ "http://" if /i "!entryUrl:~0,8!" NEQ "https://" goto :eof
+>>"%~1" echo !entryUrl!^|!entryPath!
 goto :eof
 
 
 @REM refresh subsribe and rulesets
-:refreshReferencedFiles <result> <regex> <filter> <force> <filePaths> <check>
+:refreshReferencedFiles <result> <section> <force> <filePaths> <check>
 set "%~1=0"
-set "regex=%~2"
-set "%~5="
+call :trim sectionName "%~2"
+set "%~4="
 
-call :trim filter "%~3"
-if "!filter!" == "" set "filter=www.gstatic.com cp.cloudflare.com"
+call :trim check "%~5"
 
-call :trim check "%~6"
-
-call :trim force "%~4"
+call :trim force "%~3"
 if "!force!" == "" set "force=1"
 
-if "!regex!" == "" (
+if "!sectionName!" == "" (
     @echo [%ESC%[!warnColor!m警告%ESC%[0m] 未指定关键信息，跳过更新
     goto :eof
 )
 
-set textUrls=
-set localFiles=
-
 if not exist "!configFile!" goto :eof
 
-@REM temp file
 set "tempFile=!temp!\clashupdate.txt"
+del /f /q "!tempFile!" >nul 2>nul
 set "filePaths="
 
-call :findByContext "!configFile!" "!regex!" "!tempFile!" 5
+set "insideSection=0"
+set "sectionIndent=-1"
+set "itemIndent=-1"
+set "propertyIndent=-1"
+set "entryUrl="
+set "entryPath="
+
+for /f "usebackq delims=" %%l in ("!configFile!") do (
+    set "line=%%l"
+    call :trim yamlText "!line!"
+
+    if "!yamlText!" NEQ "" if "!yamlText:~0,1!" NEQ "#" (
+        call :countLeadingSpaces indent "!line!"
+
+        if "!insideSection!" == "0" (
+            if /i "!yamlText!" == "!sectionName!:" (
+                set "insideSection=1"
+                set "sectionIndent=!indent!"
+                set "itemIndent=-1"
+                set "propertyIndent=-1"
+                set "entryUrl="
+                set "entryPath="
+            )
+        ) else (
+            if !indent! LEQ !sectionIndent! (
+                call :appendReferencedEntry "!tempFile!" "!entryUrl!" "!entryPath!"
+                set "insideSection=0"
+                set "itemIndent=-1"
+                set "propertyIndent=-1"
+                set "entryUrl="
+                set "entryPath="
+            ) else (
+                if "!itemIndent!" == "-1" (
+                    set "itemIndent=!indent!"
+                    set "propertyIndent=-1"
+                    set "entryUrl="
+                    set "entryPath="
+                ) else if !indent! LEQ !itemIndent! (
+                    call :appendReferencedEntry "!tempFile!" "!entryUrl!" "!entryPath!"
+                    set "itemIndent=!indent!"
+                    set "propertyIndent=-1"
+                    set "entryUrl="
+                    set "entryPath="
+                ) else (
+                    if "!propertyIndent!" == "-1" set "propertyIndent=!indent!"
+
+                    if !indent! EQU !propertyIndent! (
+                        for /f "tokens=1* delims=:" %%a in ("!yamlText!") do (
+                            call :trim entryKey "%%a"
+                            call :removeQuotes entryValue "%%b"
+
+                            if /i "!entryKey!" == "url" set "entryUrl=!entryValue!"
+                            if /i "!entryKey!" == "path" set "entryPath=!entryValue!"
+                        )
+                    )
+                )
+            )
+        )
+    )
+)
+
+if "!insideSection!" == "1" call :appendReferencedEntry "!tempFile!" "!entryUrl!" "!entryPath!"
+
 if not exist "!tempFile!" (
     if "!force!" == "0" goto :eof
 
@@ -2876,81 +2956,62 @@ if not exist "!tempFile!" (
     goto :eof
 )
 
-@REM urls and file path
-for /f "tokens=1* delims=:" %%i in ('findstr /i /r /c:"^[ ][ ]*url:[ ][ ]*http.*://.*" !tempFile!') do (
-    call :trim propertity %%i
-    if "!propertity:~0,1!" NEQ "#" (
-        @echo "%%j" | findstr /i "!filter!" >nul 2>nul || set "textUrls=!textUrls!,%%j"
-    )
-)
+for /f "usebackq tokens=1* delims=|" %%u in ("!tempFile!") do (
+    call :trim url "%%u"
+    call :trim rawPath "%%v"
 
-for /f "tokens=1* delims=:" %%i in ('findstr /i /r /c:"^[ ][ ]*path:[ ][ ]*.*" !tempFile!') do (
-    call :trim propertity %%i
-    if "!propertity:~0,1!" NEQ "#" (
-        set "localFiles=!localFiles!,%%j"
-    )
-)
-
-for %%r in (!localFiles!) do (
     @REM generate file path
-    call :convertToAbsolutePath targetFile %%r
+    call :convertToAbsolutePath targetFile "!rawPath!"
     if "!targetFile!" == "" (
         @echo [%ESC%[91m错误%ESC%[0m] 配置无效，订阅或代理规则更新失败
         goto :eof
     )
 
     set "filePaths=!filePaths!,!targetFile!"
-    for /f "tokens=1* delims=," %%u in ("!textUrls!") do (
-        call :trim url %%u
-        set "textUrls=%%v"
+    if /i "!url:~0,8!"=="https://" (
+        set "needDownload=0"
+        if not exist "!targetFile!" set "needDownload=1"
+        if "!force!" == "1" set "needDownload=1"
+        @REM should download
+        if "!needDownload!" == "1" (
+            @REM get directory
+            call :splitPath filepath filename "!targetFile!"
 
-        if /i "!url:~0,8!"=="https://" (
-            set "needDownload=0"
-            if not exist "!targetFile!" set "needDownload=1"
-            if "!force!" == "1" set "needDownload=1"
-            @REM should download
-            if "!needDownload!" == "1" (
-                @REM get directory
-                call :splitPath filepath filename "!targetFile!"
+            @REM mkdir if not exists
+            call :createDirectories success "!filepath!"
 
-                @REM mkdir if not exists
-                call :createDirectories success "!filepath!"
+            @REM request and save
+            del /f /q "!temp!\!filename!" >nul 2>nul
+            call :retryDownload "!url!" "!temp!\!filename!"
 
-                @REM request and save
-                del /f /q "!temp!\!filename!" >nul 2>nul
-                call :retryDownload "!url!" "!temp!\!filename!"
+            @REM check file size
+            set "fileSize=0"
+            if exist "!temp!\!filename!" (
+                for %%a in ("!temp!\!filename!") do set "fileSize=%%~za"
+            )
 
-                @REM check file size
-                set "fileSize=0"
-                if exist "!temp!\!filename!" (
-                    for %%a in ("!temp!\!filename!") do set "fileSize=%%~za"
-                )
+            @REM check file content
+            call :verifyFileSection match "!temp!\!filename!" "!check!"
 
-                @REM check file content
-                call :verifyFileSection match "!temp!\!filename!" "!check!"
+            if !fileSize! GTR 16 if "!match!" == "1" (
+                @REM delete if old file exists
+                del /f /q "!targetFile!" >nul 2>nul
 
-                if !fileSize! GTR 16 if "!match!" == "1" (
-                    @REM delete if old file exists
-                    del /f /q "!targetFile!" >nul 2>nul
+                @REM move new file to dest
+                move "!temp!\!filename!" "!filepath!" >nul 2>nul
 
-                    @REM move new file to dest
-                    move "!temp!\!filename!" "!filepath!" >nul 2>nul
-
-                    @REM changed status
-                    set "%~1=1"
-                ) else (
-                    @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!filename!%ESC%[0m 下载失败，下载链接："!url!"
-                )
+                @REM changed status
+                set "%~1=1"
+            ) else (
+                @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!filename!%ESC%[0m 下载失败，下载链接："!url!"
             )
         )
     )
 )
 
-set "%~5=!filePaths!"
-@REM delete tempFile
+set "%~4=!filePaths!"
 if exist "!tempFile!" del /f /q "!tempFile!" >nul 2>nul
 goto :eof
-
 
 @REM extract dashboard path
 :extractDashboardPath <result>
