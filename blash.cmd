@@ -1807,14 +1807,14 @@ cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
         !operation!
         exit /b
     ) else (
-        powershell -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs"
+        start "" "%ComSpec%" /k ""!scriptPath!" %~1"
         exit /b
     )
 ) || (
     if "!showwindow!" == "0" (
         powershell -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
     ) else (
-        powershell -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs"
+        powershell -Command "Start-Process -FilePath $env:ComSpec -ArgumentList '/k ""!scriptPath!"" %~1' -Verb RunAs"
     )
     exit /b
 )
@@ -1827,6 +1827,7 @@ call :trim runConfigFile "%~1"
 if "!runConfigFile:~0,13!" == "goto :runClash" (
     for /f "tokens=1-4 delims= " %%a in ("!runConfigFile!") do set "runConfigFile=%%c"
 )
+call :convertToAbsolutePath runConfigFile "!runConfigFile!"
 call :trim runExecutable "%~2"
 
 if "!runConfigFile!" == "" (
@@ -1842,6 +1843,15 @@ if "!runExecutable!" == "" (
     call :resolveProxyExecutableName
     set "runExecutable=!proxyExecutableName!"
 )
+if not exist "!runConfigFile!" (
+    @echo [%ESC%[91m错误%ESC%[0m] 配置文件 "%ESC%[!warnColor!m!runConfigFile!%ESC%[0m" 不存在，无法启动代理程序
+    goto :eof
+)
+if not exist "!filePath!\!runExecutable!" (
+    @echo [%ESC%[91m错误%ESC%[0m] 代理程序 "%ESC%[!warnColor!m!filePath!\!runExecutable!%ESC%[0m" 不存在，无法启动
+    goto :eof
+)
+@echo [%ESC%[!infoColor!m信息%ESC%[0m] 正在启动代理程序："!filePath!\!runExecutable!" -d "!filePath!" -f "!runConfigFile!"
 "!filePath!\!runExecutable!" -d "!filePath!" -f "!runConfigFile!"
 goto :eof
 
@@ -1957,7 +1967,11 @@ goto :eof
 :runClashWrapper <shouldCheck>
 call :trim shouldCheck "%~1"
 if "!shouldCheck!" == "" set "shouldCheck=0"
-if "!shouldCheck!" == "1" (call :prepareComponents changed 0 0)
+if "!shouldCheck!" == "1" (
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 正在检查所需组件，缺失时才会下载，请稍等
+    call :prepareComponents changed 0 0
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 组件检查完成，准备启动代理程序
+)
 call :resolveProxyExecutableName
 
 @REM verify config
