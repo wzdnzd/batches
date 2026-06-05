@@ -81,7 +81,7 @@ set "proxyExecutableName=!clashExecutableName!"
 
 @REM core display names
 set "clashPremiumName=Clash Premium"
-set "metacubexMihomoName=MetaCubeX Mihomo"
+set "metaCubeXMihomoName=MetaCubeX Mihomo"
 set "smartMihomoName=Smart Mihomo"
 
 @REM subscription link
@@ -144,7 +144,7 @@ set "regenerate=0"
 set "yacd=0"
 
 @REM metacubexd, see https://github.com/MetaCubeX/metacubexd
-set "metacubexd=0"
+set "metaCubeXDashboard=0"
 
 @REM zashboard, see https://github.com/Zephyruso/zashboard
 set "zashboard=0"
@@ -771,7 +771,7 @@ if "!result!" == "true" (
 if "%1" == "-x" set result=true
 if "%1" == "--metacubexd" set result=true
 if "!result!" == "true" (
-    set "metacubexd=1"
+    set "metaCubeXDashboard=1"
     set "dashboardForced=1"
     set "yacd=0"
     set "zashboard=0"
@@ -782,7 +782,7 @@ if "!result!" == "true" (
 if "%1" == "-y" set result=true
 if "%1" == "--yacd" set result=true
 if "!result!" == "true" (
-    set "metacubexd=0"
+    set "metaCubeXDashboard=0"
     set "yacd=1"
     set "dashboardForced=1"
     set "zashboard=0"
@@ -793,7 +793,7 @@ if "!result!" == "true" (
 if "%1" == "-z" set result=true
 if "%1" == "--zashboard" set result=true
 if "!result!" == "true" (
-    set "metacubexd=0"
+    set "metaCubeXDashboard=0"
     set "yacd=0"
     set "zashboard=1"
     set "dashboardForced=1"
@@ -875,7 +875,7 @@ set "usageLine=-e, --exclude         更新时跳过代理集中配置的订阅"
 @echo(!usageLine!
 set "usageLine=-g, --generate        重新生成自动检查更新的脚本，搭配 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
-set "usageLine=-m, --meta            使用 %ESC%[!warnColor!m!metacubexMihomoName!%ESC%[0m 代理内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
+set "usageLine=-m, --meta            使用 %ESC%[!warnColor!m!metaCubeXMihomoName!%ESC%[0m 代理内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
 set "usageLine=-n, --native          使用 %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 代理内核，搭配 %ESC%[!warnColor!m-i%ESC%[0m 或 %ESC%[!warnColor!m-u%ESC%[0m 使用"
 @echo(!usageLine!
@@ -944,13 +944,13 @@ set "content="
 set "needGeoSite=0"
 
 @REM yacd dashboard
-if "!metacubexd!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\yacd.ico" set "yacd=1"
+if "!metaCubeXDashboard!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\yacd.ico" set "yacd=1"
 
 @REM metacubexd dashboard
-if "!yacd!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\maskable-icon-512x512.png" set "metacubexd=1"
+if "!yacd!" == "0" if "!zashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\maskable-icon-512x512.png" set "metaCubeXDashboard=1"
 
 @REM zashboard dashboard
-if "!yacd!" == "0" if "!metacubexd!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\pwa-maskable-512x512.png" set "zashboard=1"
+if "!yacd!" == "0" if "!metaCubeXDashboard!" == "0" if "!dashboard!" NEQ "" if exist "!dashboard!\pwa-maskable-512x512.png" set "zashboard=1"
 
 @REM force use Clash Premium
 if "!useClashPremium!" == "1" (
@@ -982,7 +982,7 @@ if "!useVerneMihomo!" == "1" (
 )
 
 set "notFound=1"
-if "!cfgHasGeositeRule!" == "1" (
+if "!cfgHasGeoSiteRule!" == "1" (
     set "notFound=0"
     set "needGeoSite=1"
 )
@@ -1073,7 +1073,7 @@ goto :eof
 set "cfgHasSmartGroup=0"
 set "cfgHasSmartPreferAsn=0"
 set "cfgHasAsnRule=0"
-set "cfgHasGeositeRule=0"
+set "cfgHasGeoSiteRule=0"
 set "cfgHasMetaRule=0"
 set "cfgHasScriptRule=0"
 set "cfgHasSniffer=0"
@@ -1090,7 +1090,7 @@ set "cfgExternalUiUrl="
 set "cfgSummaryFile=!temp!\clash-config-summary.txt"
 del /f /q "!cfgSummaryFile!" >nul 2>nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$config='!configFile!'; $out='!cfgSummaryFile!'; $subs='%~1'; $vars=[ordered]@{cfgHasSmartGroup='0';cfgHasSmartPreferAsn='0';cfgHasAsnRule='0';cfgHasGeositeRule='0';cfgHasMetaRule='0';cfgHasScriptRule='0';cfgHasSniffer='0';cfgHasExcludeFilter='0';cfgHasMetaProxy='0';cfgUseLightGbm='';cfgLgbmUrl='';cfgGeoSiteUrl='';cfgGeoDataMode='false';cfgCountryUrl='';cfgGeoIpUrl='';cfgGeoAsnUrl='';cfgExternalUiUrl=''}; function CleanValue([string]$value) {if ($null -eq $value) {return ''}; return $value.Trim().Trim([char]34).Trim([char]39)}; function Read-Lines([string]$path) {if ($path -and (Test-Path -LiteralPath $path)) {Get-Content -LiteralPath $path}}; $files=@($config); if ($subs) {$files += $subs -split ','}; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); $isRule=$lower.StartsWith('- '); if ($lower -eq 'type: smart') {$vars.cfgHasSmartGroup='1'}; if ($lower -eq 'prefer-asn: true') {$vars.cfgHasSmartPreferAsn='1'}; if ($lower.StartsWith('- ip-asn,') -or $lower.StartsWith('- src-ip-asn,')) {$vars.cfgHasAsnRule='1'}; if ($isRule -and ($lower -like '*geosite,*')) {$vars.cfgHasGeositeRule='1'}; if ($isRule -and ($lower -like '*sub-rule,*' -or $lower -like '*and,*' -or $lower -like '*or,*' -or $lower -like '*not,*' -or $lower -like '*in-type,*')) {$vars.cfgHasMetaRule='1'}; if ($isRule -and ($lower -like '*script,*')) {$vars.cfgHasScriptRule='1'}; if ($lower -eq 'sniffer:') {$vars.cfgHasSniffer='1'}; if ($lower.StartsWith('exclude-filter:')) {$vars.cfgHasExcludeFilter='1'}; if ($lower.StartsWith('uselightgbm:')) {$vars.cfgUseLightGbm=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('lgbm-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgLgbmUrl=$value}}; if ($lower.StartsWith('geosite:')) {$vars.cfgGeoSiteUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geodata-mode:')) {$vars.cfgGeoDataMode=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('mmdb:')) {$vars.cfgCountryUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geoip:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgGeoIpUrl=$value}}; if ($lower.StartsWith('external-ui-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgExternalUiUrl=$value}}}; $insideGeox=$false; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; if ($text -ieq 'geox-url:') {$insideGeox=$true; continue}; if ($insideGeox) {if ((-not $line.StartsWith(' ')) -and (-not $line.StartsWith('-'))) {$insideGeox=$false; continue}; $parts=$text -split ':',2; if ($parts.Count -eq 2 -and $parts[0].Trim() -ieq 'asn') {$vars.cfgGeoAsnUrl=CleanValue $parts[1]}}}; foreach ($file in $files) {foreach ($raw in Read-Lines $file) {$text=([string]$raw).Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); if ($lower -match '^(type:\s+(vless|hysteria)|client-fingerprint:|flow:\s+xtls-)') {$vars.cfgHasMetaProxy='1'}}}; $vars.GetEnumerator() | ForEach-Object {($_.Key + '=' + $_.Value)} | Set-Content -Encoding utf8 -LiteralPath $out}"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$config='!configFile!'; $out='!cfgSummaryFile!'; $subs='%~1'; $vars=[ordered]@{cfgHasSmartGroup='0';cfgHasSmartPreferAsn='0';cfgHasAsnRule='0';cfgHasGeoSiteRule='0';cfgHasMetaRule='0';cfgHasScriptRule='0';cfgHasSniffer='0';cfgHasExcludeFilter='0';cfgHasMetaProxy='0';cfgUseLightGbm='';cfgLgbmUrl='';cfgGeoSiteUrl='';cfgGeoDataMode='false';cfgCountryUrl='';cfgGeoIpUrl='';cfgGeoAsnUrl='';cfgExternalUiUrl=''}; function CleanValue([string]$value) {if ($null -eq $value) {return ''}; return $value.Trim().Trim([char]34).Trim([char]39)}; function Read-Lines([string]$path) {if ($path -and (Test-Path -LiteralPath $path)) {Get-Content -LiteralPath $path}}; $files=@($config); if ($subs) {$files += $subs -split ','}; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); $isRule=$lower.StartsWith('- '); if ($lower -eq 'type: smart') {$vars.cfgHasSmartGroup='1'}; if ($lower -eq 'prefer-asn: true') {$vars.cfgHasSmartPreferAsn='1'}; if ($lower.StartsWith('- ip-asn,') -or $lower.StartsWith('- src-ip-asn,')) {$vars.cfgHasAsnRule='1'}; if ($isRule -and ($lower -like '*geosite,*')) {$vars.cfgHasGeoSiteRule='1'}; if ($isRule -and ($lower -like '*sub-rule,*' -or $lower -like '*and,*' -or $lower -like '*or,*' -or $lower -like '*not,*' -or $lower -like '*in-type,*')) {$vars.cfgHasMetaRule='1'}; if ($isRule -and ($lower -like '*script,*')) {$vars.cfgHasScriptRule='1'}; if ($lower -eq 'sniffer:') {$vars.cfgHasSniffer='1'}; if ($lower.StartsWith('exclude-filter:')) {$vars.cfgHasExcludeFilter='1'}; if ($lower.StartsWith('uselightgbm:')) {$vars.cfgUseLightGbm=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('lgbm-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgLgbmUrl=$value}}; if ($lower.StartsWith('geosite:')) {$vars.cfgGeoSiteUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geodata-mode:')) {$vars.cfgGeoDataMode=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('mmdb:')) {$vars.cfgCountryUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geoip:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgGeoIpUrl=$value}}; if ($lower.StartsWith('external-ui-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgExternalUiUrl=$value}}}; $insideGeox=$false; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; if ($text -ieq 'geox-url:') {$insideGeox=$true; continue}; if ($insideGeox) {if ((-not $line.StartsWith(' ')) -and (-not $line.StartsWith('-'))) {$insideGeox=$false; continue}; $parts=$text -split ':',2; if ($parts.Count -eq 2 -and $parts[0].Trim() -ieq 'asn') {$vars.cfgGeoAsnUrl=CleanValue $parts[1]}}}; foreach ($file in $files) {foreach ($raw in Read-Lines $file) {$text=([string]$raw).Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); if ($lower -match '^(type:\s+(vless|hysteria)|client-fingerprint:|flow:\s+xtls-)') {$vars.cfgHasMetaProxy='1'}}}; $vars.GetEnumerator() | ForEach-Object {($_.Key + '=' + $_.Value)} | Set-Content -Encoding utf8 -LiteralPath $out}"
 
 if exist "!cfgSummaryFile!" (
     for /f "usebackq tokens=1* delims==" %%a in ("!cfgSummaryFile!") do set "%%a=%%b"
@@ -1110,7 +1110,7 @@ goto :eof
 @REM resolve core display name from edition number: 0=Clash Premium, 1=MetaCubeX Mihomo, 2=Smart Mihomo
 :resolveCoreDisplayName <result> <edition>
 set "%~1=!clashPremiumName!"
-if "%~2" == "1" set "%~1=!metacubexMihomoName!"
+if "%~2" == "1" set "%~1=!metaCubeXMihomoName!"
 if "%~2" == "2" set "%~1=!smartMihomoName!"
 goto :eof
 
@@ -1641,7 +1641,7 @@ goto :eof
 
 @REM download with retry
 :retryDownload <url> <fileName>
-set maxretries=3
+set maxRetries=3
 call :trim downloadUrl "%~1"
 call :trim savePath "%~2"
 
@@ -1652,7 +1652,7 @@ if exist "!savePath!" del /f /q "!savePath!" >nul 2>nul
 set /a "count=0"
 
 :retry
-if !count! GEQ !maxretries! (
+if !count! GEQ !maxRetries! (
     @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!savePath!%ESC%[0m 下载失败，已达最大重试次数，请尝试再次执行此命令
     if exist "!savePath!" del /f /q "!savePath!" >nul 2>nul
     goto :eof
@@ -1786,7 +1786,7 @@ goto :eof
 
 @REM privilege escalation
 :runElevated <args> <showWindow>
-set "showwindow=0"
+set "elevatedShowWindow=0"
 set "operation=%~1"
 set "scriptPath=%~f0"
 if "!operation!" == "" (
@@ -1797,12 +1797,12 @@ if "!operation!" == "" (
 @REM parse window parameter
 call :trim param "%~2"
 set "display=" & for /f "delims=0123456789" %%i in ("!param!") do set "display=%%i"
-if defined display (set "showwindow=0") else (set "showwindow=!param!")
-if "!showwindow!" NEQ "0" set "showwindow=1"
+if defined display (set "elevatedShowWindow=0") else (set "elevatedShowWindow=!param!")
+if "!elevatedShowWindow!" NEQ "0" set "elevatedShowWindow=1"
 
 @REM call Start-Process with powershell
 cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
-    if "!showwindow!" == "0" (
+    if "!elevatedShowWindow!" == "0" (
         !operation!
         exit /b
     ) else (
@@ -1810,7 +1810,7 @@ cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
         exit /b
     )
 ) || (
-    if "!showwindow!" == "0" (
+    if "!elevatedShowWindow!" == "0" (
         powershell -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
     ) else (
         powershell -Command "Start-Process -FilePath $env:ComSpec -ArgumentList '/k ""!scriptPath!"" %~1' -Verb RunAs"
@@ -1887,7 +1887,7 @@ call :resolveProxyExecutableName
 
 @REM Clash Premium is not available now
 if "!useClashPremium!" == "1" if not exist "!dest!\!proxyExecutableName!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 代理程序 %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂时 %ESC%[91m无法使用%ESC%[0m，请选择 %ESC%[!warnColor!m!metacubexMihomoName!%ESC%[0m
+    @echo [%ESC%[91m错误%ESC%[0m] 代理程序 %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂时 %ESC%[91m无法使用%ESC%[0m，请选择 %ESC%[!warnColor!m!metaCubeXMihomoName!%ESC%[0m
     exit /b 1
 )
 
@@ -1969,11 +1969,7 @@ goto :eof
 :runClashWrapper <shouldCheck>
 call :trim shouldCheck "%~1"
 if "!shouldCheck!" == "" set "shouldCheck=0"
-if "!shouldCheck!" == "1" (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 正在检查所需组件，缺失时才会下载，请稍等
-    call :prepareComponents changed 0 0
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 组件检查完成，准备启动代理程序
-)
+if "!shouldCheck!" == "1" (call :prepareComponents changed 0 0)
 call :resolveProxyExecutableName
 
 @REM verify config
@@ -2270,10 +2266,10 @@ if "!force!" == "" set "force=0"
 
 @REM dashboard
 if "!zashboard!" == "1" (
-    set "metacubexd=0"
+    set "metaCubeXDashboard=0"
     set "yacd=0"
 )
-if "!metacubexd!" == "1" set "yacd=0"
+if "!metaCubeXDashboard!" == "1" set "yacd=0"
 
 call :trim geoSiteFlag "%~2"
 if "!geoSiteFlag!" == "" set "geoSiteFlag=0"
@@ -2307,7 +2303,7 @@ if "!archVersion!" == "" (
 if not exist "!dest!\!proxyExecutableName!" (set "needDownload=1") else (set "needDownload=!force!")
 
 if "!useClashMeta!" == "0" (
-    @echo [%ESC%[!warnColor!m提示%ESC%[0m] %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂%ESC%[!warnColor!m不提供%ESC%[0m下载，建议使用 %ESC%[!warnColor!m-m%ESC%[0m 或 %ESC%[!warnColor!m--meta%ESC%[0m 切换到 %ESC%[!warnColor!m!metacubexMihomoName!%ESC%[0m
+    @echo [%ESC%[!warnColor!m提示%ESC%[0m] %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂%ESC%[!warnColor!m不提供%ESC%[0m下载，建议使用 %ESC%[!warnColor!m-m%ESC%[0m 或 %ESC%[!warnColor!m--meta%ESC%[0m 切换到 %ESC%[!warnColor!m!metaCubeXMihomoName!%ESC%[0m
 
     set "clashExe=clash-windows-!archVersion!.exe"
 
@@ -2333,7 +2329,7 @@ if "!useClashMeta!" == "0" (
         set "dashboardDirectory=yacd-gh-pages"
     )
 
-    if "!metacubexd!" == "1" (
+    if "!metaCubeXDashboard!" == "1" (
         set "dashboardUrl=https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
         set "dashboardDirectory=metacubexd-gh-pages"
     )
@@ -2360,7 +2356,7 @@ if "!useClashMeta!" == "0" (
         call :trim clashUrl "!clashUrl!"
         if !clashUrl! == "" (
             if "!alpha!" == "1" (set "version=预览版") else (set "version=稳定版")
-            if "!useVerneMihomo!" == "1" (set "coreName=!smartMihomoName!") else (set "coreName=!metacubexMihomoName!")
+            if "!useVerneMihomo!" == "1" (set "coreName=!smartMihomoName!") else (set "coreName=!metaCubeXMihomoName!")
             @echo [%ESC%[91m错误%ESC%[0m] 获取 !coreName! 下载链接失败，版本："!version!"
             goto :eof
         )
@@ -2401,7 +2397,7 @@ if "!useClashMeta!" == "0" (
     if "!yacd!" == "1" (
         set "dashboardUrl=https://github.com/MetaCubeX/Yacd-meta/archive/refs/heads/gh-pages.zip"
         set "dashboardDirectory=Yacd-meta-gh-pages"
-    ) else if "!metacubexd!" == "1" (
+    ) else if "!metaCubeXDashboard!" == "1" (
         set "dashboardUrl=https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip"
         set "dashboardDirectory=metacubexd-gh-pages"
     ) else (
@@ -3390,7 +3386,7 @@ if "!useClashMeta!" == "1" set "operation=!operation! -m"
 if "!useClashPremium!" == "1" set "operation=!operation! -n"
 if "!alpha!" == "1" set "operation=!operation! -a"
 if "!yacd!" == "1" set "operation=!operation! -y"
-if "!metacubexd!" == "1" set "operation=!operation! -x"
+if "!metaCubeXDashboard!" == "1" set "operation=!operation! -x"
 if "!zashboard!" == "1" set "operation=!operation! -z"
 
 @REM generate and write to file
