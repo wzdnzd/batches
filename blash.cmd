@@ -1591,87 +1591,52 @@ if "!clashUrl!" NEQ "" (
     )
 )
 
-@REM download Country.mmdb
-if "!countryUrl!" NEQ "" (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!countryFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
-
-    call :retryDownload "!countryUrl!" "!temp!\!countryFile!"
-    if exist "!temp!\!countryFile!" (
-        if "!downloadedFileList!" == "" (
-            set "downloadedFileList=!countryFile!"
-        ) else (
-            set "downloadedFileList=!downloadedFileList!;!countryFile!"
-        )
-    ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!countryFile!" 不存在，下载链接："!countryUrl!"
-    )
-)
-
-@REM download GeoSite.dat
-if "!geoSiteUrl!" NEQ "" (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!geoSiteFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
-
-    call :retryDownload "!geoSiteUrl!" "!temp!\!geoSiteFile!"
-    if exist "!temp!\!geoSiteFile!" (
-        if "!downloadedFileList!" == "" (
-            set "downloadedFileList=!geoSiteFile!"
-        ) else (
-            set "downloadedFileList=!downloadedFileList!;!geoSiteFile!"
-        )
-    ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!geoSiteFile!" 不存在，下载链接："!geoSiteUrl!"
-    )
-)
-
-@REM download ASN.mmdb
-if "!geoAsnUrl!" NEQ "" (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!geoAsnFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
-
-    call :retryDownload "!geoAsnUrl!" "!temp!\!geoAsnFile!"
-    if exist "!temp!\!geoAsnFile!" (
-        if "!downloadedFileList!" == "" (
-            set "downloadedFileList=!geoAsnFile!"
-        ) else (
-            set "downloadedFileList=!downloadedFileList!;!geoAsnFile!"
-        )
-    ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!geoAsnFile!" 不存在，下载链接："!geoAsnUrl!"
-    )
-)
-
-@REM download GeoIP.dat
-if "!geoIpUrl!" NEQ "" (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!geoIpFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
-
-    call :retryDownload "!geoIpUrl!" "!temp!\!geoIpFile!"
-    if exist "!temp!\!geoIpFile!" (
-        if "!downloadedFileList!" == "" (
-            set "downloadedFileList=!geoIpFile!"
-        ) else (
-            set "downloadedFileList=!downloadedFileList!;!geoIpFile!"
-        )
-    ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!geoIpFile!" 不存在，下载链接："!geoIpUrl!"
-    )
-)
-
-@REM download LightGBM model
-if "!lgbmUrl!" NEQ "" (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!lgbmFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
-
-    call :retryDownload "!lgbmUrl!" "!temp!\!lgbmFile!"
-    if exist "!temp!\!lgbmFile!" (
-        if "!downloadedFileList!" == "" (
-            set "downloadedFileList=!lgbmFile!"
-        ) else (
-            set "downloadedFileList=!downloadedFileList!;!lgbmFile!"
-        )
-    ) else (
-        @echo [%ESC%[91merror%ESC%[0m] "!temp!\!lgbmFile!" not found, url: "!lgbmUrl!"
-    )
+for %%u in (country geoSite geoAsn geoIp lgbm) do (
+    set "currentUrl=!%%uUrl!"
+    set "currentFile=!%%uFile!"
+    call :downloadManagedFile downloaded "!currentUrl!" "!currentFile!"
+    if "!downloaded!" == "1" call :appendDownloadedFile downloadedFileList "!currentFile!"
 )
 
 set "%~1=!downloadedFileList!"
+goto :eof
+
+
+@REM download a regular file to temp and report success
+:downloadManagedFile <result> <url> <filename>
+set "%~1=0"
+call :trim managedUrl "%~2"
+call :trim managedFile "%~3"
+
+if "!managedUrl!" == "" goto :eof
+if "!managedFile!" == "" goto :eof
+
+if /i "!managedUrl:~0,8!" NEQ "https://" (
+    @echo [%ESC%[91m错误%ESC%[0m] !managedFile! 下载地址解析失败："!managedUrl!"
+    goto :eof
+)
+
+@echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!managedFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
+call :retryDownload "!managedUrl!" "!temp!\!managedFile!"
+
+if exist "!temp!\!managedFile!" (
+    set "%~1=1"
+) else (
+    @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!managedFile!" 不存在，下载链接："!managedUrl!"
+)
+goto :eof
+
+
+@REM append a filename to a semicolon-separated downloaded file list
+:appendDownloadedFile <listVar> <filename>
+call :trim appendedFile "%~2"
+if "!appendedFile!" == "" goto :eof
+
+if "!%~1!" == "" (
+    set "%~1=!appendedFile!"
+) else (
+    set "%~1=!%~1!;!appendedFile!"
+)
 goto :eof
 
 
@@ -1684,22 +1649,25 @@ call :trim savePath "%~2"
 if "!downloadUrl!" == "" goto :eof
 if "!savePath!" == "" goto :eof
 
+if exist "!savePath!" del /f /q "!savePath!" >nul 2>nul
 set /a "count=0"
 
 :retry
 if !count! GEQ !maxretries! (
     @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!savePath!%ESC%[0m 下载失败，已达最大重试次数，请尝试再次执行此命令
+    if exist "!savePath!" del /f /q "!savePath!" >nul 2>nul
     goto :eof
 )
 
-curl.exe --retry 5 --retry-max-time 120 --connect-timeout 20 -s -L -C - -o "!savePath!" "!downloadUrl!"
+call :applyGithubProxy realDownloadUrl "!downloadUrl!"
+curl.exe --retry 5 --retry-max-time 120 --connect-timeout 20 -f -s -L -C - -o "!savePath!" "!realDownloadUrl!"
 set "failFlag=!errorlevel!"
 if not exist "!savePath!" set "failFlag=1"
 
 if "!failFlag!" NEQ "0" (
     set /a "count+=1"
 
-    @echo [%ESC%[!warnColor!m提示%ESC%[0m] 文件下载失败，正在进行第 %ESC%[!warnColor!m!count!%ESC%[0m 次重试，下载链接：!downloadUrl!
+    @echo [%ESC%[!warnColor!m提示%ESC%[0m] 文件下载失败，正在进行第 %ESC%[!warnColor!m!count!%ESC%[0m 次重试，下载链接：!realDownloadUrl!
     goto :retry
 )
 goto :eof
@@ -2465,8 +2433,6 @@ if "!dashboard!" == "" (
     if not exist "!dashboard!\index.html" set "needDashboard=1"
     if "!needDashboard!" == "0" (
         set "dashboardUrl="
-    ) else (
-        call :applyGithubProxy dashboardUrl !dashboardUrl!
     )
 )
 
@@ -2528,9 +2494,7 @@ if "!filename!" == "" goto :eof
 if not exist "!dest!\!filename!" (set "needDownload=1") else (set "needDownload=!force!")
 if "!needDownload!" == "0" goto :eof
 
-call :applyGithubProxy downloadUrl !url!
-
-set "%~1=!downloadUrl!"
+set "%~1=!url!"
 goto :eof
 
 
@@ -2568,7 +2532,7 @@ goto :eof
 @REM wrapper github
 :applyGithubProxy <result> <rawUrl>
 set "%~1="
-call :trim rawUrl %~2
+call :trim rawUrl "%~2"
 if "!rawUrl!" == "" goto :eof
 
 @REM github proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
@@ -2576,8 +2540,8 @@ set proxy_urls[0]=https://ghfast.top
 set proxy_urls[1]=https://proxy.api.030101.xyz
 set proxy_urls[2]=https://git.udrone.vip
 set proxy_urls[3]=https://gh.noki.icu
-set proxy_urls[4]=https://ghProxy.monkeyray.net
-set proxy_urls[5]=https://ghProxy.net
+set proxy_urls[4]=https://ghproxy.monkeyray.net
+set proxy_urls[5]=https://ghproxy.net
 
 @REM random [0, 5]
 set /a num=!random! %% 6
@@ -2892,9 +2856,6 @@ for %%r in (!localFiles!) do (
         set "textUrls=%%v"
 
         if /i "!url:~0,8!"=="https://" (
-            @REM ghProxy
-            call :applyGithubProxy url !url!
-
             set "needDownload=0"
             if not exist "!targetFile!" set "needDownload=1"
             if "!force!" == "1" set "needDownload=1"
@@ -3677,11 +3638,15 @@ set "%~1=0"
 call :trim iconName "%~2"
 if "!iconName!" == "" goto :eof
 
-call :applyGithubProxy iconUrl "https://raw.githubusercontent.com/wzdnzd/batches/main/icons/clash.ico"
-set "statusCode=000"
-for /f %%a in ('curl --retry 3 --retry-max-time 60 -m 60 --connect-timeout 30 -L -s -o "!dest!\!iconName!" -w "%%{http_code}" "!iconUrl!"') do set "statusCode=%%a"
+set "iconUrl=https://raw.githubusercontent.com/wzdnzd/batches/main/icons/clash.ico"
+set "iconTempFile=!temp!\!iconName!"
+if exist "!iconTempFile!" del /f /q "!iconTempFile!" >nul 2>nul
+call :retryDownload "!iconUrl!" "!iconTempFile!"
 
-if "!statusCode!" == "200" set "%~1=1"
+if exist "!iconTempFile!" (
+    move /y "!iconTempFile!" "!dest!\!iconName!" >nul 2>nul
+    if exist "!dest!\!iconName!" set "%~1=1"
+)
 goto :eof
 
 
