@@ -1194,27 +1194,8 @@ goto :eof
 @REM ============================================================================
 :detectSmartGroup <result>
 set "%~1=0"
-if not exist "!configFile!" goto :eof
-
-set "insideProxyGroups=0"
-for /f "usebackq delims=" %%l in ("!configFile!") do (
-    set "line=%%l"
-    call :trim configLine "!line!"
-
-    if "!configLine!" NEQ "" if "!configLine:~0,1!" NEQ "#" (
-        if /i "!configLine:~0,13!" == "proxy-groups:" (
-            set "insideProxyGroups=1"
-        ) else if "!insideProxyGroups!" == "1" (
-            set "firstChar=!line:~0,1!"
-            if "!firstChar!" NEQ " " if "!firstChar!" NEQ "-" if /i "!configLine:~0,5!" NEQ "type:" set "insideProxyGroups=0"
-
-            if "!insideProxyGroups!" == "1" if /i "!configLine!" == "type: smart" (
-                set "%~1=1"
-                goto :eof
-            )
-        )
-    )
-)
+call :findYamlSectionValue smartGroupType "!configFile!" "proxy-groups" "type" "smart"
+if /i "!smartGroupType!" == "smart" set "%~1=1"
 goto :eof
 
 @REM ============================================================================
@@ -1224,34 +1205,8 @@ goto :eof
 @REM ============================================================================
 :detectAsnRules <result>
 set "%~1=0"
-if not exist "!configFile!" goto :eof
-
-set "insideRules=0"
-for /f "usebackq delims=" %%l in ("!configFile!") do (
-    set "line=%%l"
-    call :trim configLine "!line!"
-
-    if "!configLine!" NEQ "" if "!configLine:~0,1!" NEQ "#" (
-        if /i "!configLine!" == "rules:" (
-            set "insideRules=1"
-        ) else if "!insideRules!" == "1" (
-            set "firstChar=!line:~0,1!"
-            if "!firstChar!" NEQ " " if "!firstChar!" NEQ "-" set "insideRules=0"
-
-            if "!insideRules!" == "1" (
-                if /i "!configLine:~0,9!" == "- IP-ASN," (
-                    set "%~1=1"
-                    goto :eof
-                )
-
-                if /i "!configLine:~0,13!" == "- SRC-IP-ASN," (
-                    set "%~1=1"
-                    goto :eof
-                )
-            )
-        )
-    )
-)
+call :findYamlSectionLine asnRule "!configFile!" "rules" "- IP-ASN," "- SRC-IP-ASN,"
+if "!asnRule!" NEQ "" set "%~1=1"
 goto :eof
 
 @REM ============================================================================
@@ -1261,49 +1216,8 @@ goto :eof
 @REM ============================================================================
 :detectSmartPreferAsn <result>
 set "%~1=0"
-if not exist "!configFile!" goto :eof
-
-set "insideProxyGroups=0"
-set "groupIsSmart=0"
-set "groupPreferAsn=0"
-for /f "usebackq delims=" %%l in ("!configFile!") do (
-    set "line=%%l"
-    call :trim configLine "!line!"
-
-    if "!configLine!" NEQ "" if "!configLine:~0,1!" NEQ "#" (
-        if /i "!configLine:~0,13!" == "proxy-groups:" (
-            set "insideProxyGroups=1"
-            set "groupIsSmart=0"
-            set "groupPreferAsn=0"
-        ) else if "!insideProxyGroups!" == "1" (
-            set "firstChar=!line:~0,1!"
-            if "!firstChar!" NEQ " " if "!firstChar!" NEQ "-" if /i "!configLine:~0,5!" NEQ "type:" (
-                if "!groupIsSmart!" == "1" if "!groupPreferAsn!" == "1" (
-                    set "%~1=1"
-                    goto :eof
-                )
-                set "insideProxyGroups=0"
-            )
-
-            if "!insideProxyGroups!" == "1" (
-                if /i "!configLine:~0,2!" == "- " (
-                    if "!groupIsSmart!" == "1" if "!groupPreferAsn!" == "1" (
-                        set "%~1=1"
-                        goto :eof
-                    )
-
-                    set "groupIsSmart=0"
-                    set "groupPreferAsn=0"
-                )
-
-                if /i "!configLine!" == "type: smart" set "groupIsSmart=1"
-                if /i "!configLine!" == "prefer-asn: true" set "groupPreferAsn=1"
-            )
-        )
-    )
-)
-
-if "!groupIsSmart!" == "1" if "!groupPreferAsn!" == "1" set "%~1=1"
+call :findYamlSectionListItemValue smartPreferAsn "!configFile!" "proxy-groups" "type" "smart" "prefer-asn" "true"
+if /i "!smartPreferAsn!" == "true" set "%~1=1"
 goto :eof
 
 @REM ============================================================================
@@ -2894,10 +2808,10 @@ goto :eof
 @REM ============================================================================
 @REM Find a YAML section value
 @REM Purpose:    Find a YAML section value
-@REM Parameters: <result>, <filePath>, <section>, <key>
+@REM Parameters: <result>, <filePath>, <section>, <key>, [expectedValue]
 @REM Returns:    Sets <result> with the computed value or status
 @REM ============================================================================
-:findYamlSectionValue <result> <filePath> <section> <key>
+:findYamlSectionValue <result> <filePath> <section> <key> [expectedValue]
 set "%~1="
 call :trim filePath %~2
 if "!filePath!" == "" goto :eof
@@ -2908,6 +2822,8 @@ if "!sectionName!" == "" goto :eof
 
 call :trim targetKey "%~4"
 if "!targetKey!" == "" goto :eof
+
+call :trim expectedValue "%~5"
 
 set "insideSection=0"
 for /f "usebackq delims=" %%l in ("!filePath!") do (
@@ -2926,7 +2842,63 @@ for /f "usebackq delims=" %%l in ("!filePath!") do (
                     call :trim sectionKey "%%a"
                     if /i "!sectionKey!" == "!targetKey!" (
                         call :removeQuotes sectionValue "%%b"
-                        set "%~1=!sectionValue!"
+                        if "!expectedValue!" == "" (
+                            set "%~1=!sectionValue!"
+                            goto :eof
+                        ) else if /i "!sectionValue!" == "!expectedValue!" (
+                            set "%~1=!sectionValue!"
+                            goto :eof
+                        )
+                    )
+                )
+            )
+        )
+    )
+)
+goto :eof
+
+@REM ============================================================================
+@REM Find a line in a YAML section
+@REM Purpose:    Find a line in a YAML section
+@REM Parameters: <result>, <filePath>, <section>, <prefix1>, [prefix2]
+@REM Returns:    Sets <result> with the matching line
+@REM ============================================================================
+:findYamlSectionLine <result> <filePath> <section> <prefix1> [prefix2]
+set "%~1="
+call :trim filePath %~2
+if "!filePath!" == "" goto :eof
+if not exist "!filePath!" goto :eof
+
+call :trim sectionName "%~3"
+if "!sectionName!" == "" goto :eof
+
+call :trim matchPrefix1 "%~4"
+call :trim matchPrefix2 "%~5"
+if "!matchPrefix1!" == "" if "!matchPrefix2!" == "" goto :eof
+
+set "insideSection=0"
+for /f "usebackq delims=" %%l in ("!filePath!") do (
+    set "line=%%l"
+    call :trim configLine "!line!"
+
+    if "!configLine!" NEQ "" if "!configLine:~0,1!" NEQ "#" (
+        if /i "!configLine!" == "!sectionName!:" (
+            set "insideSection=1"
+        ) else if "!insideSection!" == "1" (
+            set "firstChar=!line:~0,1!"
+            if "!firstChar!" NEQ " " if "!firstChar!" NEQ "-" set "insideSection=0"
+
+            if "!insideSection!" == "1" (
+                echo(!configLine! | findstr /i /b /c:"!matchPrefix1!" >nul
+                if not errorlevel 1 (
+                    set "%~1=!configLine!"
+                    goto :eof
+                )
+
+                if "!matchPrefix2!" NEQ "" (
+                    echo(!configLine! | findstr /i /b /c:"!matchPrefix2!" >nul
+                    if not errorlevel 1 (
+                        set "%~1=!configLine!"
                         goto :eof
                     )
                 )
@@ -2934,6 +2906,76 @@ for /f "usebackq delims=" %%l in ("!filePath!") do (
         )
     )
 )
+goto :eof
+
+@REM ============================================================================
+@REM Find a value in a YAML section list item
+@REM Purpose:    Find a value in a YAML section list item by another key/value pair
+@REM Parameters: <result>, <filePath>, <section>, <matchKey>, <matchValue>, <targetKey>, <targetValue>
+@REM Returns:    Sets <result> with the matching target value
+@REM ============================================================================
+:findYamlSectionListItemValue <result> <filePath> <section> <matchKey> <matchValue> <targetKey> <targetValue>
+set "%~1="
+call :trim filePath %~2
+if "!filePath!" == "" goto :eof
+if not exist "!filePath!" goto :eof
+
+call :trim sectionName "%~3"
+if "!sectionName!" == "" goto :eof
+
+call :trim matchKey "%~4"
+call :trim matchValue "%~5"
+call :trim targetKey "%~6"
+call :trim targetValue "%~7"
+if "!matchKey!" == "" goto :eof
+if "!matchValue!" == "" goto :eof
+if "!targetKey!" == "" goto :eof
+if "!targetValue!" == "" goto :eof
+
+set "insideSection=0"
+set "itemHasMatch=0"
+set "itemHasTarget=0"
+for /f "usebackq delims=" %%l in ("!filePath!") do (
+    set "line=%%l"
+    call :trim configLine "!line!"
+
+    if "!configLine!" NEQ "" if "!configLine:~0,1!" NEQ "#" (
+        if /i "!configLine!" == "!sectionName!:" (
+            set "insideSection=1"
+            set "itemHasMatch=0"
+            set "itemHasTarget=0"
+        ) else if "!insideSection!" == "1" (
+            set "firstChar=!line:~0,1!"
+            if "!firstChar!" NEQ " " if "!firstChar!" NEQ "-" (
+                if "!itemHasMatch!" == "1" if "!itemHasTarget!" == "1" set "%~1=!targetValue!"
+                goto :eof
+            )
+
+            if /i "!configLine:~0,2!" == "- " (
+                if not "!configLine!" == "!configLine::=!" (
+                    if "!itemHasMatch!" == "1" if "!itemHasTarget!" == "1" (
+                        set "%~1=!targetValue!"
+                        goto :eof
+                    )
+
+                    set "itemHasMatch=0"
+                    set "itemHasTarget=0"
+                )
+            )
+
+            for /f "tokens=1* delims=:" %%a in ("!configLine!") do (
+                call :trim itemKey "%%a"
+                if /i "!itemKey:~0,2!" == "- " call :trim itemKey "!itemKey:~2!"
+                call :removeQuotes itemValue "%%b"
+
+                if /i "!itemKey!" == "!matchKey!" if /i "!itemValue!" == "!matchValue!" set "itemHasMatch=1"
+                if /i "!itemKey!" == "!targetKey!" if /i "!itemValue!" == "!targetValue!" set "itemHasTarget=1"
+            )
+        )
+    )
+)
+
+if "!itemHasMatch!" == "1" if "!itemHasTarget!" == "1" set "%~1=!targetValue!"
 goto :eof
 
 @REM ============================================================================
