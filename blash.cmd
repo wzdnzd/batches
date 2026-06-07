@@ -1236,7 +1236,7 @@ if "!installedEditionFound!" == "1" if "!installedEdition!" NEQ "!targetEdition!
     call :resolveCoreDisplayName oldEdition !installedEdition!
     call :resolveCoreDisplayName newEdition !targetEdition!
 
-    @echo [%ESC%[!warnColor!m提示%ESC%[0m] 配置%ESC%[91m不兼容%ESC%[0m，代理程序需从 %ESC%[!warnColor!m!oldEdition!%ESC%[0m 切换至 %ESC%[!warnColor!m!newEdition!%ESC%[0m
+    @echo [%ESC%[!warnColor!m提示%ESC%[0m] 检测到配置%ESC%[!warnColor!m不兼容%ESC%[0m或代理程序发行版本变化，需从 %ESC%[!warnColor!m!oldEdition!%ESC%[0m 切换至 %ESC%[!warnColor!m!newEdition!%ESC%[0m
 )
 goto :eof
 
@@ -4337,7 +4337,7 @@ if exist "!clashLinkPath!" (
 
 call :trim exePath "!exePath!"
 if "!exePath!" == "!startupVbs!" (
-    if "!proxyEditionChanged!" == 1 (
+    if "!proxyEditionChanged!" == "1" (
         call :downloadIcon finished
         if "!finished!" == "0" (
             @echo [%ESC%[!warnColor!m提示%ESC%[0m] 检测到代理程序发行版本已变更，但应用图标文件更新%ESC%[91m失败%ESC%[0m
