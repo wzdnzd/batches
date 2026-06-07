@@ -41,11 +41,25 @@ set "batchName=%~nx0"
 set "msTerminal=1"
 
 @REM Enable desktop shortcut creation
-set "enableShortcut=1"
+if defined CLASH_ENABLE_SHORTCUT (
+    set "enableShortcut=!CLASH_ENABLE_SHORTCUT!"
+) else (
+    set "enableShortcut=1"
+)
 
 @REM Enable remote configuration download
-set "enableRemoteConfig=1"
-set "remoteConfigUrl="
+if defined CLASH_ENABLE_REMOTE_CONFIG (
+    set "enableRemoteConfig=!CLASH_ENABLE_REMOTE_CONFIG!"
+) else (
+    set "enableRemoteConfig=1"
+)
+
+@REM Remote configuration link
+if defined CLASH_REMOTE_CONFIGURL (
+    set "remoteConfigUrl=!CLASH_REMOTE_CONFIGURL!"
+) else (
+    set "remoteConfigUrl="
+)
 
 @REM Validate configuration files before starting
 set "verifyConfig=0"
@@ -63,7 +77,11 @@ if "!msTerminal!" == "1" (
 )
 
 @REM Optional heart output
-set "customize=0"
+if defined CLASH_CUSTOMIZE_MODE (
+    set "customize=!CLASH_CUSTOMIZE_MODE!"
+) else (
+    set "customize=0"
+)
 set "drawHeart=0"
 
 @REM Exit flag
@@ -185,6 +203,13 @@ call :resolveProxyExecutableName
 
 @REM Startup VBS script path
 set "startupVbs=!dest!\startup.vbs"
+
+@REM Path to desktop shortcut
+set "clashLinkPath=!HOMEDRIVE!!HOMEPATH!\Desktop\Clash.lnk"
+
+@REM Desktop shortcut icon name and path
+set "shortcutIconName=clash.ico"
+set "shortcutIconPath=!dest!\!shortcutIconName!"
 
 @REM Auto-update VBS script path
 set "updateVbs=!dest!\update.vbs"
@@ -3827,6 +3852,9 @@ if "!ready!" == "0" (
     ) else (
         @echo [%ESC%[91m错误%ESC%[0m] 自动检查更新设置%ESC%[91m失败%ESC%[0m
     )
+) else if "!proxyEditionChanged!" == "1" if exist "!updateVbs!" (
+    @REM Update the update VBS script
+    call :generateUpdateVbs
 )
 goto :eof
 
@@ -4233,33 +4261,36 @@ goto :eof
 @REM ============================================================================
 @REM Download the application icon
 @REM Purpose:    Download the application icon
-@REM Parameters: <result>, <iconName>
+@REM Parameters: <result>
 @REM Returns:    Sets <result> with the computed value or status
 @REM ============================================================================
-:downloadIcon <result> <iconName>
+:downloadIcon <result>
 set "%~1=0"
 
-call :trim iconName "%~2"
-if "!iconName!" == "" goto :eof
+if "!useClashPremium!" == "1" (
+    set "onlineIconName=clash.ico"
+) else (
+    set "onlineIconName=mihomo.ico"
+)
 
-set "iconUrl=https://raw.githubusercontent.com/wzdnzd/batches/main/icons/clash.ico"
-set "iconTempFile=!temp!\!iconName!"
+set "iconUrl=https://raw.githubusercontent.com/wzdnzd/batches/main/icons/!onlineIconName!"
+set "iconTempFile=!temp!\!shortcutIconName!"
 if exist "!iconTempFile!" del /f /q "!iconTempFile!" >nul 2>nul
 call :retryDownload "!iconUrl!" "!iconTempFile!"
 
 if exist "!iconTempFile!" (
-    move /y "!iconTempFile!" "!dest!\!iconName!" >nul 2>nul
-    if exist "!dest!\!iconName!" set "%~1=1"
+    move /y "!iconTempFile!" "!shortcutIconPath!" >nul 2>nul
+    if exist "!shortcutIconPath!" set "%~1=1"
 )
 goto :eof
 
 @REM ============================================================================
 @REM Create a Windows shortcut
 @REM Purpose:    Create a Windows shortcut
-@REM Parameters: <result>, <linkDest>, <target>, <iconName>
+@REM Parameters: <result>, <linkDest>, <target>, <iconPath>
 @REM Returns:    Sets <result> with the computed value or status
 @REM ============================================================================
-:createShortcut <result> <linkDest> <target> <iconName>
+:createShortcut <result> <linkDest> <target> <iconPath>
 set "%~1=0"
 call :trim linkDest "%~2"
 call :trim target "%~3"
@@ -4268,7 +4299,7 @@ call :trim iconName "%~4"
 
 if "!linkDest!" == "" goto :eof
 if "!target!" == "" goto :eof
-if "!iconName!" == "" set "iconName=clash.ico"
+if "!iconPath!" == "" set "iconPath=!shortcutIconPath!"
 if exist "!linkDest!" del /f /q "!linkDest!" >nul
 
 set "vbsPath=!temp!\createshortcut.vbs"
@@ -4277,7 +4308,7 @@ set "vbsPath=!temp!\createshortcut.vbs"
     @echo slinkfile = ows.ExpandEnvironmentStrings^("!linkDest!"^)
     @echo set olink = ows.CreateShortcut^(slinkfile^)
     @echo olink.TargetPath = ows.ExpandEnvironmentStrings^("!target!"^)
-    @echo olink.IconLocation = ows.ExpandEnvironmentStrings^("!dest!\!iconName!"^)
+    @echo olink.IconLocation = ows.ExpandEnvironmentStrings^("!iconPath!"^)
     @echo olink.WorkingDirectory = ows.ExpandEnvironmentStrings^("!dest!"^)
     @echo olink.Save
 ) 1>!vbsPath!
@@ -4296,19 +4327,25 @@ goto :eof
 :createDesktopShortcut
 if "!enableShortcut!" == "0" goto :eof
 
-set "iconName=clash.ico"
-set "linkDest=!HOMEDRIVE!!HOMEPATH!\Desktop\Clash.lnk"
-
 set "exePath="
 @REM Parse the existing shortcut target
-if exist "!linkDest!" (
-    set "shortcutPath=!linkDest!"
+if exist "!clashLinkPath!" (
+    set "shortcutPath=!clashLinkPath!"
     for /f "usebackq delims=" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($env:shortcutPath); $shortcut.TargetPath"`) do set "exePath=%%a"
     set "shortcutPath="
 )
 
 call :trim exePath "!exePath!"
-if "!exePath!" == "!startupVbs!" goto :eof
+if "!exePath!" == "!startupVbs!" (
+    if "!proxyEditionChanged!" == 1 (
+        call :downloadIcon finished
+        if "!finished!" == "0" (
+            @echo [%ESC%[!warnColor!m提示%ESC%[0m] 检测到代理程序发行版本已变更，但应用图标文件更新%ESC%[91m失败%ESC%[0m
+        )
+    )
+    
+    goto :eof
+)
 
 set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 是否添加桌面快捷方式？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
 if "!msTerminal!" == "1" (
@@ -4319,15 +4356,15 @@ if "!msTerminal!" == "1" (
 )
 if !errorlevel! == 2 goto :eof
 
-if not exist "!dest!\!iconName!" (
-    call :downloadIcon finished "!iconName!"
+if not exist "!shortcutIconPath!" (
+    call :downloadIcon finished
     if "!finished!" == "0" (
         @echo [%ESC%[91m错误%ESC%[0m] 应用图标文件下载%ESC%[91m失败%ESC%[0m，无法创建桌面快捷方式
         goto :eof
     )
 )
 
-call :createShortcut finished "!linkDest!" "!startupVbs!" "!iconName!"
+call :createShortcut finished "!clashLinkPath!" "!startupVbs!" "!shortcutIconPath!"
 if "!finished!" == "0" (
     @echo [%ESC%[91m错误%ESC%[0m] 桌面快捷方式添加%ESC%[91m失败%ESC%[0m，如有需要，请自行创建
 ) else (
@@ -4340,8 +4377,7 @@ goto :eof
 @REM Purpose:    Delete the desktop shortcut
 @REM ============================================================================
 :deleteDesktopShortcut
-set "linkPath=!HOMEDRIVE!!HOMEPATH!\Desktop\Clash.lnk"
-del /f /q "!linkPath!" >nul 2>nul
+del /f /q "!clashLinkPath!" >nul 2>nul
 goto :eof
 
 @REM ============================================================================
