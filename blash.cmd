@@ -1,4 +1,4 @@
-﻿@REM ============================================================================
+@REM ============================================================================
 @REM Clash / Mihomo Network Proxy Controller
 @REM ============================================================================
 @REM Description: Comprehensive management tool for Clash Premium and Mihomo proxy
@@ -37,8 +37,7 @@ goto :mainWorkflow
 set "batchName=%~nx0"
 
 @REM Microsoft Terminal renders differently from CMD and PowerShell
-@REM Call :isMicrosoftTerminal msTerminal
-set "msTerminal=1"
+call :isMicrosoftTerminal msTerminal
 
 @REM Enable desktop shortcut creation
 if defined CLASH_ENABLE_SHORTCUT (
@@ -68,13 +67,11 @@ set "verifyConfig=0"
 set "checkWintun=0"
 
 @REM Console color settings
-set "infoColor=92"
-set "warnColor=93"
-
-if "!msTerminal!" == "1" (
-    set "infoColor=95"
-    set "warnColor=97"
-)
+@REM Use true-color SGR values instead of 16-color palette indexes so Windows
+@REM Terminal color schemes do not change the rendered log colors.
+set "infoColor=38;2;22;198;12"
+set "warnColor=38;2;249;241;165"
+set "errorColor=38;2;231;72;86"
 
 @REM Optional heart output
 if defined CLASH_CUSTOMIZE_MODE (
@@ -273,19 +270,19 @@ call :convertToAbsolutePath configLocation "!configuration!"
 call :normalizePath configLocation "!configLocation!"
 
 if "!configLocation!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 配置文件路径%ESC%[91m无效%ESC%[0m
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 配置文件路径%ESC%[!errorColor!m无效%ESC%[0m
     exit /b 1
 )
 
 @REM Reject paths containing whitespace
 if "!configLocation!" NEQ "!configLocation: =!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无效的配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m"， 路径不能包含%ESC%[!warnColor!m空格%ESC%[0m
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无效的配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m"， 路径不能包含%ESC%[!warnColor!m空格%ESC%[0m
     exit /b 1
 )
 
 if "!isWebLink!" == "1" (
     if exist "!configLocation!" (
-        set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] %ESC%[!warnColor!m已存在%ESC%[0m配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m" 会被%ESC%[91m覆盖%ESC%[0m，是否继续？ (%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
+        set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] %ESC%[!warnColor!m已存在%ESC%[0m配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m" 会被%ESC%[!errorColor!m覆盖%ESC%[0m，是否继续？ (%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
         if "!msTerminal!" == "1" (
             choice /t 6 /d n /n /m "!tips!"
         ) else (
@@ -310,7 +307,7 @@ if "!isWebLink!" == "1" (
             set "content="
             for /f "tokens=*" %%a in ('findstr /i /r /c:"^external-controller:[ ][ ]*.*:[0-9][0-9]*.*" !subscriptionFile!') do set "content=%%a"
             if "!content!" == "" (
-                @echo [%ESC%[91m错误%ESC%[0m] 订阅 "%ESC%[!warnColor!m!subscriptionLink!%ESC%[0m" 无效，请检查确认
+                @echo [%ESC%[!errorColor!m错误%ESC%[0m] 订阅 "%ESC%[!warnColor!m!subscriptionLink!%ESC%[0m" 无效，请检查确认
                 exit /b 1
             )
 
@@ -318,7 +315,7 @@ if "!isWebLink!" == "1" (
             call :splitPath filePath fileName "!configLocation!"
             call :createDirectories success "!filePath!"
             if "!success!" == "0" (
-                @echo [%ESC%[91m错误%ESC%[0m] 创建文件夹 "%ESC%[!warnColor!m!filePath!%ESC%[0m" %ESC%[91m失败%ESC%[0m，请确认路径是否合法
+                @echo [%ESC%[!errorColor!m错误%ESC%[0m] 创建文件夹 "%ESC%[!warnColor!m!filePath!%ESC%[0m" %ESC%[!errorColor!m失败%ESC%[0m，请确认路径是否合法
                 exit /b 1
             )
 
@@ -334,13 +331,13 @@ if "!isWebLink!" == "1" (
     )
 
     if "!statusCode!" NEQ "200" (
-        @echo [%ESC%[91m错误%ESC%[0m] 订阅下载%ESC%[91m失败%ESC%[0m， 请检查确认此订阅是否有效
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 订阅下载%ESC%[!errorColor!m失败%ESC%[0m， 请检查确认此订阅是否有效
         exit /b 1
     )
 )
 
 if not exist "!configLocation!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m" %ESC%[91m不存在%ESC%[0m
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m" %ESC%[!errorColor!m不存在%ESC%[0m
     goto :eof
 )
 
@@ -349,7 +346,7 @@ set "content="
 for /f "tokens=1* delims=:" %%a in ('findstr /i /r /c:"^proxy-groups:[ ]*" "!configLocation!"') do set "content=%%a"
 call :trim content "!content!"
 if "!content!" NEQ "proxy-groups" (
-    @echo [%ESC%[91m错误%ESC%[0m] %ESC%[91m无效%ESC%[0m的配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m"
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] %ESC%[!errorColor!m无效%ESC%[0m的配置文件 "%ESC%[!warnColor!m!configLocation!%ESC%[0m"
     exit /b 1
 )
 
@@ -389,7 +386,7 @@ set "alpha=0"
 call :testConnection available 0
 set "lazyCheck=0"
 if "!available!" == "1" (
-    set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 代理网络运行%ESC%[!infoColor!m正常%ESC%[0m，%ESC%[91m不存在%ESC%[0m问题，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
+    set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 代理网络运行%ESC%[!infoColor!m正常%ESC%[0m，%ESC%[!errorColor!m不存在%ESC%[0m问题，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
     if "!msTerminal!" == "1" (
         choice /t 5 /d n /n /m "!tips!"
     ) else (
@@ -448,7 +445,7 @@ for /l %%i in (1,1,5) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 问题修复%ESC%[91m失败%ESC%[0m， 网络代理仍%ESC%[91m无法%ESC%[0m使用， 请尝试其他方法
+@echo [%ESC%[!errorColor!m错误%ESC%[0m] 问题修复%ESC%[!errorColor!m失败%ESC%[0m， 网络代理仍%ESC%[!errorColor!m无法%ESC%[0m使用， 请尝试其他方法
 goto :eof
 
 @REM ============================================================================
@@ -464,7 +461,7 @@ if "!logLevel!" == "" set "logLevel=1"
 
 call :checkNetworkAvailable available 0 "https://www.baidu.com" ""
 if "!available!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络%ESC%[91m不可用%ESC%[0m， 但代理程序%ESC%[91m并未运行%ESC%[0m，请检查你的%ESC%[!warnColor!m本地网络%ESC%[0m是否正常
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 网络%ESC%[!errorColor!m不可用%ESC%[0m， 但代理程序%ESC%[!errorColor!m并未运行%ESC%[0m，请检查你的%ESC%[!warnColor!m本地网络%ESC%[0m是否正常
 
     @REM Terminate on failure when requested
     set "%~1=0"
@@ -472,7 +469,7 @@ if "!available!" == "0" (
 )
 
 if "!logLevel!" == "1" (
-    @echo [%ESC%[!warnColor!m提示%ESC%[0m] 网络代理%ESC%[91m没有开启%ESC%[0m， 推荐选择 %ESC%[!warnColor!mRestart%ESC%[0m 开启
+    @echo [%ESC%[!warnColor!m提示%ESC%[0m] 网络代理%ESC%[!errorColor!m没有开启%ESC%[0m， 推荐选择 %ESC%[!warnColor!mRestart%ESC%[0m 开启
 )
 goto :eof
 
@@ -556,7 +553,7 @@ if "!result!" == "true" (
     if "!subscription:~0,1!" == "-" set result=false
 
     if "!result!" == "false" (
-        @echo [%ESC%[91m错误%ESC%[0m] 如果指定参数 "%ESC%[!warnColor!m--conf%ESC%[0m" 或者 "%ESC%[!warnColor!m-c%ESC%[0m" 则必须提供有效的%ESC%[!warnColor!m配置文件%ESC%[0m或%ESC%[!warnColor!m订阅%ESC%[0m
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 如果指定参数 "%ESC%[!warnColor!m--conf%ESC%[0m" 或者 "%ESC%[!warnColor!m-c%ESC%[0m" 则必须提供有效的%ESC%[!warnColor!m配置文件%ESC%[0m或%ESC%[!warnColor!m订阅%ESC%[0m
         @echo.
         goto :usage
     )
@@ -580,7 +577,7 @@ if "!result!" == "true" (
         if "!invalid!" == "1" (
             set "shouldExit=1"
 
-            @echo [%ESC%[91m错误%ESC%[0m] 无效的订阅链接 "%ESC%[!warnColor!m!subscription!%ESC%[0m"
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无效的订阅链接 "%ESC%[!warnColor!m!subscription!%ESC%[0m"
             @echo.
             goto :eof
         )
@@ -595,7 +592,7 @@ if "!result!" == "true" (
         ) else (
             set "shouldExit=1"
 
-            @echo [%ESC%[91m错误%ESC%[0m] 无效的配置文件 "%ESC%[!warnColor!m!subscription!%ESC%[0m"，仅支持 "%ESC%[!warnColor!m.yaml%ESC%[0m" 和 "%ESC%[!warnColor!m.yml%ESC%[0m" 格式
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无效的配置文件 "%ESC%[!warnColor!m!subscription!%ESC%[0m"，仅支持 "%ESC%[!warnColor!m.yaml%ESC%[0m" 和 "%ESC%[!warnColor!m.yml%ESC%[0m" 格式
             @echo.
             goto :eof
         )
@@ -665,7 +662,7 @@ if "!result!" == "true" (
         set result=false
         shift & goto :parseArgs
     ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] 未知参数：%ESC%[91m%1%ESC%[0m
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 未知参数：%ESC%[!errorColor!m%1%ESC%[0m
         @echo.
         goto :usage
     )
@@ -771,7 +768,7 @@ if "!result!" == "true" (
     if "!param:~0,1!" == "-" set result=false
 
     if "!result!" == "false" (
-        @echo [%ESC%[91m错误%ESC%[0m] 无效的参数，如果指定 "%ESC%[!warnColor!m--workspace%ESC%[0m"，"%ESC%[!warnColor!m!param!%ESC%[0m"，则需提供有效的路径
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无效的参数，如果指定 "%ESC%[!warnColor!m--workspace%ESC%[0m"，"%ESC%[!warnColor!m!param!%ESC%[0m"，则需提供有效的路径
         @echo.
         goto :usage
     )
@@ -783,7 +780,7 @@ if "!result!" == "true" (
     )
 
     if "!shouldExit!" == "1" (
-        @echo [%ESC%[91m错误%ESC%[0m] 参数 "%ESC%[!warnColor!m--workspace%ESC%[0m" 指定的文件夹路径 "%ESC%[!warnColor!m!directory!%ESC%[0m" %ESC%[91m无效%ESC%[0m
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 参数 "%ESC%[!warnColor!m--workspace%ESC%[0m" 指定的文件夹路径 "%ESC%[!warnColor!m!directory!%ESC%[0m" %ESC%[!errorColor!m无效%ESC%[0m
         @echo.
         goto :eof
     )
@@ -834,7 +831,7 @@ if "%1" NEQ "" (
     if "!syntax!" == "goto" (
         call :trim funcName "%~2"
         if "!funcName!" == "" (
-            @echo [%ESC%[91m错误%ESC%[0m] 无效的语法，调用 "%ESC%[!warnColor!mgoto%ESC%[0m" 时必须提供函数名
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无效的语法，调用 "%ESC%[!warnColor!mgoto%ESC%[0m" 时必须提供函数名
             goto :usage
         )
 
@@ -848,7 +845,7 @@ if "%1" NEQ "" (
         )
     )
 
-    @echo [%ESC%[91m错误%ESC%[0m] 未知参数：%ESC%[91m%1%ESC%[0m
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 未知参数：%ESC%[!errorColor!m%1%ESC%[0m
     @echo.
     goto :usage
 )
@@ -943,13 +940,13 @@ set "whitespace="
 @echo !whitespace!**********************************************
 @echo !whitespace!**********************************************
 if "!msTerminal!" == "1" (
-    @echo !whitespace!***********  %ESC%[91m我的宝，我爱你 ♥♥♥%ESC%[0m  *************
+    @echo !whitespace!***********  %ESC%[!errorColor!m我的宝，我爱你 ♥♥♥%ESC%[0m  *************
 ) else (
-    @echo !whitespace!*********** %ESC%[91m我的宝，我爱你 ♥♥♥%ESC%[0m ***************
+    @echo !whitespace!*********** %ESC%[!errorColor!m我的宝，我爱你 ♥♥♥%ESC%[0m ***************
 )
 
 @echo !whitespace!**********                        ***********
-@echo !whitespace! ******** %ESC%[91m因为有你，生活可爱了许多%ESC%[0m *********
+@echo !whitespace! ******** %ESC%[!errorColor!m因为有你，生活可爱了许多%ESC%[0m *********
 @echo !whitespace!  *****************************************
 @echo !whitespace!   ***************************************
 @echo !whitespace!    *************************************
@@ -1422,7 +1419,7 @@ if "!output!" == "" set "output=1"
 call :isProcessRunning status
 if "!status!" == "0" (
     if "!output!" == "1" (
-        @echo [%ESC%[!warnColor!m提示%ESC%[0m] 网络%ESC%[91m不可用%ESC%[0m，代理程序%ESC%[91m已退出%ESC%[0m
+        @echo [%ESC%[!warnColor!m提示%ESC%[0m] 网络%ESC%[!errorColor!m不可用%ESC%[0m，代理程序%ESC%[!errorColor!m已退出%ESC%[0m
     )
 
     goto :eof
@@ -1468,7 +1465,7 @@ if "!statusCode!" == "200" (
     if "!output!" == "1" (
         call :postProcess
 
-        @echo [%ESC%[!warnColor!m提示%ESC%[0m] 代理网络%ESC%[91m不可用%ESC%[0m，可%ESC%[!warnColor!m再次测试%ESC%[0m或使用命令 "%ESC%[!warnColor!m!batchName! -o%ESC%[0m" %ESC%[!warnColor!m重载%ESC%[0m 或者 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" %ESC%[!warnColor!m重启%ESC%[0m 或者 "%ESC%[!warnColor!m!batchName! -f%ESC%[0m" %ESC%[!warnColor!m修复%ESC%[0m
+        @echo [%ESC%[!warnColor!m提示%ESC%[0m] 代理网络%ESC%[!errorColor!m不可用%ESC%[0m，可%ESC%[!warnColor!m再次测试%ESC%[0m或使用命令 "%ESC%[!warnColor!m!batchName! -o%ESC%[0m" %ESC%[!warnColor!m重载%ESC%[0m 或者 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" %ESC%[!warnColor!m重启%ESC%[0m 或者 "%ESC%[!warnColor!m!batchName! -f%ESC%[0m" %ESC%[!warnColor!m修复%ESC%[0m
     )
 )
 goto :eof
@@ -1494,7 +1491,7 @@ if exist "!configFile!" (
     call :extractProxyPort port
     if "!port!" == "" goto :eof
 
-    set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 系统代理%ESC%[91m未配置%ESC%[0m，是否设置？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
+    set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 系统代理%ESC%[!errorColor!m未配置%ESC%[0m，是否设置？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
     if "!msTerminal!" == "1" (
         choice /t 5 /d y /n /m "!tips!"
     ) else (
@@ -1642,7 +1639,7 @@ set "downloadedFileList="
 @REM Download the Clash core
 if "!clashUrl!" NEQ "" (
     if /i "!clashUrl:~0,8!" NEQ "https://" (
-        @echo [%ESC%[91m错误%ESC%[0m] !proxyExecutableName! 下载地址解析失败："!clashUrl!"
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] !proxyExecutableName! 下载地址解析失败："!clashUrl!"
     ) else (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
         call :retryDownload "!clashUrl!" "!temp!\clash.zip"
@@ -1653,7 +1650,7 @@ if "!clashUrl!" NEQ "" (
             @REM Clean the workspace
             del /f /q "!temp!\clash.zip"
         ) else (
-            @echo [%ESC%[91m错误%ESC%[0m] !proxyExecutableName! 下载失败，下载链接："!clashUrl!"
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] !proxyExecutableName! 下载失败，下载链接："!clashUrl!"
         )
 
         if exist "!temp!\!clashExe!" (
@@ -1662,7 +1659,7 @@ if "!clashUrl!" NEQ "" (
 
             set "downloadedFileList=!proxyExecutableName!"
         ) else (
-            @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!clashExe!" 不存在，下载链接："!clashUrl!"
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] "!temp!\!clashExe!" 不存在，下载链接："!clashUrl!"
         )
     )
 )
@@ -1692,7 +1689,7 @@ if "!managedUrl!" == "" goto :eof
 if "!managedFile!" == "" goto :eof
 
 if /i "!managedUrl:~0,8!" NEQ "https://" (
-    @echo [%ESC%[91m错误%ESC%[0m] !managedFile! 下载地址解析失败："!managedUrl!"
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] !managedFile! 下载地址解析失败："!managedUrl!"
     goto :eof
 )
 
@@ -1702,7 +1699,7 @@ call :retryDownload "!managedUrl!" "!temp!\!managedFile!"
 if exist "!temp!\!managedFile!" (
     set "%~1=1"
 ) else (
-    @echo [%ESC%[91m错误%ESC%[0m] "!temp!\!managedFile!" 不存在，下载链接："!managedUrl!"
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] "!temp!\!managedFile!" 不存在，下载链接："!managedUrl!"
 )
 goto :eof
 
@@ -1740,7 +1737,7 @@ set /a "count=0"
 
 :retry
 if !count! GEQ !maxRetries! (
-    @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!savePath!%ESC%[0m 下载失败，已达最大重试次数，请尝试再次执行此命令
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!savePath!%ESC%[0m 下载失败，已达最大重试次数，请尝试再次执行此命令
     if exist "!savePath!" del /f /q "!savePath!" >nul 2>nul
     goto :eof
 )
@@ -1772,7 +1769,7 @@ for %%a in (!fileNames!) do (
     set "fileName=%%a"
 
     if not exist "!temp!\!fileName!" (
-        @echo [%ESC%[91m错误%ESC%[0m] %ESC%[!warnColor!m!fileName!%ESC%[0m 下载成功，但在 "!temp!" 文件夹下未找到，请确认是否已被删除
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] %ESC%[!warnColor!m!fileName!%ESC%[0m 下载成功，但在 "!temp!" 文件夹下未找到，请确认是否已被删除
         goto :eof
     )
 
@@ -1893,7 +1890,7 @@ set "elevatedShowWindow=0"
 set "operation=%~1"
 set "scriptPath=%~f0"
 if "!operation!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 非法操作，必须指定函数名
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 非法操作，必须指定函数名
     exit /b 1
 )
 
@@ -1949,11 +1946,11 @@ if "!runExecutable!" == "" (
     set "runExecutable=!proxyExecutableName!"
 )
 if not exist "!runConfigFile!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 配置文件 "%ESC%[!warnColor!m!runConfigFile!%ESC%[0m" 不存在，无法启动代理程序
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 配置文件 "%ESC%[!warnColor!m!runConfigFile!%ESC%[0m" 不存在，无法启动代理程序
     goto :eof
 )
 if not exist "!filePath!\!runExecutable!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 代理程序 "%ESC%[!warnColor!m!filePath!\!runExecutable!%ESC%[0m" 不存在，无法启动
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理程序 "%ESC%[!warnColor!m!filePath!\!runExecutable!%ESC%[0m" 不存在，无法启动
     goto :eof
 )
 @echo [%ESC%[!infoColor!m信息%ESC%[0m] 正在启动代理程序："!filePath!\!runExecutable!" -d "!filePath!" -f "!runConfigFile!"
@@ -1999,7 +1996,7 @@ call :resolveProxyExecutableName
 
 @REM Clash Premium is not available now
 if "!useClashPremium!" == "1" if not exist "!dest!\!proxyExecutableName!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 代理程序 %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂时 %ESC%[91m无法使用%ESC%[0m，请选择 %ESC%[!warnColor!m!metaCubeXMihomoName!%ESC%[0m
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理程序 %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 暂时 %ESC%[!errorColor!m无法使用%ESC%[0m，请选择 %ESC%[!warnColor!m!metaCubeXMihomoName!%ESC%[0m
     exit /b 1
 )
 
@@ -2092,12 +2089,12 @@ call :resolveProxyExecutableName
 
 @REM Verify config
 if not exist "!dest!\!proxyExecutableName!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，"%ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m" 缺失
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 网络代理启动%ESC%[!errorColor!m失败%ESC%[0m，"%ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m" 缺失
     goto :eof
 )
 
 if not exist "!configFile!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，配置文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 不存在
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 网络代理启动%ESC%[!errorColor!m失败%ESC%[0m，配置文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 不存在
     goto :eof
 )
 
@@ -2117,8 +2114,8 @@ if "!verifyConfig!" == "1" (
         )
 
         if "!messages!" == "" set "messages=文件校验失败，%ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 或配置文件 %ESC%[!warnColor!m!configFile!%ESC%[0m 存在问题"
-        @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，配置文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 存在错误
-        @echo [%ESC%[91m错误%ESC%[0m] 错误信息："!messages!"
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 网络代理启动%ESC%[!errorColor!m失败%ESC%[0m，配置文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 存在错误
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 错误信息："!messages!"
         exit /b 1
     )
 
@@ -2137,7 +2134,7 @@ for /l %%i in (1,1,6) do (
         call :isProcessAbnormal state
 
         if "!state!" == "1" (
-            set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] 代理进程%ESC%[91m异常%ESC%[0m，需%ESC%[91m删除并重新下载%ESC%[0m %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
+            set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] 代理进程%ESC%[!errorColor!m异常%ESC%[0m，需%ESC%[!errorColor!m删除并重新下载%ESC%[0m %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
             if "!msTerminal!" == "1" (
                 choice /t 5 /d y /n /m "!tips!"
             ) else (
@@ -2151,7 +2148,7 @@ for /l %%i in (1,1,6) do (
                 @REM Download components and restart
                 goto :restartProgram
             ) else (
-                @echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查代理程序 %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m 是否完好
+                @echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理程序启动%ESC%[!errorColor!m失败%ESC%[0m，请检查代理程序 %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m 是否完好
                 goto :eof
             )
         ) else (
@@ -2172,7 +2169,7 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查配置 %ESC%[91m!configuration!%ESC%[0m 是否正确
+@echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理程序启动%ESC%[!errorColor!m失败%ESC%[0m，请检查配置 %ESC%[!errorColor!m!configuration!%ESC%[0m 是否正确
 goto :eof
 
 @REM ============================================================================
@@ -2228,7 +2225,7 @@ if "!proxyPort!" == "" set "proxyPort=7890"
 @REM Enable the system proxy
 set "proxyServer=127.0.0.1:!proxyPort!"
 if "!proxyServer!" NEQ "!server!" (
-    set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 系统代理%ESC%[91m未配置%ESC%[0m，是否设置？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
+    set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 系统代理%ESC%[!errorColor!m未配置%ESC%[0m，是否设置？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
     if "!msTerminal!" == "1" (
         choice /t 5 /d y /n /m "!tips!"
     ) else (
@@ -2292,7 +2289,7 @@ if "!status!" == "1" (
     if "!status!" == "1" (
         call :getRunningProxyExecutable runningExecutable
         if "!runningExecutable!" == "" set "runningExecutable=!proxyExecutableName!"
-        @echo [%ESC%[91m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[!errorColor!m失败%ESC%[0m，请到%ESC%[!errorColor!m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m
         goto :eof
     )
 )
@@ -2332,7 +2329,7 @@ for /l %%i in (1,1,6) do (
 
 call :getRunningProxyExecutable runningExecutable
 if "!runningExecutable!" == "" set "runningExecutable=!proxyExecutableName!"
-@echo [%ESC%[91m错误%ESC%[0m] 代理程序关闭%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m
+@echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理程序关闭%ESC%[!errorColor!m失败%ESC%[0m，请到%ESC%[!errorColor!m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m
 goto :eof
 
 @REM ============================================================================
@@ -2361,7 +2358,7 @@ for /l %%i in (1,1,6) do (
 
 call :getRunningProxyExecutable runningExecutable
 if "!runningExecutable!" == "" set "runningExecutable=!proxyExecutableName!"
-@echo [%ESC%[91m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[91m任务管理中心%ESC%[0m手动结束 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m 进程
+@echo [%ESC%[!errorColor!m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[!errorColor!m任务管理中心%ESC%[0m手动结束 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m 进程
 goto :eof
 
 @REM ============================================================================
@@ -2427,7 +2424,7 @@ if "!running!" == "0" (
 )
 
 if exist "!killOutput!" (
-    for /f "usebackq delims=" %%a in ("!killOutput!") do @echo [%ESC%[91m错误%ESC%[0m] %%a
+    for /f "usebackq delims=" %%a in ("!killOutput!") do @echo [%ESC%[!errorColor!m错误%ESC%[0m] %%a
     del /f /q "!killOutput!" >nul 2>nul
 )
 goto :eof
@@ -2508,7 +2505,7 @@ call :getArch archVersion
 call :resolveProxyExecutableName
 
 if "!archVersion!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 未知 操作系统 及 CPU 架构信息，获取 clash 下载链接失败
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 未知 操作系统 及 CPU 架构信息，获取 clash 下载链接失败
     goto :eof
 )
 
@@ -2528,12 +2525,12 @@ if "!useClashMeta!" == "0" (
             @REM Remove whitespace
             call :trim proxyDownloadUrl "!proxyDownloadUrl!"
             if !proxyDownloadUrl! == "" (
-                @echo [%ESC%[91m错误%ESC%[0m] 获取 !clashPremiumName! 下载链接失败
+                @echo [%ESC%[!errorColor!m错误%ESC%[0m] 获取 !clashPremiumName! 下载链接失败
                 goto :eof
             )
             set "proxyDownloadUrl=!proxyDownloadUrl:~1,-1!"
         ) else (
-            @echo [%ESC%[!warnColor!m警告%ESC%[0m] %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 预览版下载链接可能%ESC%[91m无法访问%ESC%[0m，想要使用该版本请确保网络正常
+            @echo [%ESC%[!warnColor!m警告%ESC%[0m] %ESC%[!warnColor!m!clashPremiumName!%ESC%[0m 预览版下载链接可能%ESC%[!errorColor!m无法访问%ESC%[0m，想要使用该版本请确保网络正常
             set "proxyDownloadUrl=https://release.dreamacro.workers.dev/latest/clash-windows-!archVersion!-latest.zip"
         )
     )
@@ -2571,7 +2568,7 @@ if "!useClashMeta!" == "0" (
         if !proxyDownloadUrl! == "" (
             if "!alpha!" == "1" (set "version=预览版") else (set "version=稳定版")
             if "!useVerneMihomo!" == "1" (set "coreName=!smartMihomoName!") else (set "coreName=!metaCubeXMihomoName!")
-            @echo [%ESC%[91m错误%ESC%[0m] 获取 !coreName! 下载链接失败，版本："!version!"
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] 获取 !coreName! 下载链接失败，版本："!version!"
             goto :eof
         )
 
@@ -3147,7 +3144,7 @@ if not exist "!configFile!" goto :eof
 if "!clashServer!" == "" call :extractControllerServer clashServer
 
 if "!clashServer!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] %ESC%[91m不支持%ESC%[0m重载，可使用 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" 重启或者在文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 配置 "%ESC%[!warnColor!mexternal-controller%ESC%[0m" 属性以启用该功能
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] %ESC%[!errorColor!m不支持%ESC%[0m重载，可使用 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" 重启或者在文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 配置 "%ESC%[!warnColor!mexternal-controller%ESC%[0m" 属性以启用该功能
     goto :eof
 )
 
@@ -3187,9 +3184,9 @@ if "!status!" == "1" (
             for /f "delims=" %%a in (!output!) do set "content=%%a"
         )
 
-        @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序重载%ESC%[91m失败%ESC%[0m，请检查配置文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 是否有效
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 网络代理程序重载%ESC%[!errorColor!m失败%ESC%[0m，请检查配置文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 是否有效
         if "!content!" NEQ "" (
-            @echo [%ESC%[91m错误%ESC%[0m] 错误信息："!content!"
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] 错误信息："!content!"
         )
 
         @echo.
@@ -3198,7 +3195,7 @@ if "!status!" == "1" (
     @REM Delete the item
     del /f /q "!output!" >nul 2>nul
 ) else (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序%ESC%[91m未启动%ESC%[0m，可使用命令 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" 启动
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 网络代理程序%ESC%[!errorColor!m未启动%ESC%[0m，可使用命令 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" 启动
 )
 goto :eof
 
@@ -3249,7 +3246,7 @@ if "!enableRemoteConfig!" == "1" if "!remoteConfigUrl!" NEQ "" (
 
         @REM Handle failure
         if !errorlevel! NEQ 0 (
-            @echo [%ESC%[91m错误%ESC%[0m] 配置文件 %ESC%[!warnColor!m!remoteConfigUrl!%ESC%[0m 存在错误，无法更新
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] 配置文件 %ESC%[!warnColor!m!remoteConfigUrl!%ESC%[0m 存在错误，无法更新
             del /f /q "!downloadPath!" >nul 2>nul
             exit /b 1
         )
@@ -3379,7 +3376,7 @@ for /f "usebackq tokens=1* delims=|" %%u in ("!tempFile!") do (
     @REM Generate the target file path
     call :convertToAbsolutePath targetFile "!rawPath!"
     if "!targetFile!" == "" (
-        @echo [%ESC%[91m错误%ESC%[0m] 配置无效，订阅或代理规则更新失败
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 配置无效，订阅或代理规则更新失败
         goto :eof
     )
 
@@ -3419,7 +3416,7 @@ for /f "usebackq tokens=1* delims=|" %%u in ("!tempFile!") do (
                 @REM Mark the change status
                 set "%~1=1"
             ) else (
-                @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!fileName!%ESC%[0m 下载失败，下载链接："!url!"
+                @echo [%ESC%[!errorColor!m错误%ESC%[0m] 文件 %ESC%[!warnColor!m!fileName!%ESC%[0m 下载失败，下载链接："!url!"
             )
         )
     )
@@ -3516,7 +3513,7 @@ if "!dashboardUrl!" == "" (
 )
 
 if "!dashboard!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板保存路径
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无法获取控制面板保存路径
     goto :eof
 )
 
@@ -3539,12 +3536,12 @@ del /f /q "!temp!\dashboard.zip" >nul 2>nul
 @REM Resolve base path and directory name
 call :splitPath dashPath dashName "!dashboard!"
 if "!dashPath!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板保存路径
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无法获取控制面板保存路径
     goto :eof
 )
 
 if "!dashName!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板文件夹名
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无法获取控制面板文件夹名
     goto :eof
 )
 
@@ -3580,7 +3577,7 @@ if "!target!" == "" (
 )
 
 if not exist "!src!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 文件夹移动失败，源文件夹不存在："!src!"
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 文件夹移动失败，源文件夹不存在："!src!"
     goto :eof
 )
 
@@ -3668,7 +3665,7 @@ goto :eof
 @REM Purpose:    Exit with an update failure message
 @REM ============================================================================
 :terminate
-@echo [%ESC%[91m错误%ESC%[0m] 更新失败，代理程序、域名及 IP 地址数据库或控制面板缺失
+@echo [%ESC%[!errorColor!m错误%ESC%[0m] 更新失败，代理程序、域名及 IP 地址数据库或控制面板缺失
 call :cleanWorkspace "!temp!"
 exit /b 1
 goto :eof
@@ -3764,7 +3761,7 @@ if "!startupVbs!" NEQ "!exeName!" (
 
     call :enableNoPromptRunAs success
     if "!success!" == "0" (
-        @echo [%ESC%[91m错误%ESC%[0m] 权限受限，%ESC%[91m无法设置%ESC%[0m开机自启
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 权限受限，%ESC%[!errorColor!m无法设置%ESC%[0m开机自启
         goto :eof
     )
 
@@ -3773,7 +3770,7 @@ if "!startupVbs!" NEQ "!exeName!" (
     if "!success!" == "1" (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 网络代理程序开机自启设置%ESC%[!infoColor!m完成%ESC%[0m
     ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序开机自启设置%ESC%[91m失败%ESC%[0m
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 网络代理程序开机自启设置%ESC%[!errorColor!m失败%ESC%[0m
     )
 )
 goto :eof
@@ -3845,7 +3842,7 @@ if "!ready!" == "0" (
     if "!success!" == "1" (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 自动检查更新设置%ESC%[!infoColor!m成功%ESC%[0m
     ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] 自动检查更新设置%ESC%[91m失败%ESC%[0m
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 自动检查更新设置%ESC%[!errorColor!m失败%ESC%[0m
     )
 ) else if "!proxyEditionChanged!" == "1" if exist "!updateVbs!" (
     @REM Update the update VBS script
@@ -3940,7 +3937,7 @@ set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 请输入一个格式为 %ESC%[!war
 
 call :trim retryFlag "%~3"
 if "!retryFlag!" == "1" (
-    set "tips=[%ESC%[91m错误%ESC%[0m] 输入的时间%ESC%[91m无效%ESC%[0m或%ESC%[91m格式不正确%ESC%[0m，请重新输入："
+    set "tips=[%ESC%[!errorColor!m错误%ESC%[0m] 输入的时间%ESC%[!errorColor!m无效%ESC%[0m或%ESC%[!errorColor!m格式不正确%ESC%[0m，请重新输入："
     set "retryFlag=0"
 )
 
@@ -4204,13 +4201,13 @@ call :disableSystemProxy
 @REM Disable startup at user login
 call :disableAutostart success
 if "!success!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 开机自启%ESC%[91m禁用失败%ESC%[0m，可在%ESC%[!warnColor!m任务管理中心%ESC%[0m手动设置
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 开机自启%ESC%[!errorColor!m禁用失败%ESC%[0m，可在%ESC%[!warnColor!m任务管理中心%ESC%[0m手动设置
 )
 
 @REM Delete the scheduled update task
 call :deleteScheduledTask success "ClashUpdater"
 if "!success!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 自动检查跟新取消%ESC%[91m失败%ESC%[0m，可在%ESC%[!warnColor!m任务计划程序%ESC%[0m中手动删除
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 自动检查跟新取消%ESC%[!errorColor!m失败%ESC%[0m，可在%ESC%[!warnColor!m任务计划程序%ESC%[0m中手动删除
 )
 
 @REM Stop the proxy process
@@ -4339,7 +4336,7 @@ if "!exePath!" == "!startupVbs!" (
     if "!proxyEditionChanged!" == "1" (
         call :downloadIcon finished
         if "!finished!" == "0" (
-            @echo [%ESC%[!warnColor!m提示%ESC%[0m] 检测到代理程序发行版本已变更，但应用图标文件更新%ESC%[91m失败%ESC%[0m
+            @echo [%ESC%[!warnColor!m提示%ESC%[0m] 检测到代理程序发行版本已变更，但应用图标文件更新%ESC%[!errorColor!m失败%ESC%[0m
         )
     )
     
@@ -4358,14 +4355,14 @@ if !errorlevel! == 2 goto :eof
 if not exist "!shortcutIconPath!" (
     call :downloadIcon finished
     if "!finished!" == "0" (
-        @echo [%ESC%[91m错误%ESC%[0m] 应用图标文件下载%ESC%[91m失败%ESC%[0m，无法创建桌面快捷方式
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] 应用图标文件下载%ESC%[!errorColor!m失败%ESC%[0m，无法创建桌面快捷方式
         goto :eof
     )
 )
 
 call :createShortcut finished "!clashLinkPath!" "!startupVbs!" "!shortcutIconPath!"
 if "!finished!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 桌面快捷方式添加%ESC%[91m失败%ESC%[0m，如有需要，请自行创建
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 桌面快捷方式添加%ESC%[!errorColor!m失败%ESC%[0m，如有需要，请自行创建
 ) else (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 桌面快捷方式添加%ESC%[!infoColor!m成功%ESC%[0m
 )
