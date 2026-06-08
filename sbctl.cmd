@@ -48,20 +48,17 @@ goto :workflow
 @REM ============================================================================
 :workflow
 @REM Terminal type detection for proper display formatting
-set "ms_terminal=1"
+call :isMicrosoftTerminal ms_terminal
 
 @REM Feature control flags
 set "enable_shortcut=1"                   @REM Enable desktop shortcut creation
 set "enable_remote_config=0"              @REM Enable remote configuration updates
 set "verify_config=0"                     @REM Enable configuration file verification
 
-@REM Console color codes for different message types
-set "info_color=92"                       @REM Green for information messages
-set "warn_color=93"                       @REM Yellow for warning messages
-if "!ms_terminal!" == "1" (
-    set "info_color=95"                   @REM Magenta for MS Terminal
-    set "warn_color=97"                   @REM White for MS Terminal
-)
+@REM Console color settings
+set "info_color=38;2;22;198;12"
+set "warn_color=38;2;249;241;165"
+set "error_color=38;2;231;72;86"
 
 @REM Operation control flags - determine which action to perform
 set "should_exit=0"                       @REM Exit flag for error conditions
@@ -159,13 +156,13 @@ call :normalizeFilePath config_location "!config_location!"
 
 @REM Validate configuration file path
 if "!config_location!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 配置文件路径%ESC%[91m无效%ESC%[0m
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 配置文件路径%ESC%[!error_color!m无效%ESC%[0m
     exit /b 1
 )
 
 @REM Ensure path doesn't contain whitespace (causes issues with sing-box)
 if "!config_location!" NEQ "!config_location: =!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无效的配置文件 "%ESC%[!warn_color!m!config_location!%ESC%[0m"， 路径不能包含%ESC%[!warn_color!m空格%ESC%[0m
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 无效的配置文件 "%ESC%[!warn_color!m!config_location!%ESC%[0m"， 路径不能包含%ESC%[!warn_color!m空格%ESC%[0m
     exit /b 1
 )
 
@@ -173,7 +170,7 @@ if "!config_location!" NEQ "!config_location: =!" (
 if "!is_web_link!" == "1" (
     @REM Warn user about overwriting existing config file
     if exist "!config_location!" (
-        set "tips=[%ESC%[!warn_color!m警告%ESC%[0m] %ESC%[!warn_color!m已存在%ESC%[0m配置文件 "%ESC%[!warn_color!m!config_location!%ESC%[0m" 会被%ESC%[91m覆盖%ESC%[0m，是否继续？ (%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+        set "tips=[%ESC%[!warn_color!m警告%ESC%[0m] %ESC%[!warn_color!m已存在%ESC%[0m配置文件 "%ESC%[!warn_color!m!config_location!%ESC%[0m" 会被%ESC%[!error_color!m覆盖%ESC%[0m，是否继续？ (%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
         if "!ms_terminal!" == "1" (
             choice /t 6 /d n /n /m "!tips!"
         ) else (
@@ -198,7 +195,7 @@ if "!is_web_link!" == "1" (
             set "content="
             for /f "tokens=*" %%a in ('findstr /i /r /c:"\"external_controller\"[ ]*:[ ]*\".*:[0-9][0-9]*\"" !subscription_file!') do set "content=%%a"
             if "!content!" == "" (
-                @echo [%ESC%[91m错误%ESC%[0m] 订阅 "%ESC%[!warn_color!m!subscription_link!%ESC%[0m" 无效，请检查确认
+                @echo [%ESC%[!error_color!m错误%ESC%[0m] 订阅 "%ESC%[!warn_color!m!subscription_link!%ESC%[0m" 无效，请检查确认
                 exit /b 1
             )
 
@@ -207,7 +204,7 @@ if "!is_web_link!" == "1" (
             call :splitPath file_path file_name "!config_location!"
             call :createDirectories success "!file_path!"
             if "!success!" == "0" (
-                @echo [%ESC%[91m错误%ESC%[0m] 创建文件夹 "%ESC%[!warn_color!m!file_path!%ESC%[0m" %ESC%[91m失败%ESC%[0m，请确认路径是否合法
+                @echo [%ESC%[!error_color!m错误%ESC%[0m] 创建文件夹 "%ESC%[!warn_color!m!file_path!%ESC%[0m" %ESC%[!error_color!m失败%ESC%[0m，请确认路径是否合法
                 exit /b 1
             )
 
@@ -224,14 +221,14 @@ if "!is_web_link!" == "1" (
 
     @REM Handle download failure
     if "!status_code!" NEQ "200" (
-        @echo [%ESC%[91m错误%ESC%[0m] 订阅下载%ESC%[91m失败%ESC%[0m， 请检查确认此订阅是否有效
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 订阅下载%ESC%[!error_color!m失败%ESC%[0m， 请检查确认此订阅是否有效
         exit /b 1
     )
 )
 
 @REM Verify local configuration file exists
 if not exist "!config_location!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 配置文件 "%ESC%[!warn_color!m!config_location!%ESC%[0m" %ESC%[91m不存在%ESC%[0m
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 配置文件 "%ESC%[!warn_color!m!config_location!%ESC%[0m" %ESC%[!error_color!m不存在%ESC%[0m
     goto :eof
 )
 
@@ -239,7 +236,7 @@ if not exist "!config_location!" (
 set "content="
 for /f "tokens=*" %%a in ('findstr /i /r /c:"\"outbounds\"[ ]*:[ ]*\[" "!config_location!"') do set "content=%%a"
 if "!content!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] %ESC%[91m无效%ESC%[0m的配置文件 "%ESC%[!warn_color!m!config_location!%ESC%[0m"
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] %ESC%[!error_color!m无效%ESC%[0m的配置文件 "%ESC%[!warn_color!m!config_location!%ESC%[0m"
     exit /b 1
 )
 
@@ -283,7 +280,7 @@ call :testConnection available 0
 set "lazy_check=0"
 if "!available!" == "1" (
     @REM Proxy is working, confirm user wants to continue anyway
-    set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 代理网络运行%ESC%[!info_color!m正常%ESC%[0m，%ESC%[91m不存在%ESC%[0m问题，是否继续？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+    set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 代理网络运行%ESC%[!info_color!m正常%ESC%[0m，%ESC%[!error_color!m不存在%ESC%[0m问题，是否继续？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
     if "!ms_terminal!" == "1" (
         choice /t 5 /d n /n /m "!tips!"
     ) else (
@@ -346,7 +343,7 @@ for /l %%i in (1,1,5) do (
 )
 
 @REM Report repair failure after all attempts
-@echo [%ESC%[91m错误%ESC%[0m] 问题修复%ESC%[91m失败%ESC%[0m， 网络代理仍%ESC%[91m无法%ESC%[0m使用， 请尝试其他方法
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 问题修复%ESC%[!error_color!m失败%ESC%[0m， 网络代理仍%ESC%[!error_color!m无法%ESC%[0m使用， 请尝试其他方法
 goto :eof
 
 
@@ -364,7 +361,7 @@ if "!log_level!" == "" set "log_level=1"
 @REM Test basic network connectivity without proxy
 call :checkNetworkAvailable available 0 "https://www.baidu.com" ""
 if "!available!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络%ESC%[91m不可用%ESC%[0m， 但代理程序%ESC%[91m并未运行%ESC%[0m，请检查你的%ESC%[!warn_color!m本地网络%ESC%[0m是否正常
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络%ESC%[!error_color!m不可用%ESC%[0m， 但代理程序%ESC%[!error_color!m并未运行%ESC%[0m，请检查你的%ESC%[!warn_color!m本地网络%ESC%[0m是否正常
 
     @REM Signal that operation should terminate
     set "%~1=0"
@@ -373,7 +370,7 @@ if "!available!" == "0" (
 
 @REM Provide user guidance if logging is enabled
 if "!log_level!" == "1" (
-    @echo [%ESC%[!warn_color!m提示%ESC%[0m] 网络代理%ESC%[91m没有开启%ESC%[0m， 推荐选择 %ESC%[!warn_color!mRestart%ESC%[0m 开启
+    @echo [%ESC%[!warn_color!m提示%ESC%[0m] 网络代理%ESC%[!error_color!m没有开启%ESC%[0m， 推荐选择 %ESC%[!warn_color!mRestart%ESC%[0m 开启
 )
 goto :eof
 
@@ -571,7 +568,7 @@ if "%1" NEQ "" (
         exit /b
     )
 
-    @echo [%ESC%[91m错误%ESC%[0m] 未知参数：%ESC%[91m%1%ESC%[0m
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 未知参数：%ESC%[!error_color!m%1%ESC%[0m
     @echo.
     goto :usage
 )
@@ -608,7 +605,7 @@ goto :eof
 @REM Purpose:    Displays error message and shows usage when --conf is invalid
 @REM ============================================================================
 :invalidConfArg
-@echo [%ESC%[91m错误%ESC%[0m] 参数 "%ESC%[!warn_color!m--conf%ESC%[0m" 需要有效的配置文件或订阅链接
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 参数 "%ESC%[!warn_color!m--conf%ESC%[0m" 需要有效的配置文件或订阅链接
 @echo.
 goto :usage
 
@@ -636,7 +633,7 @@ if not exist "!directory!" (
 )
 
 if "!should_exit!" == "1" (
-    @echo [%ESC%[91m错误%ESC%[0m] 工作目录路径 "%ESC%[!warn_color!m!directory!%ESC%[0m" 无效
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 工作目录路径 "%ESC%[!warn_color!m!directory!%ESC%[0m" 无效
     @echo.
     goto :eof
 )
@@ -650,7 +647,7 @@ goto :eof
 @REM Purpose:    Displays error message and shows usage when --workspace is invalid
 @REM ============================================================================
 :invalidWorkspaceArg
-@echo [%ESC%[91m错误%ESC%[0m] 参数 "%ESC%[!warn_color!m--workspace%ESC%[0m" 需要有效的路径
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 参数 "%ESC%[!warn_color!m--workspace%ESC%[0m" 需要有效的路径
 @echo.
 goto :usage
 
@@ -664,7 +661,7 @@ goto :usage
 :handleGotoSyntax <func_name> <all_params>
 call :trim func_name "%~1"
 if "!func_name!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] goto 语法需要提供函数名
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] goto 语法需要提供函数名
     goto :usage
 )
 
@@ -704,7 +701,7 @@ if exist "!temp_check!" (
 )
 
 if "!invalid_url!" == "1" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无效的订阅链接 "%ESC%[!warn_color!m!url!%ESC%[0m"
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 无效的订阅链接 "%ESC%[!warn_color!m!url!%ESC%[0m"
     @echo.
     set "should_exit=1"
     goto :eof
@@ -723,7 +720,7 @@ goto :eof
 :validateConfigFile <filename>
 call :trim filename "%~1"
 if "!filename:~-5!" NEQ ".json" (
-    @echo [%ESC%[91m错误%ESC%[0m] 配置文件 "%ESC%[!warn_color!m!filename!%ESC%[0m" 格式无效，仅支持 .json 格式
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 配置文件 "%ESC%[!warn_color!m!filename!%ESC%[0m" 格式无效，仅支持 .json 格式
     @echo.
     set "should_exit=1"
     goto :eof
@@ -996,7 +993,7 @@ goto :processProviderLoop
 :processProvider <url> <cache_file>
 call :convertToAbsolutePath target_file "%~2"
 if "!target_file!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 缓存文件路径无效："%~2"
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 缓存文件路径无效："%~2"
     goto :eof
 )
 
@@ -1018,7 +1015,7 @@ if !file_size! GTR 16 (
     del /f /q "!target_file!" >nul 2>nul
     move "!TEMP_DIR!\!file_name!" "!file_path!" >nul 2>nul
 ) else (
-    @echo [%ESC%[91m错误%ESC%[0m] 订阅下载失败，文件：!file_name!，链接：!process_url!
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 订阅下载失败，文件：!file_name!，链接：!process_url!
 )
 goto :eof
 
@@ -1095,7 +1092,7 @@ if "!output!" == "" set "output=1"
 call :isProcessRunning status
 if "!status!" == "0" (
     if "!output!" == "1" (
-        @echo [%ESC%[!warn_color!m提示%ESC%[0m] 网络%ESC%[91m不可用%ESC%[0m，代理程序%ESC%[91m已退出%ESC%[0m
+        @echo [%ESC%[!warn_color!m提示%ESC%[0m] 网络%ESC%[!error_color!m不可用%ESC%[0m，代理程序%ESC%[!error_color!m已退出%ESC%[0m
     )
 
     goto :eof
@@ -1150,7 +1147,7 @@ if "!status_code!" == "200" (
         @REM Configure post-processing for failed connections
         call :postProcess
 
-        @echo [%ESC%[!warn_color!m提示%ESC%[0m] 代理网络%ESC%[91m不可用%ESC%[0m，可%ESC%[!warn_color!m再次测试%ESC%[0m或使用命令 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" %ESC%[!warn_color!m重启%ESC%[0m 或者 "%ESC%[!warn_color!m!BATCH_NAME! -f%ESC%[0m" %ESC%[!warn_color!m修复%ESC%[0m
+        @echo [%ESC%[!warn_color!m提示%ESC%[0m] 代理网络%ESC%[!error_color!m不可用%ESC%[0m，可%ESC%[!warn_color!m再次测试%ESC%[0m或使用命令 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" %ESC%[!warn_color!m重启%ESC%[0m 或者 "%ESC%[!warn_color!m!BATCH_NAME! -f%ESC%[0m" %ESC%[!warn_color!m修复%ESC%[0m
     )
 )
 goto :eof
@@ -1181,7 +1178,7 @@ if exist "!config_file!" (
     if "!port!" == "" goto :eof
 
     @REM Prompt user to configure system proxy
-    set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 系统代理%ESC%[91m未配置%ESC%[0m，是否设置？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+    set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 系统代理%ESC%[!error_color!m未配置%ESC%[0m，是否设置？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
     if "!ms_terminal!" == "1" (
         choice /t 5 /d y /n /m "!tips!"
     ) else (
@@ -1251,7 +1248,7 @@ call :trim download_url "%~2"
 if "!download_url!" NEQ "" (
     @REM Validate download URL format
     if /i "!download_url:~0,8!" NEQ "https://" (
-        @echo [%ESC%[91m错误%ESC%[0m] !SINGBOX_EXE! 下载地址解析失败："!download_url!"
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] !SINGBOX_EXE! 下载地址解析失败："!download_url!"
     ) else (
         @echo [%ESC%[!info_color!m信息%ESC%[0m] 开始下载 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m 至 %ESC%[!warn_color!m!dest!%ESC%[0m
 
@@ -1264,7 +1261,7 @@ if "!download_url!" NEQ "" (
             @REM Clean up downloaded ZIP file
             del /f /q "!TEMP_DIR!\sing-box.zip"
         ) else (
-            @echo [%ESC%[91m错误%ESC%[0m] !SINGBOX_EXE! 下载失败，下载链接："!download_url!"
+            @echo [%ESC%[!error_color!m错误%ESC%[0m] !SINGBOX_EXE! 下载失败，下载链接："!download_url!"
         )
 
         @REM Validate and rename extracted executable
@@ -1274,7 +1271,7 @@ if "!download_url!" NEQ "" (
 
             set "%~1=1"
         ) else (
-            @echo [%ESC%[91m错误%ESC%[0m] "!TEMP_DIR!\!SINGBOX_EXE!" 不存在，下载链接："!download_url!"
+            @echo [%ESC%[!error_color!m错误%ESC%[0m] "!TEMP_DIR!\!SINGBOX_EXE!" 不存在，下载链接："!download_url!"
         )
     )
 )
@@ -1300,7 +1297,7 @@ set /a "count=0"
 
 :retry
 if !count! GEQ !max_retries! (
-    @echo [%ESC%[91m错误%ESC%[0m] 文件 %ESC%[!warn_color!m!saved_path!%ESC%[0m 下载失败，已达最大重试次数，请尝试再次执行此命令
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 文件 %ESC%[!warn_color!m!saved_path!%ESC%[0m 下载失败，已达最大重试次数，请尝试再次执行此命令
     goto :eof
 )
 
@@ -1332,7 +1329,7 @@ for %%a in (!file_names!) do (
 
     @REM Verify downloaded file exists in temporary directory
     if not exist "!TEMP_DIR!\!file_name!" (
-        @echo [%ESC%[91m错误%ESC%[0m] %ESC%[!warn_color!m!file_name!%ESC%[0m 下载成功，但在 "!TEMP_DIR!" 文件夹下未找到，请确认是否已被删除
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] %ESC%[!warn_color!m!file_name!%ESC%[0m 下载成功，但在 "!TEMP_DIR!" 文件夹下未找到，请确认是否已被删除
         goto :eof
     )
 
@@ -1463,7 +1460,7 @@ goto :eof
 set "show=0"
 set "operation=%~1"
 if "!operation!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 非法操作，必须指定函数名
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 非法操作，必须指定函数名
     exit /b 1
 )
 
@@ -1652,12 +1649,12 @@ if "!should_check!" == "1" (
 
 @REM Verify config
 if not exist "!dest!\!SINGBOX_EXE!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，"%ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m" 缺失
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理启动%ESC%[!error_color!m失败%ESC%[0m，"%ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m" 缺失
     goto :eof
 )
 
 if not exist "!config_file!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 不存在
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理启动%ESC%[!error_color!m失败%ESC%[0m，配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 不存在
     goto :eof
 )
 
@@ -1677,8 +1674,8 @@ if "!verify_config!" == "1" (
         )
 
         if "!messages!" == "" set "messages=文件校验失败，%ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m 或配置文件 %ESC%[!warn_color!m!config_file!%ESC%[0m 存在问题"
-        @echo [%ESC%[91m错误%ESC%[0m] 网络代理启动%ESC%[91m失败%ESC%[0m，配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 存在错误
-        @echo [%ESC%[91m错误%ESC%[0m] 错误信息："!messages!"
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理启动%ESC%[!error_color!m失败%ESC%[0m，配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 存在错误
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 错误信息："!messages!"
         exit /b 1
     )
 
@@ -1698,7 +1695,7 @@ for /l %%i in (1,1,6) do (
         call :abnormal state
 
         if "!state!" == "1" (
-            set "tips=[%ESC%[!warn_color!m警告%ESC%[0m] 代理进程%ESC%[91m异常%ESC%[0m，需%ESC%[91m删除并重新下载%ESC%[0m %ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m，是否继续？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+            set "tips=[%ESC%[!warn_color!m警告%ESC%[0m] 代理进程%ESC%[!error_color!m异常%ESC%[0m，需%ESC%[!error_color!m删除并重新下载%ESC%[0m %ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m，是否继续？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
             if "!ms_terminal!" == "1" (
                 choice /t 5 /d y /n /m "!tips!"
             ) else (
@@ -1712,7 +1709,7 @@ for /l %%i in (1,1,6) do (
                 @REM Download and restart
                 goto :restartProgram
             ) else (
-                @echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查代理程序 %ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m 是否完好
+                @echo [%ESC%[!error_color!m错误%ESC%[0m] 代理程序启动%ESC%[!error_color!m失败%ESC%[0m，请检查代理程序 %ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m 是否完好
                 goto :eof
             )
         ) else (
@@ -1737,7 +1734,7 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 代理程序启动%ESC%[91m失败%ESC%[0m，请检查配置 %ESC%[91m!config_file!%ESC%[0m 是否正确
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 代理程序启动%ESC%[!error_color!m失败%ESC%[0m，请检查配置 %ESC%[!error_color!m!config_file!%ESC%[0m 是否正确
 goto :eof
 
 
@@ -1789,7 +1786,7 @@ if "!proxy_port!" == "" set "proxy_port=7890"
 @REM Set proxy
 set "proxy_server=127.0.0.1:!proxy_port!"
 if "!proxy_server!" NEQ "!server!" (
-    set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 系统代理%ESC%[91m未配置%ESC%[0m，是否设置？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+    set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 系统代理%ESC%[!error_color!m未配置%ESC%[0m，是否设置？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
     if "!ms_terminal!" == "1" (
         choice /t 5 /d y /n /m "!tips!"
     ) else (
@@ -1856,7 +1853,7 @@ if "!status!" == "1" (
     call :isProcessRunning status
 
     if "!status!" == "1" (
-        @echo [%ESC%[91m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[!error_color!m失败%ESC%[0m，请到%ESC%[!error_color!m任务管理中心%ESC%[0m手动退出 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m
         goto :eof
     )
 )
@@ -1894,7 +1891,7 @@ for /l %%i in (1,1,6) do (
 )
 
 @REM Report failure if process couldn't be terminated
-@echo [%ESC%[91m错误%ESC%[0m] 代理程序关闭%ESC%[91m失败%ESC%[0m，请到%ESC%[91m任务管理中心%ESC%[0m手动退出 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 代理程序关闭%ESC%[!error_color!m失败%ESC%[0m，请到%ESC%[!error_color!m任务管理中心%ESC%[0m手动退出 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m
 goto :eof
 
 
@@ -1923,7 +1920,7 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[91m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[91m任务管理中心%ESC%[0m手动结束 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m 进程
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理关闭失败，请到%ESC%[!error_color!m任务管理中心%ESC%[0m手动结束 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m 进程
 goto :eof
 
 
@@ -2100,7 +2097,7 @@ if "!enable_remote_config!" == "1" if "!remote_url!" NEQ "" (
 
         @REM Handle configuration validation failure
         if !errorlevel! NEQ 0 (
-            @echo [%ESC%[91m错误%ESC%[0m] 配置文件 %ESC%[!warn_color!m!remote_url!%ESC%[0m 存在错误，无法更新
+            @echo [%ESC%[!error_color!m错误%ESC%[0m] 配置文件 %ESC%[!warn_color!m!remote_url!%ESC%[0m 存在错误，无法更新
             del /f /q "!download_path!" >nul 2>nul
             exit /b 1
         )
@@ -2250,7 +2247,7 @@ if "!url!" == "" (
 )
 
 if "!name!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板保存路径
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 无法获取控制面板保存路径
     goto :eof
 )
 
@@ -2272,12 +2269,12 @@ del /f /q "!TEMP_DIR!\dashboard.zip" >nul 2>nul
 @REM Base path and directory name
 call :splitPath base_path folder_name "!name!"
 if "!base_path!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板保存路径
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 无法获取控制面板保存路径
     goto :eof
 )
 
 if "!folder_name!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] 无法获取控制面板文件夹名
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 无法获取控制面板文件夹名
     goto :eof
 )
 
@@ -2315,7 +2312,7 @@ if "!target_dir!" == "" (
 )
 
 if not exist "!source_dir!" (
-    @echo [%ESC%[91m错误%ESC%[0m] 文件夹移动失败，源文件夹不存在："!source_dir!"
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 文件夹移动失败，源文件夹不存在："!source_dir!"
     goto :eof
 )
 
@@ -2387,7 +2384,7 @@ goto :eof
 @REM Process:    Reports error, cleans workspace, exits with error code
 @REM ============================================================================
 :terminate
-@echo [%ESC%[91m错误%ESC%[0m] 更新失败，代理程序、域名及 IP 地址数据库或控制面板缺失
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 更新失败，代理程序、域名及 IP 地址数据库或控制面板缺失
 call :cleanWorkspace "!TEMP_DIR!"
 exit /b 1
 goto :eof
@@ -2495,7 +2492,7 @@ if "!startup_script!" NEQ "!exe_name!" (
 
     call :enableSilentAdmin success
     if "!success!" == "0" (
-        @echo [%ESC%[91m错误%ESC%[0m] 权限受限，%ESC%[91m无法设置%ESC%[0m开机自启
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 权限受限，%ESC%[!error_color!m无法设置%ESC%[0m开机自启
         goto :eof
     )
 
@@ -2504,7 +2501,7 @@ if "!startup_script!" NEQ "!exe_name!" (
     if "!success!" == "1" (
         @echo [%ESC%[!info_color!m信息%ESC%[0m] 网络代理程序开机自启设置%ESC%[!info_color!m完成%ESC%[0m
     ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序开机自启设置%ESC%[91m失败%ESC%[0m
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理程序开机自启设置%ESC%[!error_color!m失败%ESC%[0m
     )
 )
 
@@ -2579,7 +2576,7 @@ if "!ready!" == "0" (
     if "!success!" == "1" (
         @echo [%ESC%[!info_color!m信息%ESC%[0m] 自动检查更新设置%ESC%[!info_color!m成功%ESC%[0m
     ) else (
-        @echo [%ESC%[91m错误%ESC%[0m] 自动检查更新设置%ESC%[91m失败%ESC%[0m
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 自动检查更新设置%ESC%[!error_color!m失败%ESC%[0m
     )
 )
 goto :eof
@@ -2668,7 +2665,7 @@ set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 请输入一个格式为 %ESC%[!wa
 
 call :trim retry_flag "%~3"
 if "!retry_flag!" == "1" (
-    set "tips=[%ESC%[91m错误%ESC%[0m] 输入的时间%ESC%[91m无效%ESC%[0m或%ESC%[91m格式不正确%ESC%[0m，请重新输入："
+    set "tips=[%ESC%[!error_color!m错误%ESC%[0m] 输入的时间%ESC%[!error_color!m无效%ESC%[0m或%ESC%[!error_color!m格式不正确%ESC%[0m，请重新输入："
     set "retry_flag=0"
 )
 
@@ -2953,13 +2950,13 @@ call :disableSystemProxy
 @REM Remove automatic startup configuration
 call :disableAutostart success
 if "!success!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 开机自启%ESC%[91m禁用失败%ESC%[0m，可在%ESC%[!warn_color!m任务管理中心%ESC%[0m手动设置
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 开机自启%ESC%[!error_color!m禁用失败%ESC%[0m，可在%ESC%[!warn_color!m任务管理中心%ESC%[0m手动设置
 )
 
 @REM Delete automatic update scheduled task
 call :deleteTask success "SingBoxUpdater"
 if "!success!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 自动检查跟新取消%ESC%[91m失败%ESC%[0m，可在%ESC%[!warn_color!m任务计划程序%ESC%[0m中手动删除
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 自动检查跟新取消%ESC%[!error_color!m失败%ESC%[0m，可在%ESC%[!warn_color!m任务计划程序%ESC%[0m中手动删除
 )
 
 @REM Stop running sing-box process
@@ -3099,14 +3096,14 @@ if !errorlevel! == 2 goto :eof
 if not exist "!dest!\!icon_name!" (
     call :downloadIcon finished "!icon_name!"
     if "!finished!" == "0" (
-        @echo [%ESC%[91m错误%ESC%[0m] 应用图标文件下载%ESC%[91m失败%ESC%[0m，无法创建桌面快捷方式
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 应用图标文件下载%ESC%[!error_color!m失败%ESC%[0m，无法创建桌面快捷方式
         goto :eof
     )
 )
 
 call :createShortcut finished "!link_dest!" "!startup_script!" "!icon_name!"
 if "!finished!" == "0" (
-    @echo [%ESC%[91m错误%ESC%[0m] 桌面快捷方式添加%ESC%[91m失败%ESC%[0m，如有需要，请自行创建
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 桌面快捷方式添加%ESC%[!error_color!m失败%ESC%[0m，如有需要，请自行创建
 ) else (
     @echo [%ESC%[!info_color!m信息%ESC%[0m] 桌面快捷方式添加%ESC%[!info_color!m成功%ESC%[0m
 )
@@ -3382,7 +3379,7 @@ if not exist "!config_file!" goto :eof
 if "!singbox_server!" == "" call :extractServer singbox_server
 
 if "!singbox_server!" == "" (
-    @echo [%ESC%[91m错误%ESC%[0m] %ESC%[91m不支持%ESC%[0m重载，可使用 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" 重启或者在文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 配置 "%ESC%[!warn_color!mexternal_controller%ESC%[0m" 属性以启用该功能
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] %ESC%[!error_color!m不支持%ESC%[0m重载，可使用 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" 重启或者在文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 配置 "%ESC%[!warn_color!mexternal_controller%ESC%[0m" 属性以启用该功能
     goto :eof
 )
 
@@ -3422,9 +3419,9 @@ if "!status!" == "1" (
             for /f "delims=" %%a in (!output!) do set "content=%%a"
         )
 
-        @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序重载%ESC%[91m失败%ESC%[0m，请检查配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 是否有效
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理程序重载%ESC%[!error_color!m失败%ESC%[0m，请检查配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 是否有效
         if "!content!" NEQ "" (
-            @echo [%ESC%[91m错误%ESC%[0m] 错误信息："!content!"
+            @echo [%ESC%[!error_color!m错误%ESC%[0m] 错误信息："!content!"
         )
 
         @echo.
@@ -3433,10 +3430,22 @@ if "!status!" == "1" (
     @REM Clean up output file
     del /f /q "!output!" >nul 2>nul
 ) else (
-    @echo [%ESC%[91m错误%ESC%[0m] 网络代理程序%ESC%[91m未启动%ESC%[0m，可使用命令 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" 启动
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理程序%ESC%[!error_color!m未启动%ESC%[0m，可使用命令 "%ESC%[!warn_color!m!BATCH_NAME! -r%ESC%[0m" 启动
 )
 goto :eof
 
+@REM ============================================================================
+@REM Detect whether the script runs in Windows Terminal
+@REM Purpose:    Detect whether the script runs in Windows Terminal
+@REM Parameters: <result>
+@REM ============================================================================
+:isMicrosoftTerminal <result>
+set "%~1=0"
+
+@REM Windows Terminal sets WT_SESSION for hosted command-line processes.
+@REM Classic conhost.exe sessions do not define it, so this avoids spawning PowerShell.
+if defined WT_SESSION set "%~1=1"
+goto :eof
 
 @REM ============================================================================
 @REM END OF SCRIPT
