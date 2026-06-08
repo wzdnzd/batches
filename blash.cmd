@@ -55,8 +55,8 @@ if defined CLASH_ENABLE_REMOTE_CONFIG (
 )
 
 @REM Remote configuration link
-if defined CLASH_REMOTE_CONFIGURL (
-    set "remoteConfigUrl=!CLASH_REMOTE_CONFIGURL!"
+if defined CLASH_REMOTE_CONFIG_URL (
+    set "remoteConfigUrl=!CLASH_REMOTE_CONFIG_URL!"
 ) else (
     set "remoteConfigUrl="
 )
@@ -1428,7 +1428,6 @@ if "!status!" == "0" (
     goto :eof
 )
 
-@REM Call :getSystemProxy server
 call :generateSystemProxy server
 
 @REM Detect whether the network is available
@@ -2322,10 +2321,6 @@ for /l %%i in (1,1,6) do (
     call :isProcessRunning status
     if "!status!" == "0" (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 代理程序关闭%ESC%[!infoColor!m成功%ESC%[0m，可使用 "%ESC%[!warnColor!m!batchName! -r%ESC%[0m" 命令重启
-
-        @REM Disable the system proxy
-        @REM Call :isTunEnabled enabled
-        @REM If "!enabled!" == "0" call :disableSystemProxy
 
         call :disableSystemProxy
         exit /b
@@ -4294,7 +4289,7 @@ goto :eof
 set "%~1=0"
 call :trim linkDest "%~2"
 call :trim target "%~3"
-call :trim iconName "%~4"
+call :trim iconPath "%~4"
 
 
 if "!linkDest!" == "" goto :eof
@@ -4307,7 +4302,11 @@ set "vbsPath=!temp!\createshortcut.vbs"
     @echo set ows = WScript.CreateObject^("WScript.Shell"^)
     @echo slinkfile = ows.ExpandEnvironmentStrings^("!linkDest!"^)
     @echo set olink = ows.CreateShortcut^(slinkfile^)
-    @echo olink.TargetPath = ows.ExpandEnvironmentStrings^("!target!"^)
+
+    @REM @echo olink.TargetPath = ows.ExpandEnvironmentStrings^("!target!"^)
+    @echo olink.TargetPath = ows.ExpandEnvironmentStrings^("%%SystemRoot%%\System32\wscript.exe"^)
+    @echo olink.Arguments = "//B " ^& Chr^(34^) ^& ows.ExpandEnvironmentStrings^("!target!"^) ^& Chr^(34^)
+
     @echo olink.IconLocation = ows.ExpandEnvironmentStrings^("!iconPath!"^)
     @echo olink.WorkingDirectory = ows.ExpandEnvironmentStrings^("!dest!"^)
     @echo olink.Save
