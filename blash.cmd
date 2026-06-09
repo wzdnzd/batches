@@ -4323,16 +4323,17 @@ goto :eof
 :createDesktopShortcut
 if "!enableShortcut!" == "0" goto :eof
 
-set "exePath="
-@REM Parse the existing shortcut target
+set "shortcutMatched=0"
+set "action=添加"
+
+@REM Parse the existing shortcut target and arguments
 if exist "!clashLinkPath!" (
-    set "shortcutPath=!clashLinkPath!"
-    for /f "usebackq delims=" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($env:shortcutPath); $shortcut.TargetPath"`) do set "exePath=%%a"
-    set "shortcutPath="
+    set "action=更新"
+
+    for /f "usebackq delims=" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($env:clashLinkPath); $shortcutCommand=($shortcut.TargetPath + ' ' + $shortcut.Arguments).Trim(); $expectedShortcutCommand=((Join-Path $env:SystemRoot 'System32\wscript.exe') + ' //B ' + [char]34 + $env:startupVbs + [char]34).Trim(); if ($shortcutCommand -ieq $expectedShortcutCommand) { '1' } else { '0' }"`) do set "shortcutMatched=%%a"
 )
 
-call :trim exePath "!exePath!"
-if "!exePath!" == "!startupVbs!" (
+if "!shortcutMatched!" == "1" (
     if "!proxyEditionChanged!" == "1" (
         call :downloadIcon finished
         if "!finished!" == "0" (
@@ -4343,7 +4344,7 @@ if "!exePath!" == "!startupVbs!" (
     goto :eof
 )
 
-set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 是否添加桌面快捷方式？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
+set "tips=[%ESC%[!warnColor!m提示%ESC%[0m] 是否!action!桌面快捷方式？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
 if "!msTerminal!" == "1" (
     choice /t 5 /d y /n /m "!tips!"
 ) else (
@@ -4362,9 +4363,9 @@ if not exist "!shortcutIconPath!" (
 
 call :createShortcut finished "!clashLinkPath!" "!startupVbs!" "!shortcutIconPath!"
 if "!finished!" == "0" (
-    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 桌面快捷方式添加%ESC%[!errorColor!m失败%ESC%[0m，如有需要，请自行创建
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 桌面快捷方式!action!%ESC%[!errorColor!m失败%ESC%[0m，如有需要，请自行创建
 ) else (
-    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 桌面快捷方式添加%ESC%[!infoColor!m成功%ESC%[0m
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 桌面快捷方式!action!%ESC%[!infoColor!m成功%ESC%[0m
 )
 goto :eof
 
