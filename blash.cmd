@@ -211,6 +211,19 @@ set "shortcutIconPath=!dest!\!shortcutIconName!"
 @REM Auto-update VBS script path
 set "updateVbs=!dest!\update.vbs"
 
+@REM Path of curl.exe
+set "curlBinary=!windir!\System32\curl.exe"
+
+@REM Path of tar.exe
+set "tarBinary=!windir!\System32\tar.exe"
+
+@REM Temp directory path
+if defined LOCALAPPDATA (
+    set "tempDir=%LOCALAPPDATA%\Temp"
+) else (
+    set "tempDir=%USERPROFILE%\AppData\Local\Temp"
+)
+
 @REM Print the heart output
 if "!drawHeart!"== "1" goto :printHeart
 
@@ -263,7 +276,7 @@ exit /b
 @REM ============================================================================
 :validateConfiguration <result>
 set "%~1="
-set "subscriptionFile=!temp!\clashsub.yaml"
+set "subscriptionFile=!tempDir!\clashsub.yaml"
 
 @REM Resolve an absolute path
 call :convertToAbsolutePath configLocation "!configuration!"
@@ -296,7 +309,7 @@ if "!isWebLink!" == "1" (
     del /f /q "!subscriptionFile!" >nul 2>nul
 
     set "statusCode=000"
-    for /f %%a in ('curl --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -L -s -o "!subscriptionFile!" -w "%%{http_code}" -H "User-Agent: Clash" "!subscriptionLink!"') do set "statusCode=%%a"
+    for /f %%a in ('!curlBinary! --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -L -s -o "!subscriptionFile!" -w "%%{http_code}" -H "User-Agent: Clash" "!subscriptionLink!"') do set "statusCode=%%a"
 
     @REM Download succeeded
     if "!statusCode!" == "200" (
@@ -509,7 +522,7 @@ if "!changed!" == "0" (
 )
 
 @REM Clean temporary files after update
-call :cleanWorkspace "!temp!"
+call :cleanWorkspace "!tempDir!"
 
 @REM Start the proxy program
 call :startClash
@@ -1115,7 +1128,7 @@ set "cfgCountryUrl="
 set "cfgGeoIpUrl="
 set "cfgGeoAsnUrl="
 set "cfgExternalUiUrl="
-set "cfgSummaryFile=!temp!\clash-config-summary.txt"
+set "cfgSummaryFile=!tempDir!\clash-config-summary.txt"
 del /f /q "!cfgSummaryFile!" >nul 2>nul
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$config='!configFile!'; $out='!cfgSummaryFile!'; $subs='%~1'; $vars=[ordered]@{cfgHasSmartGroup='0';cfgHasSmartPreferAsn='0';cfgHasAsnRule='0';cfgHasGeoSiteRule='0';cfgHasMetaRule='0';cfgHasScriptRule='0';cfgHasSniffer='0';cfgHasExcludeFilter='0';cfgHasMetaProxy='0';cfgUseLightGbm='';cfgLgbmUrl='';cfgGeoSiteUrl='';cfgGeoDataMode='false';cfgCountryUrl='';cfgGeoIpUrl='';cfgGeoAsnUrl='';cfgExternalUiUrl=''}; function CleanValue([string]$value) {if ($null -eq $value) {return ''}; return $value.Trim().Trim([char]34).Trim([char]39)}; function Read-Lines([string]$path) {if ($path -and (Test-Path -LiteralPath $path)) {Get-Content -LiteralPath $path}}; $files=@($config); if ($subs) {$files += $subs -split ','}; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); $isRule=$lower.StartsWith('- '); if ($lower -eq 'type: smart') {$vars.cfgHasSmartGroup='1'}; if ($lower -eq 'prefer-asn: true') {$vars.cfgHasSmartPreferAsn='1'}; if ($lower.StartsWith('- ip-asn,') -or $lower.StartsWith('- src-ip-asn,')) {$vars.cfgHasAsnRule='1'}; if ($isRule -and ($lower -like '*geosite,*')) {$vars.cfgHasGeoSiteRule='1'}; if ($isRule -and ($lower -like '*sub-rule,*' -or $lower -like '*and,*' -or $lower -like '*or,*' -or $lower -like '*not,*' -or $lower -like '*in-type,*')) {$vars.cfgHasMetaRule='1'}; if ($isRule -and ($lower -like '*script,*')) {$vars.cfgHasScriptRule='1'}; if ($lower -eq 'sniffer:') {$vars.cfgHasSniffer='1'}; if ($lower.StartsWith('exclude-filter:')) {$vars.cfgHasExcludeFilter='1'}; if ($lower.StartsWith('uselightgbm:')) {$vars.cfgUseLightGbm=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('lgbm-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgLgbmUrl=$value}}; if ($lower.StartsWith('geosite:')) {$vars.cfgGeoSiteUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geodata-mode:')) {$vars.cfgGeoDataMode=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('mmdb:')) {$vars.cfgCountryUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geoip:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgGeoIpUrl=$value}}; if ($lower.StartsWith('external-ui-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgExternalUiUrl=$value}}}; $insideGeox=$false; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; if ($text -ieq 'geox-url:') {$insideGeox=$true; continue}; if ($insideGeox) {if ((-not $line.StartsWith(' ')) -and (-not $line.StartsWith('-'))) {$insideGeox=$false; continue}; $parts=$text -split ':',2; if ($parts.Count -eq 2 -and $parts[0].Trim() -ieq 'asn') {$vars.cfgGeoAsnUrl=CleanValue $parts[1]}}}; foreach ($file in $files) {foreach ($raw in Read-Lines $file) {$text=([string]$raw).Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); if ($lower -match '^(type:\s+(vless|hysteria)|client-fingerprint:|flow:\s+xtls-)') {$vars.cfgHasMetaProxy='1'}}}; $lines=$vars.GetEnumerator() | ForEach-Object {($_.Key + '=' + $_.Value)}; [System.IO.File]::WriteAllLines($out, [string[]]$lines, (New-Object System.Text.UTF8Encoding $false))}"
@@ -1450,9 +1463,9 @@ if "!url!" == "" set "url=https://www.google.com"
 @REM Check status
 set "statusCode=000"
 if "!proxyServer!" == "" (
-    for /f %%a in ('curl --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "statusCode=%%a"
+    for /f %%a in ('!curlBinary! --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "statusCode=%%a"
 ) else (
-    for /f %%a in ('curl -x !proxyServer! --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "statusCode=%%a"
+    for /f %%a in ('!curlBinary! -x !proxyServer! --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "statusCode=%%a"
 )
 
 if "!statusCode!" == "200" (
@@ -1572,7 +1585,7 @@ if exist "!dest!\wintun.dll" if "!checkWintun!" == "0" goto :eof
 set "content="
 set "wintunUrl=https://www.wintun.net"
 
-for /f delims^=^"^ tokens^=2 %%a in ('curl --retry 5 --retry-max-time 60 --connect-timeout 15 -s -L "!wintunUrl!" ^| findstr /i /r "builds/wintun-.*.zip"') do set "content=%%a"
+for /f delims^=^"^ tokens^=2 %%a in ('!curlBinary! --retry 5 --retry-max-time 60 --connect-timeout 15 -s -L "!wintunUrl!" ^| findstr /i /r "builds/wintun-.*.zip"') do set "content=%%a"
 call :trim content !content!
 
 if "!content!" == "" (
@@ -1590,15 +1603,15 @@ if "!archVersion!" == "386" (
 set "wintunUrl=!wintunUrl!/!content!"
 @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 wintun，下载链接："!wintunUrl!"
 
-call :retryDownload "!wintunUrl!" "!temp!\wintun.zip"
-if exist "!temp!\wintun.zip" (
+call :retryDownload "!wintunUrl!" "!tempDir!\wintun.zip"
+if exist "!tempDir!\wintun.zip" (
     @REM Extract the archive
-    tar -xzf "!temp!\wintun.zip" -C !temp! >nul 2>nul
+    !tarBinary! -xzf "!tempDir!\wintun.zip" -C !tempDir! >nul 2>nul
 
     @REM Clean the workspace
-    del /f /q "!temp!\wintun.zip" >nul 2>nul
+    del /f /q "!tempDir!\wintun.zip" >nul 2>nul
 
-    set "wintunFile=!temp!\wintun\bin\!archVersion!\wintun.dll"
+    set "wintunFile=!tempDir!\wintun\bin\!archVersion!\wintun.dll"
     if exist "!wintunFile!" (
         @REM Compare and update files
         call :compareMd5 diff "!wintunFile!" "!dest!\wintun.dll"
@@ -1642,24 +1655,24 @@ if "!clashUrl!" NEQ "" (
         @echo [%ESC%[!errorColor!m错误%ESC%[0m] !proxyExecutableName! 下载地址解析失败："!clashUrl!"
     ) else (
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
-        call :retryDownload "!clashUrl!" "!temp!\clash.zip"
-        if exist "!temp!\clash.zip" (
+        call :retryDownload "!clashUrl!" "!tempDir!\clash.zip"
+        if exist "!tempDir!\clash.zip" (
             @REM Extract the archive
-            tar -xzf "!temp!\clash.zip" -C !temp! >nul 2>nul
+            !tarBinary! -xzf "!tempDir!\clash.zip" -C !tempDir! >nul 2>nul
 
             @REM Clean the workspace
-            del /f /q "!temp!\clash.zip"
+            del /f /q "!tempDir!\clash.zip"
         ) else (
             @echo [%ESC%[!errorColor!m错误%ESC%[0m] !proxyExecutableName! 下载失败，下载链接："!clashUrl!"
         )
 
-        if exist "!temp!\!clashExe!" (
+        if exist "!tempDir!\!clashExe!" (
             @REM Rename the downloaded file
-            ren "!temp!\!clashExe!" !proxyExecutableName!
+            ren "!tempDir!\!clashExe!" !proxyExecutableName!
 
             set "downloadedFileList=!proxyExecutableName!"
         ) else (
-            @echo [%ESC%[!errorColor!m错误%ESC%[0m] "!temp!\!clashExe!" 不存在，下载链接："!clashUrl!"
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] "!tempDir!\!clashExe!" 不存在，下载链接："!clashUrl!"
         )
     )
 )
@@ -1694,12 +1707,12 @@ if /i "!managedUrl:~0,8!" NEQ "https://" (
 )
 
 @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载 %ESC%[!warnColor!m!managedFile!%ESC%[0m 至 %ESC%[!warnColor!m!dest!%ESC%[0m
-call :retryDownload "!managedUrl!" "!temp!\!managedFile!"
+call :retryDownload "!managedUrl!" "!tempDir!\!managedFile!"
 
-if exist "!temp!\!managedFile!" (
+if exist "!tempDir!\!managedFile!" (
     set "%~1=1"
 ) else (
-    @echo [%ESC%[!errorColor!m错误%ESC%[0m] "!temp!\!managedFile!" 不存在，下载链接："!managedUrl!"
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] "!tempDir!\!managedFile!" 不存在，下载链接："!managedUrl!"
 )
 goto :eof
 
@@ -1743,7 +1756,7 @@ if !count! GEQ !maxRetries! (
 )
 
 call :applyGithubProxy realDownloadUrl "!downloadUrl!"
-curl.exe --retry 5 --retry-max-time 120 --connect-timeout 20 -f -s -L -C - -o "!savePath!" "!realDownloadUrl!"
+!curlBinary! --retry 5 --retry-max-time 120 --connect-timeout 20 -f -s -L -C - -o "!savePath!" "!realDownloadUrl!"
 set "failFlag=!errorlevel!"
 if not exist "!savePath!" set "failFlag=1"
 
@@ -1768,8 +1781,8 @@ set "fileNames=%~2"
 for %%a in (!fileNames!) do (
     set "fileName=%%a"
 
-    if not exist "!temp!\!fileName!" (
-        @echo [%ESC%[!errorColor!m错误%ESC%[0m] %ESC%[!warnColor!m!fileName!%ESC%[0m 下载成功，但在 "!temp!" 文件夹下未找到，请确认是否已被删除
+    if not exist "!tempDir!\!fileName!" (
+        @echo [%ESC%[!errorColor!m错误%ESC%[0m] %ESC%[!warnColor!m!fileName!%ESC%[0m 下载成功，但在 "!tempDir!" 文件夹下未找到，请确认是否已被删除
         goto :eof
     )
 
@@ -1786,7 +1799,7 @@ for %%a in (!fileNames!) do (
     )
 
     @REM Compare and update files
-    call :compareMd5 diff "!temp!\!fileName!" "!dest!\!fileName!"
+    call :compareMd5 diff "!tempDir!\!fileName!" "!dest!\!fileName!"
     if "!diff!" == "1" (
         set "%~1=1"
         @echo [%ESC%[!infoColor!m信息%ESC%[0m] 发现新版本，文件名：%ESC%[!warnColor!m!fileName!%ESC%[0m
@@ -1835,7 +1848,7 @@ if "!fileNames!" == "" goto :eof
 @REM Ensure the downloaded file exists
 set "existingFiles="
 for %%a in (!fileNames!) do (
-    if exist "!temp!\%%a" (
+    if exist "!tempDir!\%%a" (
         if "!existingFiles!" == "" (
             set "existingFiles=%%a"
         ) else (
@@ -1860,7 +1873,7 @@ for %%a in (!fileNames!) do (
     )
 
     @REM Move the new file into the destination directory
-    move "!temp!\!fileName!" "!dest!" >nul 2>nul
+    move "!tempDir!\!fileName!" "!dest!" >nul 2>nul
 )
 goto :eof
 
@@ -2017,7 +2030,7 @@ call :resolveDownloadUrls "!downloadForce!" "!geoSiteNeeded!"
 call :skipMihomoDownloadIfCurrent
 
 @REM Clean the workspace before downloading
-call :cleanWorkspace "!temp!"
+call :cleanWorkspace "!tempDir!"
 
 @REM Update flag dashboard
 if "!downloadedAlready!" == "0" call :updateDashboard "!downloadForce!"
@@ -2099,7 +2112,7 @@ if not exist "!configFile!" (
 )
 
 if "!verifyConfig!" == "1" (
-    set "testOutput=!temp!\clashtestout.txt"
+    set "testOutput=!tempDir!\clashtestout.txt"
     del /f /q "!testOutput!" >nul 2>nul
 
     @REM Test the configuration file
@@ -2405,7 +2418,7 @@ if "!executableName!" == "" goto :eof
 call :isExecutableRunning running "!executableName!"
 if "!running!" == "0" goto :eof
 
-set "killOutput=!temp!\kill-!executableName!.txt"
+set "killOutput=!tempDir!\kill-!executableName!.txt"
 del /f /q "!killOutput!" >nul 2>nul
 
 taskkill /im "!executableName!" /f /t > "!killOutput!" 2>&1
@@ -2520,7 +2533,7 @@ if "!useClashMeta!" == "0" (
 
     if "!needDownload!" == "1" (
         if "!alpha!" == "0" (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/Dreamacro/clash/releases/tags/premium" ^| findstr /i /r /c:"https://github.com/Dreamacro/clash/releases/download/premium/clash-windows-!archVersion!-[^v][^3].*.zip"') do set "proxyDownloadUrl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('!curlBinary! --retry 5 -s -L "https://api.github.com/repos/Dreamacro/clash/releases/tags/premium" ^| findstr /i /r /c:"https://github.com/Dreamacro/clash/releases/download/premium/clash-windows-!archVersion!-[^v][^3].*.zip"') do set "proxyDownloadUrl=%%b"
 
             @REM Remove whitespace
             call :trim proxyDownloadUrl "!proxyDownloadUrl!"
@@ -2557,11 +2570,11 @@ if "!useClashMeta!" == "0" (
 
     if "!needDownload!" == "1" (
         if "!useVerneMihomo!" == "1" (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/vernesong/mihomo/releases/tags/Prerelease-Alpha" ^| findstr /i /r /c:"https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!archVersion!-alpha-smart-.*.zip"') do set "proxyDownloadUrl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('!curlBinary! --retry 5 -s -L "https://api.github.com/repos/vernesong/mihomo/releases/tags/Prerelease-Alpha" ^| findstr /i /r /c:"https://github.com/vernesong/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!archVersion!-alpha-smart-.*.zip"') do set "proxyDownloadUrl=%%b"
         ) else if "!alpha!" == "1" (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases?prerelease=true&per_page=10" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!archVersion!-alpha-.*.zip"') do set "proxyDownloadUrl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('!curlBinary! --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases?prerelease=true&per_page=10" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/Prerelease-Alpha/mihomo-windows-!archVersion!-alpha-.*.zip"') do set "proxyDownloadUrl=%%b"
         ) else (
-            for /f "tokens=1* delims=:" %%a in ('curl --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-!archVersion!-v[0-9]*\.[0-9]*\.[0-9]*.zip"') do set "proxyDownloadUrl=%%b"
+            for /f "tokens=1* delims=:" %%a in ('!curlBinary! --retry 5 -s -L "https://api.github.com/repos/MetaCubeX/mihomo/releases/latest?per_page=1" ^| findstr /i /r "https://github.com/MetaCubeX/mihomo/releases/download/.*/mihomo-windows-!archVersion!-v[0-9]*\.[0-9]*\.[0-9]*.zip"') do set "proxyDownloadUrl=%%b"
         )
 
         call :trim proxyDownloadUrl "!proxyDownloadUrl!"
@@ -3162,13 +3175,13 @@ if "!status!" == "1" (
 
     @REM Call the API to reload configuration
     set "statusCode=000"
-    set "output=!temp!\clashout.txt"
+    set "output=!tempDir!\clashout.txt"
     if exist "!output!" del /f /q "!output!" >nul 2>nul
 
     if "!secret!" NEQ "" (
-        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer !secret!" -X PUT -d "{""path"":""!filePath!""}" "!clashApi!"') do set "statusCode=%%a"
+        for /f %%a in ('!curlBinary! --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer !secret!" -X PUT -d "{""path"":""!filePath!""}" "!clashApi!"') do set "statusCode=%%a"
     ) else (
-        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -X PUT -d "{""path"":""!filePath!""}" "!clashApi!"') do set "statusCode=%%a"
+        for /f %%a in ('!curlBinary! --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -X PUT -d "{""path"":""!filePath!""}" "!clashApi!"') do set "statusCode=%%a"
     )
 
     if "!statusCode!" == "204" (
@@ -3209,7 +3222,7 @@ call :trim force "%~1"
 if "!force!" == "" set "force=1"
 if exist "!configFile!" if "!force!" == "0" goto :eof
 
-set "downloadPath=!temp!\clashconf.yaml"
+set "downloadPath=!tempDir!\clashconf.yaml"
 del /f /q "!downloadPath!" >nul 2>nul
 
 @REM Extract the remote configuration URL
@@ -3225,7 +3238,7 @@ if exist "!subscriptionFile!" (
 )
 
 if "!enableRemoteConfig!" == "1" if "!remoteConfigUrl!" NEQ "" (
-    curl.exe --retry 5 --retry-max-time 90 -m 120 --connect-timeout 15 -H "User-Agent: Clash" -s -L -C - "!remoteConfigUrl!" > "!downloadPath!"
+    !curlBinary! --retry 5 --retry-max-time 90 -m 120 --connect-timeout 15 -H "User-Agent: Clash" -s -L -C - "!remoteConfigUrl!" > "!downloadPath!"
     if not exist "!downloadPath!" (
         @echo [%ESC%[!warnColor!m警告%ESC%[0m] 配置文件下载失败，如有需要，请重试或点击 %ESC%[!warnColor!m!remoteConfigUrl!%ESC%[0m 手动下载并替换
         goto :eof
@@ -3356,7 +3369,7 @@ if "!sectionName!" == "" (
 
 if not exist "!configFile!" goto :eof
 
-set "tempFile=!temp!\clashupdate.txt"
+set "tempFile=!tempDir!\clashupdate.txt"
 del /f /q "!tempFile!" >nul 2>nul
 set "filePaths="
 
@@ -3394,24 +3407,24 @@ for /f "usebackq tokens=1* delims=|" %%u in ("!tempFile!") do (
             call :createDirectories success "!filePath!"
 
             @REM Download and save the file
-            del /f /q "!temp!\!fileName!" >nul 2>nul
-            call :retryDownload "!url!" "!temp!\!fileName!"
+            del /f /q "!tempDir!\!fileName!" >nul 2>nul
+            call :retryDownload "!url!" "!tempDir!\!fileName!"
 
             @REM Check the downloaded file size
             set "fileSize=0"
-            if exist "!temp!\!fileName!" (
-                for %%a in ("!temp!\!fileName!") do set "fileSize=%%~za"
+            if exist "!tempDir!\!fileName!" (
+                for %%a in ("!tempDir!\!fileName!") do set "fileSize=%%~za"
             )
 
             @REM Check the downloaded file content
-            call :verifyFileSection match "!temp!\!fileName!" "!check!"
+            call :verifyFileSection match "!tempDir!\!fileName!" "!check!"
 
             if !fileSize! GTR 16 if "!match!" == "1" (
                 @REM Delete the old file when present
                 del /f /q "!targetFile!" >nul 2>nul
 
                 @REM Move the new file into the destination directory
-                move "!temp!\!fileName!" "!filePath!" >nul 2>nul
+                move "!tempDir!\!fileName!" "!filePath!" >nul 2>nul
 
                 @REM Mark the change status
                 set "%~1=1"
@@ -3522,16 +3535,16 @@ if exist "!dashboard!\index.html" if "!force!" == "0" goto :eof
 call :createDirectories success "!dashboard!"
 
 @echo [%ESC%[!infoColor!m信息%ESC%[0m] 开始下载并更新控制面板
-call :retryDownload "!dashboardUrl!" "!temp!\dashboard.zip"
+call :retryDownload "!dashboardUrl!" "!tempDir!\dashboard.zip"
 
-if not exist "!temp!\dashboard.zip" (
+if not exist "!tempDir!\dashboard.zip" (
     @echo [%ESC%[!warnColor!m警告%ESC%[0m] 控制面板下载失败，下载链接："!dashboardUrl!"
     goto :eof
 )
 
 @REM Extract the archive
-tar -xzf "!temp!\dashboard.zip" -C !temp! >nul 2>nul
-del /f /q "!temp!\dashboard.zip" >nul 2>nul
+!tarBinary! -xzf "!tempDir!\dashboard.zip" -C !tempDir! >nul 2>nul
+del /f /q "!tempDir!\dashboard.zip" >nul 2>nul
 
 @REM Resolve base path and directory name
 call :splitPath dashPath dashName "!dashboard!"
@@ -3546,11 +3559,11 @@ if "!dashName!" == "" (
 )
 
 @REM Rename the extracted directory
-ren "!temp!\!dashboardDirectory!" !dashName!
+ren "!tempDir!\!dashboardDirectory!" !dashName!
 
 @REM Replace dashboard files after a successful download
-dir /a /s /b "!temp!\!dashName!" | findstr . >nul && (
-    call :replaceDirectory "!temp!\!dashName!" "!dashboard!"
+dir /a /s /b "!tempDir!\!dashName!" | findstr . >nul && (
+    call :replaceDirectory "!tempDir!\!dashName!" "!dashboard!"
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 控制面板已更新至最新版本
 ) || (
     @echo [%ESC%[!warnColor!m警告%ESC%[0m] 控制面板下载失败，下载链接："!dashboardUrl!"
@@ -3597,7 +3610,7 @@ goto :eof
 @REM ============================================================================
 :cleanWorkspace
 set "directory=%~1"
-if "!directory!" == "" set "directory=!temp!"
+if "!directory!" == "" set "directory=!tempDir!"
 
 if exist "!directory!\clash.zip" del /f /q "!directory!\clash.zip" >nul
 if exist "!directory!\!clashExecutableName!" del /f /q "!directory!\!clashExecutableName!" >nul
@@ -3666,7 +3679,7 @@ goto :eof
 @REM ============================================================================
 :terminate
 @echo [%ESC%[!errorColor!m错误%ESC%[0m] 更新失败，代理程序、域名及 IP 地址数据库或控制面板缺失
-call :cleanWorkspace "!temp!"
+call :cleanWorkspace "!tempDir!"
 exit /b 1
 goto :eof
 
@@ -4141,7 +4154,7 @@ set "%~1=1"
 call :isHomeEdition edition
 if "!edition!" == "0" goto :eof
 
-set "packagesFile=!temp!\grouppolicypackages.txt"
+set "packagesFile=!tempDir!\grouppolicypackages.txt"
 
 @REM Find Group Policy package files
 dir /b "C:\Windows\servicing\Packages\Microsoft-Windows-GroupPolicy-ClientExtensions-Package~3*.mum" > "!packagesFile!"
@@ -4266,7 +4279,7 @@ if "!useClashPremium!" == "1" (
 )
 
 set "iconUrl=https://raw.githubusercontent.com/wzdnzd/batches/main/icons/!onlineIconName!"
-set "iconTempFile=!temp!\!shortcutIconName!"
+set "iconTempFile=!tempDir!\!shortcutIconName!"
 if exist "!iconTempFile!" del /f /q "!iconTempFile!" >nul 2>nul
 call :retryDownload "!iconUrl!" "!iconTempFile!"
 
@@ -4294,7 +4307,7 @@ if "!target!" == "" goto :eof
 if "!iconPath!" == "" set "iconPath=!shortcutIconPath!"
 if exist "!linkDest!" del /f /q "!linkDest!" >nul
 
-set "vbsPath=!temp!\createshortcut.vbs"
+set "vbsPath=!tempDir!\createshortcut.vbs"
 ((
     @echo set ows = WScript.CreateObject^("WScript.Shell"^)
     @echo slinkfile = ows.ExpandEnvironmentStrings^("!linkDest!"^)
