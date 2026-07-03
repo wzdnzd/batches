@@ -502,9 +502,9 @@ if "!quickFlag!" == "1" (
 if "!asDaemon!" == "1" (
     cacls "%SystemDrive%\System Volume Information" >nul 2>&1 || (
         if "!showWindow!" == "1" (
-            powershell -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs"
+            powershell.exe -NoLogo -NoProfile -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs"
         ) else (
-            powershell -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs -WindowStyle Hidden"
+            powershell.exe -NoLogo -NoProfile -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs -WindowStyle Hidden"
         )
         exit /b
     )
@@ -1131,7 +1131,7 @@ set "cfgExternalUiUrl="
 set "cfgSummaryFile=!tempDir!\clash-config-summary.txt"
 del /f /q "!cfgSummaryFile!" >nul 2>nul
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$config='!configFile!'; $out='!cfgSummaryFile!'; $subs='%~1'; $vars=[ordered]@{cfgHasSmartGroup='0';cfgHasSmartPreferAsn='0';cfgHasAsnRule='0';cfgHasGeoSiteRule='0';cfgHasMetaRule='0';cfgHasScriptRule='0';cfgHasSniffer='0';cfgHasExcludeFilter='0';cfgHasMetaProxy='0';cfgUseLightGbm='';cfgLgbmUrl='';cfgGeoSiteUrl='';cfgGeoDataMode='false';cfgCountryUrl='';cfgGeoIpUrl='';cfgGeoAsnUrl='';cfgExternalUiUrl=''}; function CleanValue([string]$value) {if ($null -eq $value) {return ''}; return $value.Trim().Trim([char]34).Trim([char]39)}; function Read-Lines([string]$path) {if ($path -and (Test-Path -LiteralPath $path)) {Get-Content -LiteralPath $path}}; $files=@($config); if ($subs) {$files += $subs -split ','}; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); $isRule=$lower.StartsWith('- '); if ($lower -eq 'type: smart') {$vars.cfgHasSmartGroup='1'}; if ($lower -eq 'prefer-asn: true') {$vars.cfgHasSmartPreferAsn='1'}; if ($lower.StartsWith('- ip-asn,') -or $lower.StartsWith('- src-ip-asn,')) {$vars.cfgHasAsnRule='1'}; if ($isRule -and ($lower -like '*geosite,*')) {$vars.cfgHasGeoSiteRule='1'}; if ($isRule -and ($lower -like '*sub-rule,*' -or $lower -like '*and,*' -or $lower -like '*or,*' -or $lower -like '*not,*' -or $lower -like '*in-type,*')) {$vars.cfgHasMetaRule='1'}; if ($isRule -and ($lower -like '*script,*')) {$vars.cfgHasScriptRule='1'}; if ($lower -eq 'sniffer:') {$vars.cfgHasSniffer='1'}; if ($lower.StartsWith('exclude-filter:')) {$vars.cfgHasExcludeFilter='1'}; if ($lower.StartsWith('uselightgbm:')) {$vars.cfgUseLightGbm=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('lgbm-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgLgbmUrl=$value}}; if ($lower.StartsWith('geosite:')) {$vars.cfgGeoSiteUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geodata-mode:')) {$vars.cfgGeoDataMode=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('mmdb:')) {$vars.cfgCountryUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geoip:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgGeoIpUrl=$value}}; if ($lower.StartsWith('external-ui-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgExternalUiUrl=$value}}}; $insideGeox=$false; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; if ($text -ieq 'geox-url:') {$insideGeox=$true; continue}; if ($insideGeox) {if ((-not $line.StartsWith(' ')) -and (-not $line.StartsWith('-'))) {$insideGeox=$false; continue}; $parts=$text -split ':',2; if ($parts.Count -eq 2 -and $parts[0].Trim() -ieq 'asn') {$vars.cfgGeoAsnUrl=CleanValue $parts[1]}}}; foreach ($file in $files) {foreach ($raw in Read-Lines $file) {$text=([string]$raw).Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); if ($lower -match '^(type:\s+(vless|hysteria)|client-fingerprint:|flow:\s+xtls-)') {$vars.cfgHasMetaProxy='1'}}}; $lines=$vars.GetEnumerator() | ForEach-Object {($_.Key + '=' + $_.Value)}; [System.IO.File]::WriteAllLines($out, [string[]]$lines, (New-Object System.Text.UTF8Encoding $false))}"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "& {$config='!configFile!'; $out='!cfgSummaryFile!'; $subs='%~1'; $vars=[ordered]@{cfgHasSmartGroup='0';cfgHasSmartPreferAsn='0';cfgHasAsnRule='0';cfgHasGeoSiteRule='0';cfgHasMetaRule='0';cfgHasScriptRule='0';cfgHasSniffer='0';cfgHasExcludeFilter='0';cfgHasMetaProxy='0';cfgUseLightGbm='';cfgLgbmUrl='';cfgGeoSiteUrl='';cfgGeoDataMode='false';cfgCountryUrl='';cfgGeoIpUrl='';cfgGeoAsnUrl='';cfgExternalUiUrl=''}; function CleanValue([string]$value) {if ($null -eq $value) {return ''}; return $value.Trim().Trim([char]34).Trim([char]39)}; function Read-Lines([string]$path) {if ($path -and (Test-Path -LiteralPath $path)) {Get-Content -LiteralPath $path}}; $files=@($config); if ($subs) {$files += $subs -split ','}; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); $isRule=$lower.StartsWith('- '); if ($lower -eq 'type: smart') {$vars.cfgHasSmartGroup='1'}; if ($lower -eq 'prefer-asn: true') {$vars.cfgHasSmartPreferAsn='1'}; if ($lower.StartsWith('- ip-asn,') -or $lower.StartsWith('- src-ip-asn,')) {$vars.cfgHasAsnRule='1'}; if ($isRule -and ($lower -like '*geosite,*')) {$vars.cfgHasGeoSiteRule='1'}; if ($isRule -and ($lower -like '*sub-rule,*' -or $lower -like '*and,*' -or $lower -like '*or,*' -or $lower -like '*not,*' -or $lower -like '*in-type,*')) {$vars.cfgHasMetaRule='1'}; if ($isRule -and ($lower -like '*script,*')) {$vars.cfgHasScriptRule='1'}; if ($lower -eq 'sniffer:') {$vars.cfgHasSniffer='1'}; if ($lower.StartsWith('exclude-filter:')) {$vars.cfgHasExcludeFilter='1'}; if ($lower.StartsWith('uselightgbm:')) {$vars.cfgUseLightGbm=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('lgbm-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgLgbmUrl=$value}}; if ($lower.StartsWith('geosite:')) {$vars.cfgGeoSiteUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geodata-mode:')) {$vars.cfgGeoDataMode=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('mmdb:')) {$vars.cfgCountryUrl=CleanValue (($text -split ':',2)[1])}; if ($lower.StartsWith('geoip:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgGeoIpUrl=$value}}; if ($lower.StartsWith('external-ui-url:')) {$value=CleanValue (($text -split ':',2)[1]); if ($value -match '^https?://') {$vars.cfgExternalUiUrl=$value}}}; $insideGeox=$false; foreach ($raw in Read-Lines $config) {$line=[string]$raw; $text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; if ($text -ieq 'geox-url:') {$insideGeox=$true; continue}; if ($insideGeox) {if ((-not $line.StartsWith(' ')) -and (-not $line.StartsWith('-'))) {$insideGeox=$false; continue}; $parts=$text -split ':',2; if ($parts.Count -eq 2 -and $parts[0].Trim() -ieq 'asn') {$vars.cfgGeoAsnUrl=CleanValue $parts[1]}}}; foreach ($file in $files) {foreach ($raw in Read-Lines $file) {$text=([string]$raw).Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $lower=$text.ToLowerInvariant(); if ($lower -match '^(type:\s+(vless|hysteria)|client-fingerprint:|flow:\s+xtls-)') {$vars.cfgHasMetaProxy='1'}}}; $lines=$vars.GetEnumerator() | ForEach-Object {($_.Key + '=' + $_.Value)}; [System.IO.File]::WriteAllLines($out, [string[]]$lines, (New-Object System.Text.UTF8Encoding $false))}"
 
 if exist "!cfgSummaryFile!" (
     for /f "usebackq tokens=1* delims==" %%a in ("!cfgSummaryFile!") do set "%%a=%%b"
@@ -1924,9 +1924,9 @@ cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
     )
 ) || (
     if "!elevatedShowWindow!" == "0" (
-        powershell -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
+        powershell.exe -NoLogo -NoProfile -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
     ) else (
-        powershell -Command "Start-Process -FilePath $env:ComSpec -ArgumentList '/k ""!scriptPath!"" %~1' -Verb RunAs"
+        powershell.exe -NoLogo -NoProfile -Command "Start-Process -FilePath $env:ComSpec -ArgumentList '/k ""!scriptPath!"" %~1' -Verb RunAs"
     )
     exit /b
 )
@@ -2429,7 +2429,7 @@ if "!running!" == "0" (
 )
 
 set "processName=!executableName:.exe=!"
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-Process -Name '!processName!' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction Stop" >> "!killOutput!" 2>&1
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "Get-Process -Name '!processName!' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction Stop" >> "!killOutput!" 2>&1
 call :isExecutableRunning running "!executableName!"
 if "!running!" == "0" (
     del /f /q "!killOutput!" >nul 2>nul
@@ -2860,7 +2860,7 @@ if "!result!" == "" goto :eof
 call :trim context %~4
 if not defined context (set "context=5")
 
-powershell -command "& {&'Get-Content' '!filePath!' | &'Select-String' -Pattern '!regex!' -Context !context!,!context! | &'Set-Content' -Encoding 'utf8' '!result!'}";
+powershell.exe -NoLogo -NoProfile -command "& {&'Get-Content' '!filePath!' | &'Select-String' -Pattern '!regex!' -Context !context!,!context! | &'Set-Content' -Encoding 'utf8' '!result!'}";
 goto :eof
 
 @REM ============================================================================
@@ -3343,7 +3343,7 @@ if "!extractSection!" == "" goto :eof
 if "!extractResult!" == "" goto :eof
 if not exist "!configFile!" goto :eof
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "& {$section='!extractSection!'; $out='!extractResult!'; $lines=Get-Content -LiteralPath '!configFile!'; $inside=$false; $sectionIndent=-1; $itemIndent=-1; $propertyIndent=-1; $script:url=''; $script:path=''; function Reset-Entry {$script:url=''; $script:path=''; $script:propertyIndent=-1}; function Add-Entry {if (($script:url -match '^https?://') -and $script:path) {($script:url + '|' + $script:path) | Add-Content -Encoding utf8 -LiteralPath $out}}; foreach ($line in $lines) {$text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $indent=$line.Length - $line.TrimStart(' ').Length; if (-not $inside) {if ($text -ieq ($section + ':')) {$inside=$true; $sectionIndent=$indent; $itemIndent=-1; Reset-Entry}; continue}; if ($indent -le $sectionIndent) {Add-Entry; $inside=$false; $itemIndent=-1; Reset-Entry; if ($text -ieq ($section + ':')) {$inside=$true; $sectionIndent=$indent}; continue}; if ($itemIndent -lt 0) {$itemIndent=$indent; Reset-Entry} elseif ($indent -le $itemIndent) {Add-Entry; $itemIndent=$indent; Reset-Entry} else {if ($propertyIndent -lt 0) {$propertyIndent=$indent}; if ($indent -eq $propertyIndent) {$parts=$text -split ':',2; if ($parts.Count -eq 2) {$key=$parts[0].Trim(); $value=$parts[1].Trim().Trim([char]34).Trim([char]39); if ($key -ieq 'url') {$script:url=$value}; if ($key -ieq 'path') {$script:path=$value}}}}}; if ($inside) {Add-Entry}}"
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "& {$section='!extractSection!'; $out='!extractResult!'; $lines=Get-Content -LiteralPath '!configFile!'; $inside=$false; $sectionIndent=-1; $itemIndent=-1; $propertyIndent=-1; $script:url=''; $script:path=''; function Reset-Entry {$script:url=''; $script:path=''; $script:propertyIndent=-1}; function Add-Entry {if (($script:url -match '^https?://') -and $script:path) {($script:url + '|' + $script:path) | Add-Content -Encoding utf8 -LiteralPath $out}}; foreach ($line in $lines) {$text=$line.Trim(); if ((-not $text) -or $text.StartsWith('#')) {continue}; $indent=$line.Length - $line.TrimStart(' ').Length; if (-not $inside) {if ($text -ieq ($section + ':')) {$inside=$true; $sectionIndent=$indent; $itemIndent=-1; Reset-Entry}; continue}; if ($indent -le $sectionIndent) {Add-Entry; $inside=$false; $itemIndent=-1; Reset-Entry; if ($text -ieq ($section + ':')) {$inside=$true; $sectionIndent=$indent}; continue}; if ($itemIndent -lt 0) {$itemIndent=$indent; Reset-Entry} elseif ($indent -le $itemIndent) {Add-Entry; $itemIndent=$indent; Reset-Entry} else {if ($propertyIndent -lt 0) {$propertyIndent=$indent}; if ($indent -eq $propertyIndent) {$parts=$text -split ':',2; if ($parts.Count -eq 2) {$key=$parts[0].Trim(); $value=$parts[1].Trim().Trim([char]34).Trim([char]39); if ($key -ieq 'url') {$script:url=$value}; if ($key -ieq 'path') {$script:path=$value}}}}}; if ($inside) {Add-Entry}}"
 goto :eof
 
 @REM ============================================================================
@@ -4132,12 +4132,12 @@ goto :eof
 set "%~1=1"
 
 set "content="
-for /f %%a in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).OperatingSystemSKU"') do set "content=%%a"
+for /f %%a in ('powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).OperatingSystemSKU"') do set "content=%%a"
 call :trim content "!content!"
 
 @REM 2/3/5/26 represent home edition
 if "!content!" NEQ "2" if "!content!" NEQ "3" if "!content!" NEQ "5" if "!content!" NEQ "26" (
-    for /f "delims=" %%a in ('powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption" ^| findstr /i /c:"pro" /c:"professional"') do set "content=%%a"
+    for /f "delims=" %%a in ('powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption" ^| findstr /i /c:"pro" /c:"professional"') do set "content=%%a"
     call :trim content "!content!"
     if "!content!" NEQ "" set "%~1=0"
 )
@@ -4343,7 +4343,7 @@ set "action=添加"
 if exist "!clashLinkPath!" (
     set "action=更新"
 
-    for /f "usebackq delims=" %%a in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($env:clashLinkPath); $shortcutCommand=($shortcut.TargetPath + ' ' + $shortcut.Arguments).Trim(); $expectedShortcutCommand=((Join-Path $env:SystemRoot 'System32\wscript.exe') + ' //B ' + [char]34 + $env:startupVbs + [char]34).Trim(); if ($shortcutCommand -ieq $expectedShortcutCommand) { '1' } else { '0' }"`) do set "shortcutMatched=%%a"
+    for /f "usebackq delims=" %%a in (`powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($env:clashLinkPath); $shortcutCommand=($shortcut.TargetPath + ' ' + $shortcut.Arguments).Trim(); $expectedShortcutCommand=((Join-Path $env:SystemRoot 'System32\wscript.exe') + ' //B ' + [char]34 + $env:startupVbs + [char]34).Trim(); if ($shortcutCommand -ieq $expectedShortcutCommand) { '1' } else { '0' }"`) do set "shortcutMatched=%%a"
 )
 
 if "!shortcutMatched!" == "1" (

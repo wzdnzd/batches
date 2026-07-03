@@ -386,9 +386,9 @@ goto :eof
 if "!as_daemon!" == "1" (
     cacls "%SystemDrive%\System Volume Information" >nul 2>&1 || (
         if "!show_window!" == "1" (
-            powershell -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs"
+            powershell.exe -NoLogo -NoProfile -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs"
         ) else (
-            powershell -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs -WindowStyle Hidden"
+            powershell.exe -NoLogo -NoProfile -Command "Start-Process '%~snx0' -ArgumentList ' %*' -Verb RunAs -WindowStyle Hidden"
         )
         exit /b
     )
@@ -789,7 +789,7 @@ set "temp_result=!TEMP_DIR!\providers_extract.txt"
 del /f /q "!temp_result!" >nul 2>nul
 
 @REM Primary method: Use PowerShell for accurate JSON parsing
-powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '!config_file!' -Encoding UTF8 | ConvertFrom-Json).providers | Where-Object { $_.url -and $_.cache_file } | ForEach-Object { $_.url + '|' + $_.cache_file }" > "!temp_result!" 2>nul
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '!config_file!' -Encoding UTF8 | ConvertFrom-Json).providers | Where-Object { $_.url -and $_.cache_file } | ForEach-Object { $_.url + '|' + $_.cache_file }" > "!temp_result!" 2>nul
 
 @REM Process PowerShell extraction results
 if exist "!temp_result!" (
@@ -1476,14 +1476,14 @@ cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
         !operation!
         exit /b
     ) else (
-        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
+        powershell.exe -NoLogo -NoProfile -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
         exit /b
     )
 ) || (
     if "!show!" == "0" (
-        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
+        powershell.exe -NoLogo -NoProfile -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs -WindowStyle Hidden"
     ) else (
-        powershell -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
+        powershell.exe -NoLogo -NoProfile -Command "Start-Process '%~snx0' -ArgumentList '%~1' -Verb RunAs"
     )
     exit /b
 )

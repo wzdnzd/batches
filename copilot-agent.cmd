@@ -847,7 +847,7 @@ for /d %%d in (%USERPROFILE%\.vscode\extensions\github.copilot-*) do (
         copy /y "!extension_path!" "!backupfile!" >nul 2>nul
 
         @REM do search and replace with pattern
-        powershell -Command "(Get-Content '!extension_path!') -replace '!pattern!', '!replacement!' | Set-Content '!extension_path!'"
+        powershell.exe -NoLogo -NoProfile -Command "(Get-Content '!extension_path!') -replace '!pattern!', '!replacement!' | Set-Content '!extension_path!'"
     )
 )
 

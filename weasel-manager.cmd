@@ -621,9 +621,9 @@ if "%IS_ADMIN%"=="1" (
 echo Requesting administrator privileges...
 
 if /I "%ADMIN_WINDOW%"=="show" (
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "try { Start-Process -FilePath $env:ComSpec -ArgumentList '/d /c ""%RUNAS_WRAPPER%""' -Verb RunAs; exit 0 } catch { exit 1 }"
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "try { Start-Process -FilePath $env:ComSpec -ArgumentList '/d /c ""%RUNAS_WRAPPER%""' -Verb RunAs; exit 0 } catch { exit 1 }"
 ) else (
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "try { Start-Process -FilePath $env:ComSpec -ArgumentList '/d /c ""%RUNAS_WRAPPER%""' -Verb RunAs -WindowStyle Hidden; exit 0 } catch { exit 1 }"
+    powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "try { Start-Process -FilePath $env:ComSpec -ArgumentList '/d /c ""%RUNAS_WRAPPER%""' -Verb RunAs -WindowStyle Hidden; exit 0 } catch { exit 1 }"
 )
 
 if errorlevel 1 (
