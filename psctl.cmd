@@ -14,6 +14,7 @@ set "ALIAS_DIR=%BASE%\Aliases"
 set "LOGDIR=%BASE%\Logs"
 set "LOG=%LOGDIR%\%SELF_ID%.log"
 set "TASK_VBS=%SELF_DIR%powershell-replace.vbs"
+set "MSI_PS_HOME=%ProgramFiles%\PowerShell\7"
 
 set "TASK_NAME=PowerShellAutoReplace"
 set "DEFAULT_INTERVAL_HOURS=8"
@@ -423,7 +424,6 @@ exit /b 0
 
 :EnsureDirs
 if not exist "%BASE%" md "%BASE%" >nul 2>&1
-if not exist "%ALIAS_DIR%" md "%ALIAS_DIR%" >nul 2>&1
 if not exist "%LOGDIR%" md "%LOGDIR%" >nul 2>&1
 exit /b 0
 
@@ -470,37 +470,43 @@ call :Log "开始执行隐藏或检查操作"
 
 call :EnsureSrpBlacklist
 set "RC=%ERRORLEVEL%"
-call :StepLine "1/7" "%RC%" "配置 SRP 禁用规则"
+call :StepLine "1/8" "%RC%" "配置 SRP 禁用规则"
 if not "%RC%"=="0" exit /b %RC%
 
 call :RemoveOldAppPaths
 set "RC=%ERRORLEVEL%"
-call :StepLine "2/7" "%RC%" "清理旧版 powershell.exe 路径相关注册表配置项"
+call :StepLine "2/8" "%RC%" "清理旧版 powershell.exe 路径相关注册表配置项"
+if not "%RC%"=="0" exit /b %RC%
+
+call :FindPwshTarget
+set "RC=%ERRORLEVEL%"
+if "%RC%"=="0" if not defined PWSH_TARGET set "RC=1"
+call :StepLine "3/8" "%RC%" "检测 PowerShell 7 安装方式"
 if not "%RC%"=="0" exit /b %RC%
 
 call :CleanLoadedUsers
 set "RC=%ERRORLEVEL%"
-call :StepLine "3/7" "%RC%" "清理已加载用户的 PATH 和 powershell.exe 注册表项"
+call :StepLine "4/8" "%RC%" "清理已加载用户的 PATH 和 powershell.exe 注册表项"
 if not "%RC%"=="0" exit /b %RC%
 
 call :CleanMachineAndCurrentUserPath
 set "RC=%ERRORLEVEL%"
-call :StepLine "4/7" "%RC%" "清理系统和当前用户 PATH 并加入别名目录"
+call :StepLine "5/8" "%RC%" "清理系统和当前用户 PATH 并加入 PowerShell 7 入口目录"
 if not "%RC%"=="0" exit /b %RC%
 
 call :RemoveStartMenuLinks
 set "RC=%ERRORLEVEL%"
-call :StepLine "5/7" "%RC%" "移除开始菜单中的旧有 PowerShell 入口"
+call :StepLine "6/8" "%RC%" "移除开始菜单中的旧有 PowerShell 入口"
 if not "%RC%"=="0" exit /b %RC%
 
-call :EnsurePwshAlias
+call :EnsurePowerShellEntry
 set "RC=%ERRORLEVEL%"
-call :StepLine "6/7" "%RC%" "创建 powershell.exe 到 pwsh.exe 的别名映射"
+call :StepLine "7/8" "%RC%" "配置 powershell.exe 到 PowerShell 7 的入口映射"
 if not "%RC%"=="0" exit /b %RC%
 
 gpupdate /target:computer /force >nul 2>&1
 set "RC=%ERRORLEVEL%"
-call :StepLine "7/7" "%RC%" "刷新计算机策略"
+call :StepLine "8/8" "%RC%" "刷新计算机策略"
 
 call :Log "替换或检查操作完成"
 exit /b %RC%
@@ -513,15 +519,20 @@ if errorlevel 1 exit /b %ERRORLEVEL%
 call :CleanPathKey "HKCU\Environment" 1
 if errorlevel 1 exit /b %ERRORLEVEL%
 
-call :Log "已清理系统和当前用户 PATH 并加入别名目录"
+call :Log "已清理系统和当前用户 PATH 并加入 PowerShell 7 入口目录"
 exit /b 0
 
 
 :CleanLoadedUsers
+call :DeleteAppPathIfManaged "HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+call :DeleteAppPathIfManaged "HKCU\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+
 for /f "delims=" %%S in ('reg query HKU 2^>nul ^| findstr /r /c:"^HKEY_USERS\\S-1-5-21-" ^| findstr /v /i "_Classes"') do (
     call :CleanPathKey "%%S\Environment" 0
     call :DeleteAppPathIfOld "%%S\Software\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
     call :DeleteAppPathIfOld "%%S\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+    call :DeleteAppPathIfManaged "%%S\Software\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+    call :DeleteAppPathIfManaged "%%S\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
 )
 exit /b 0
 
@@ -555,6 +566,8 @@ exit /b 0
 :RemoveOldAppPaths
 call :DeleteAppPathIfOld "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
 call :DeleteAppPathIfOld "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+call :DeleteAppPathIfManaged "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+call :DeleteAppPathIfManaged "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
 exit /b 0
 
 
@@ -567,26 +580,47 @@ if not errorlevel 1 (
 exit /b 0
 
 
+:DeleteAppPathIfManaged
+reg query "%~1" /ve 2>nul | findstr /i /c:"PowerShellPolicy\Aliases\powershell.exe" >nul
+if not errorlevel 1 (
+    reg delete "%~1" /f >nul 2>&1
+    call :Log "已删除旧版别名 App Paths：%~1"
+    exit /b 0
+)
+
+reg query "%~1" /ve 2>nul | findstr /i /c:"PowerShell\7\powershell.exe" >nul
+if not errorlevel 1 (
+    reg delete "%~1" /f >nul 2>&1
+    call :Log "已删除 MSI PowerShell 7 App Paths：%~1"
+)
+
+exit /b 0
+
+
 :CleanPathKey
 setlocal DisableDelayedExpansion
 set "KEY=%~1"
-set "ADDALIAS=%~2"
+set "ADD_DESIRED=%~2"
 set "VBS=%TEMP%\psctl_path_%RANDOM%_%RANDOM%.vbs"
 
 > "%VBS%" echo Set sh = CreateObject("WScript.Shell")
 >> "%VBS%" echo key = WScript.Arguments(0)
->> "%VBS%" echo addAlias = WScript.Arguments(1)
->> "%VBS%" echo aliasDir = WScript.Arguments(2)
->> "%VBS%" echo sysroot = WScript.Arguments(3)
+>> "%VBS%" echo addDesired = WScript.Arguments(1)
+>> "%VBS%" echo desiredPath = WScript.Arguments(2)
+>> "%VBS%" echo aliasDir = WScript.Arguments(3)
+>> "%VBS%" echo msiDir = WScript.Arguments(4)
+>> "%VBS%" echo sysroot = WScript.Arguments(5)
 >> "%VBS%" echo remove1 = Norm(sysroot ^& "\System32\WindowsPowerShell\v1.0")
 >> "%VBS%" echo remove2 = Norm(sysroot ^& "\SysWOW64\WindowsPowerShell\v1.0")
+>> "%VBS%" echo desiredNorm = Norm(desiredPath)
 >> "%VBS%" echo aliasNorm = Norm(aliasDir)
+>> "%VBS%" echo msiNorm = Norm(msiDir)
 >> "%VBS%" echo On Error Resume Next
 >> "%VBS%" echo oldPath = sh.RegRead(key ^& "\Path")
 >> "%VBS%" echo If Err.Number ^<^> 0 Then
 >> "%VBS%" echo     Err.Clear
->> "%VBS%" echo     If addAlias = "1" Then
->> "%VBS%" echo         sh.RegWrite key ^& "\Path", aliasDir, "REG_EXPAND_SZ"
+>> "%VBS%" echo     If addDesired = "1" Then
+>> "%VBS%" echo         sh.RegWrite key ^& "\Path", desiredPath, "REG_EXPAND_SZ"
 >> "%VBS%" echo     End If
 >> "%VBS%" echo     WScript.Quit 0
 >> "%VBS%" echo End If
@@ -600,7 +634,9 @@ set "VBS=%TEMP%\psctl_path_%RANDOM%_%RANDOM%.vbs"
 >> "%VBS%" echo         keep = True
 >> "%VBS%" echo         If LCase(n) = LCase(remove1) Then keep = False
 >> "%VBS%" echo         If LCase(n) = LCase(remove2) Then keep = False
+>> "%VBS%" echo         If desiredNorm ^<^> "" And LCase(n) = LCase(desiredNorm) Then keep = False
 >> "%VBS%" echo         If LCase(n) = LCase(aliasNorm) Then keep = False
+>> "%VBS%" echo         If LCase(n) = LCase(msiNorm) Then keep = False
 >> "%VBS%" echo         If keep Then
 >> "%VBS%" echo             If newPath = "" Then
 >> "%VBS%" echo                 newPath = item
@@ -610,11 +646,11 @@ set "VBS=%TEMP%\psctl_path_%RANDOM%_%RANDOM%.vbs"
 >> "%VBS%" echo         End If
 >> "%VBS%" echo     End If
 >> "%VBS%" echo Next
->> "%VBS%" echo If addAlias = "1" Then
+>> "%VBS%" echo If addDesired = "1" Then
 >> "%VBS%" echo     If newPath = "" Then
->> "%VBS%" echo         newPath = aliasDir
+>> "%VBS%" echo         newPath = desiredPath
 >> "%VBS%" echo     Else
->> "%VBS%" echo         newPath = aliasDir ^& ";" ^& newPath
+>> "%VBS%" echo         newPath = desiredPath ^& ";" ^& newPath
 >> "%VBS%" echo     End If
 >> "%VBS%" echo End If
 >> "%VBS%" echo If Not newPath = oldPath Then
@@ -629,7 +665,7 @@ set "VBS=%TEMP%\psctl_path_%RANDOM%_%RANDOM%.vbs"
 >> "%VBS%" echo     Norm = y
 >> "%VBS%" echo End Function
 
-cscript //nologo "%VBS%" "%KEY%" "%ADDALIAS%" "%ALIAS_DIR%" "%SystemRoot%" >nul 2>&1
+cscript //nologo "%VBS%" "%KEY%" "%ADD_DESIRED%" "%PWSH_PATH_DIR%" "%ALIAS_DIR%" "%MSI_PS_HOME%" "%SystemRoot%" >nul 2>&1
 set "RC=%ERRORLEVEL%"
 del /f /q "%VBS%" >nul 2>&1
 
@@ -651,14 +687,59 @@ call :Log "已移除开始菜单中的 Windows PowerShell 旧入口"
 exit /b 0
 
 
-:EnsurePwshAlias
-call :FindPwshTarget
+:EnsurePowerShellEntry
+if not defined PWSH_TARGET (
+    call :FindPwshTarget
+)
 
 if not defined PWSH_TARGET (
-    call :Log "未找到 pwsh.exe，无法创建 powershell.exe 别名"
+    call :Log "未找到 pwsh.exe，无法配置 powershell.exe 入口"
     exit /b 1
 )
 
+if /i "%PWSH_MODE%"=="MSI" goto EnsureMsiPowerShellEntry
+goto EnsureMsixPowerShellAlias
+
+
+:EnsureMsiPowerShellEntry
+if not exist "%PWSH_TARGET%" (
+    call :Log "MSI 模式下未找到 pwsh.exe：%PWSH_TARGET%"
+    exit /b 1
+)
+
+if not exist "%PWSH_HOME%\pwsh.dll" (
+    call :Log "MSI 模式下未找到 pwsh.dll：%PWSH_HOME%\pwsh.dll"
+    exit /b 1
+)
+
+if exist "%POWERSHELL_TARGET%" del /f /q "%POWERSHELL_TARGET%" >nul 2>&1
+
+if not exist "%POWERSHELL_TARGET%" (
+    mklink /H "%POWERSHELL_TARGET%" "%PWSH_TARGET%" >nul 2>&1
+)
+
+if not exist "%POWERSHELL_TARGET%" (
+    copy /y "%PWSH_TARGET%" "%POWERSHELL_TARGET%" >nul 2>&1
+)
+
+if not exist "%POWERSHELL_TARGET%" (
+    call :Log "MSI 模式下创建 powershell.exe 失败：%POWERSHELL_TARGET%"
+    exit /b 1
+)
+
+if exist "%ALIAS_DIR%" rmdir /s /q "%ALIAS_DIR%" >nul 2>&1
+
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe" /ve /t REG_SZ /d "%POWERSHELL_TARGET%" /f >nul || exit /b 1
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe" /v Path /t REG_SZ /d "%PWSH_HOME%" /f >nul || exit /b 1
+
+reg add "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe" /ve /t REG_SZ /d "%POWERSHELL_TARGET%" /f >nul || exit /b 1
+reg add "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe" /v Path /t REG_SZ /d "%PWSH_HOME%" /f >nul || exit /b 1
+
+call :Log "已注册 MSI PowerShell 7 入口：%POWERSHELL_TARGET%"
+exit /b 0
+
+
+:EnsureMsixPowerShellAlias
 if not exist "%ALIAS_DIR%" md "%ALIAS_DIR%" >nul 2>&1
 
 > "%ALIAS_DIR%\powershell.cmd" echo @echo off
@@ -685,28 +766,52 @@ exit /b 0
 
 
 :FindPwshTarget
+set "PWSH_MODE="
 set "PWSH_TARGET="
+set "PWSH_HOME="
+set "PWSH_PATH_DIR="
+set "POWERSHELL_TARGET="
 
-if exist "%ProgramFiles%\PowerShell\7\pwsh.exe" (
-    set "PWSH_TARGET=%ProgramFiles%\PowerShell\7\pwsh.exe"
-    exit /b 0
+if exist "%MSI_PS_HOME%\pwsh.exe" (
+    if exist "%MSI_PS_HOME%\pwsh.dll" (
+        set "PWSH_MODE=MSI"
+        set "PWSH_HOME=%MSI_PS_HOME%"
+        set "PWSH_TARGET=%MSI_PS_HOME%\pwsh.exe"
+        set "PWSH_PATH_DIR=%MSI_PS_HOME%"
+        set "POWERSHELL_TARGET=%MSI_PS_HOME%\powershell.exe"
+        exit /b 0
+    )
 )
 
 for /f "delims=" %%D in ('dir /b /ad /o-n "%ProgramFiles%\WindowsApps\Microsoft.PowerShell_*_x64__8wekyb3d8bbwe" 2^>nul') do (
     if not defined PWSH_TARGET if exist "%ProgramFiles%\WindowsApps\%%D\pwsh.exe" (
+        set "PWSH_MODE=MSIX"
+        set "PWSH_HOME=%ProgramFiles%\WindowsApps\%%D"
         set "PWSH_TARGET=%ProgramFiles%\WindowsApps\%%D\pwsh.exe"
+        set "PWSH_PATH_DIR=%ALIAS_DIR%"
+        set "POWERSHELL_TARGET=%ALIAS_DIR%\powershell.exe"
     )
 )
 
 if defined PWSH_TARGET exit /b 0
 
 if exist "%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe" (
+    set "PWSH_MODE=MSIX"
+    set "PWSH_HOME=%LOCALAPPDATA%\Microsoft\WindowsApps"
     set "PWSH_TARGET=%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe"
+    set "PWSH_PATH_DIR=%ALIAS_DIR%"
+    set "POWERSHELL_TARGET=%ALIAS_DIR%\powershell.exe"
     exit /b 0
 )
 
 for /f "delims=" %%P in ('where pwsh.exe 2^>nul') do (
-    if not defined PWSH_TARGET set "PWSH_TARGET=%%P"
+    if not defined PWSH_TARGET (
+        set "PWSH_MODE=MSIX"
+        set "PWSH_TARGET=%%P"
+        set "PWSH_HOME=%%~dpP"
+        set "PWSH_PATH_DIR=%ALIAS_DIR%"
+        set "POWERSHELL_TARGET=%ALIAS_DIR%\powershell.exe"
+    )
 )
 
 exit /b 0
@@ -889,16 +994,16 @@ exit /b 0
 
 
 :RemoveAliasAndAliasPaths
-call :DeleteAppPathIfAlias "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
-call :DeleteAppPathIfAlias "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+call :DeleteAppPathIfManaged "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+call :DeleteAppPathIfManaged "HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
 
-call :DeleteAppPathIfAlias "HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
-call :DeleteAppPathIfAlias "HKCU\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+call :DeleteAppPathIfManaged "HKCU\Software\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+call :DeleteAppPathIfManaged "HKCU\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
 call :RemoveAliasFromPathKey "HKCU\Environment"
 
 for /f "delims=" %%S in ('reg query HKU 2^>nul ^| findstr /r /c:"^HKEY_USERS\\S-1-5-21-" ^| findstr /v /i "_Classes"') do (
-    call :DeleteAppPathIfAlias "%%S\Software\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
-    call :DeleteAppPathIfAlias "%%S\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+    call :DeleteAppPathIfManaged "%%S\Software\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
+    call :DeleteAppPathIfManaged "%%S\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\App Paths\powershell.exe"
     call :RemoveAliasFromPathKey "%%S\Environment"
 )
 
@@ -910,14 +1015,6 @@ call :Log "已移除 powershell.exe 到 pwsh.exe 的别名映射"
 exit /b 0
 
 
-:DeleteAppPathIfAlias
-reg query "%~1" /ve 2>nul | findstr /i /c:"PowerShellPolicy\Aliases\powershell.exe" >nul
-if not errorlevel 1 (
-    reg delete "%~1" /f >nul 2>&1
-)
-exit /b 0
-
-
 :RemoveAliasFromPathKey
 setlocal DisableDelayedExpansion
 set "KEY=%~1"
@@ -926,7 +1023,9 @@ set "VBS=%TEMP%\psctl_remove_alias_%RANDOM%_%RANDOM%.vbs"
 > "%VBS%" echo Set sh = CreateObject("WScript.Shell")
 >> "%VBS%" echo key = WScript.Arguments(0)
 >> "%VBS%" echo aliasDir = WScript.Arguments(1)
+>> "%VBS%" echo msiDir = WScript.Arguments(2)
 >> "%VBS%" echo aliasNorm = Norm(aliasDir)
+>> "%VBS%" echo msiNorm = Norm(msiDir)
 >> "%VBS%" echo On Error Resume Next
 >> "%VBS%" echo oldPath = sh.RegRead(key ^& "\Path")
 >> "%VBS%" echo If Err.Number ^<^> 0 Then WScript.Quit 0
@@ -936,7 +1035,11 @@ set "VBS=%TEMP%\psctl_remove_alias_%RANDOM%_%RANDOM%.vbs"
 >> "%VBS%" echo For Each item In parts
 >> "%VBS%" echo     item = Trim(item)
 >> "%VBS%" echo     If Not item = "" Then
->> "%VBS%" echo         If Not LCase(Norm(item)) = LCase(aliasNorm) Then
+>> "%VBS%" echo         n = Norm(item)
+>> "%VBS%" echo         keep = True
+>> "%VBS%" echo         If LCase(n) = LCase(aliasNorm) Then keep = False
+>> "%VBS%" echo         If LCase(n) = LCase(msiNorm) Then keep = False
+>> "%VBS%" echo         If keep Then
 >> "%VBS%" echo             If newPath = "" Then
 >> "%VBS%" echo                 newPath = item
 >> "%VBS%" echo             Else
@@ -955,7 +1058,7 @@ set "VBS=%TEMP%\psctl_remove_alias_%RANDOM%_%RANDOM%.vbs"
 >> "%VBS%" echo     Norm = y
 >> "%VBS%" echo End Function
 
-cscript //nologo "%VBS%" "%KEY%" "%ALIAS_DIR%" >nul 2>&1
+cscript //nologo "%VBS%" "%KEY%" "%ALIAS_DIR%" "%MSI_PS_HOME%" >nul 2>&1
 set "RC=%ERRORLEVEL%"
 del /f /q "%VBS%" >nul 2>&1
 
@@ -1147,15 +1250,142 @@ endlocal
 exit /b 1
 
 
+:StatusManagedPath
+setlocal DisableDelayedExpansion
+set "KEY=%~1"
+set "LABEL=%~2"
+set "OUT=%TEMP%\psctl_path_status_%RANDOM%_%RANDOM%.txt"
+
+reg query "%KEY%" /v Path > "%OUT%" 2>nul
+
+if not defined PWSH_MODE (
+    call :Msg "  ❌ 未检测到 PowerShell 7，无法判断%LABEL% PATH 应使用 MSI 目录还是别名目录"
+    findstr /i /c:"WindowsPowerShell\v1.0" "%OUT%" >nul
+    if errorlevel 1 (
+        call :Msg "  ✅ 正常：旧版 Windows PowerShell 路径不在%LABEL% PATH 中"
+    ) else (
+        call :Msg "  ❌ 警告：旧版 Windows PowerShell 路径仍在%LABEL% PATH 中"
+    )
+    del /f /q "%OUT%" >nul 2>&1
+    endlocal
+    exit /b 0
+)
+
+if /i "%PWSH_MODE%"=="MSI" (
+    findstr /i /c:"PowerShell\7" "%OUT%" >nul
+    if errorlevel 1 (
+        call :Msg "  ❌ 未配置：%LABEL% PATH 中缺少 MSI PowerShell 7 目录"
+    ) else (
+        call :Msg "  ✅ 正常：%LABEL% PATH 已包含 MSI PowerShell 7 目录"
+    )
+
+    findstr /i /c:"PowerShellPolicy\Aliases" "%OUT%" >nul
+    if errorlevel 1 (
+        call :Msg "  ✅ 正常：%LABEL% PATH 中无旧别名目录"
+    ) else (
+        call :Msg "  ❌ 警告：%LABEL% PATH 中仍存在旧别名目录"
+    )
+) else (
+    findstr /i /c:"PowerShellPolicy\Aliases" "%OUT%" >nul
+    if errorlevel 1 (
+        call :Msg "  ❌ 未配置：%LABEL% PATH 中缺少别名目录"
+    ) else (
+        call :Msg "  ✅ 正常：%LABEL% PATH 已包含别名目录"
+    )
+
+    findstr /i /c:"PowerShell\7" "%OUT%" >nul
+    if errorlevel 1 (
+        call :Msg "  ✅ 正常：%LABEL% PATH 中无 MSI PowerShell 7 目录"
+    ) else (
+        call :Msg "  ❌ 警告：%LABEL% PATH 中仍存在 MSI PowerShell 7 目录"
+    )
+)
+
+findstr /i /c:"WindowsPowerShell\v1.0" "%OUT%" >nul
+if errorlevel 1 (
+    call :Msg "  ✅ 正常：旧版 Windows PowerShell 路径不在%LABEL% PATH 中"
+) else (
+    call :Msg "  ❌ 警告：旧版 Windows PowerShell 路径仍在%LABEL% PATH 中"
+)
+
+del /f /q "%OUT%" >nul 2>&1
+endlocal
+exit /b 0
+
+
+:StatusEntryFiles
+if not defined PWSH_MODE (
+    call :Msg "[PowerShell 7 入口文件]"
+    call :Msg "  ❌ 未检测到可用的 PowerShell 7 安装"
+    exit /b 1
+)
+
+if /i "%PWSH_MODE%"=="MSI" (
+    call :Msg "[MSI 入口文件]"
+    if exist "%MSI_PS_HOME%\pwsh.exe" (
+        call :Msg "  ✅ 正常：%MSI_PS_HOME%\pwsh.exe"
+    ) else (
+        call :Msg "  ❌ 未找到：%MSI_PS_HOME%\pwsh.exe"
+    )
+
+    if exist "%MSI_PS_HOME%\pwsh.dll" (
+        call :Msg "  ✅ 正常：%MSI_PS_HOME%\pwsh.dll"
+    ) else (
+        call :Msg "  ❌ 未找到：%MSI_PS_HOME%\pwsh.dll"
+    )
+
+    if exist "%MSI_PS_HOME%\powershell.exe" (
+        call :Msg "  ✅ 正常：%MSI_PS_HOME%\powershell.exe"
+    ) else (
+        call :Msg "  ❌ 未配置：%MSI_PS_HOME%\powershell.exe"
+    )
+
+    if exist "%ALIAS_DIR%" (
+        call :Msg "  ❌ 警告：MSI 模式下仍存在旧别名目录：%ALIAS_DIR%"
+    ) else (
+        call :Msg "  ✅ 正常：MSI 模式下未保留旧别名目录"
+    )
+
+    exit /b 0
+)
+
+call :Msg "[MSIX 别名文件]"
+if exist "%ALIAS_DIR%\powershell.cmd" (
+    call :Msg "  ✅ 正常：%ALIAS_DIR%\powershell.cmd"
+) else (
+    call :Msg "  ❌ 未配置：%ALIAS_DIR%\powershell.cmd"
+)
+
+if exist "%ALIAS_DIR%\powershell.exe" (
+    call :Msg "  ✅ 正常：%ALIAS_DIR%\powershell.exe"
+) else (
+    call :Msg "  ❌ 未配置：%ALIAS_DIR%\powershell.exe"
+)
+
+exit /b 0
+
+
 :Status
 @echo.
 call :Msg "PowerShell 状态报告"
 @echo.
 
+call :FindPwshTarget
+
 call :Msg "[脚本信息]"
 @echo   当前脚本：%SELF_FULL%
-@echo   别名目录：%ALIAS_DIR%
 @echo   日志位置：%LOG%
+if defined PWSH_MODE (
+    @echo   检测模式：%PWSH_MODE%
+    if /i "%PWSH_MODE%"=="MSI" (
+        @echo   入口目录：%PWSH_HOME%
+    ) else (
+        @echo   别名目录：%ALIAS_DIR%
+    )
+) else (
+    @echo   检测模式：未找到 PowerShell 7
+    @echo   别名目录：%ALIAS_DIR%
+)
 
 @echo.
 call :Msg "[SRP 默认级别]"
@@ -1175,49 +1405,14 @@ call :StatusRule "%GUID_ISE32%" "%SystemRoot%\SysWOW64\WindowsPowerShell\v1.0\po
 
 @echo.
 call :Msg "[系统环境变量]"
-reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2>nul | findstr /i /c:"PowerShellPolicy\Aliases" >nul
-if errorlevel 1 (
-    call :Msg "  ❌ 未配置：别名目录不在系统 PATH 中"
-) else (
-    call :Msg "  ✅ 正常：别名目录已加入系统 PATH"
-)
-
-reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2>nul | findstr /i /c:"WindowsPowerShell\v1.0" >nul
-if errorlevel 1 (
-    call :Msg "  ✅ 正常：旧版 Windows PowerShell 路径不在系统 PATH 中"
-) else (
-    call :Msg "  ❌ 警告：旧版 Windows PowerShell 路径仍在系统 PATH 中"
-)
+call :StatusManagedPath "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" "系统"
 
 @echo.
 call :Msg "[当前用户环境变量]"
-reg query "HKCU\Environment" /v Path 2>nul | findstr /i /c:"PowerShellPolicy\Aliases" >nul
-if errorlevel 1 (
-    call :Msg "  ❌ 未配置：别名目录不在当前用户 PATH 中"
-) else (
-    call :Msg "  ✅ 正常：别名目录已加入当前用户 PATH"
-)
-
-reg query "HKCU\Environment" /v Path 2>nul | findstr /i /c:"WindowsPowerShell\v1.0" >nul
-if errorlevel 1 (
-    call :Msg "  ✅ 正常：旧版 Windows PowerShell 路径不在当前用户 PATH 中"
-) else (
-    call :Msg "  ❌ 警告：旧版 Windows PowerShell 路径仍在当前用户 PATH 中"
-)
+call :StatusManagedPath "HKCU\Environment" "当前用户"
 
 @echo.
-call :Msg "[别名文件]"
-if exist "%ALIAS_DIR%\powershell.cmd" (
-    call :Msg "  ✅ 正常：%ALIAS_DIR%\powershell.cmd"
-) else (
-    call :Msg "  ❌ 未配置：%ALIAS_DIR%\powershell.cmd"
-)
-
-if exist "%ALIAS_DIR%\powershell.exe" (
-    call :Msg "  ✅ 正常：%ALIAS_DIR%\powershell.exe"
-) else (
-    call :Msg "  ❌ 未配置：%ALIAS_DIR%\powershell.exe"
-)
+call :StatusEntryFiles
 
 @echo.
 call :Msg "[注册表项]"
