@@ -2832,24 +2832,28 @@ if "!rawUrl!" == "" goto :eof
 call :trim proxyUrl "!customProxyUrl!"
 if "!proxyUrl!" == "" (
     @REM Apply the selected GitHub proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
-    set proxy_urls[0]=https://ghfast.top
-    set proxy_urls[1]=https://down.npee.cn
-    set proxy_urls[2]=https://git.udrone.vip
-    set proxy_urls[3]=https://gh.noki.icu
-    set proxy_urls[4]=https://ghproxy.monkeyray.net
-    set proxy_urls[5]=https://ghproxy.net
+    set "proxy_urls[0]=https://ghfast.top"
+    set "proxy_urls[1]=https://down.npee.cn"
+    set "proxy_urls[2]=https://git.udrone.vip"
+    set "proxy_urls[3]=https://gh.noki.icu"
+    set "proxy_urls[4]=https://ghproxy.monkeyray.net"
+    set "proxy_urls[5]=https://ghproxy.net"
 
     @REM Pick a random index in [0, 5]
-    set /a num=!random! %% 6
-    set "ghProxy=!proxy_urls[%num%]!"
+    set /a "num=!random! %% 6"
+    for %%N in (!num!) do set "ghProxy=!proxy_urls[%%N]!"
 ) else (
     set "ghProxy=!proxyUrl!"
 )
 
 @REM Apply the selected GitHub proxy
-if "!rawUrl:~0,18!" == "https://github.com" set "rawUrl=!ghProxy!/!rawUrl!"
-if "!rawUrl:~0,33!" == "https://raw.githubusercontent.com" set "rawUrl=!ghProxy!/!rawUrl!"
-if "!rawUrl:~0,34!" == "https://gist.githubusercontent.com" set "rawUrl=!ghProxy!/!rawUrl!"
+if "!rawUrl:~0,18!" == "https://github.com" (
+    set "rawUrl=!ghProxy!/!rawUrl!"
+) else if "!rawUrl:~0,33!" == "https://raw.githubusercontent.com" (
+    set "rawUrl=!ghProxy!/!rawUrl!"
+) else if "!rawUrl:~0,34!" == "https://gist.githubusercontent.com" (
+    set "rawUrl=!ghProxy!/!rawUrl!"
+)
 
 set "%~1=!rawUrl!"
 goto :eof
