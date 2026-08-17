@@ -19,6 +19,7 @@ setlocal enableDelayedExpansion
 set "BATCH_NAME=%~nx0"                    @REM Current script filename
 set "CONFIG_FILE=config.json"             @REM Default configuration file
 set "SINGBOX_EXE=sing-box.exe"           @REM Sing-box executable name
+set "CRONET_DLL=libcronet.dll"            @REM Cronet native library shipped with Windows builds
 set "APPLICATION_NAME=SingBox"            @REM Application registry name
 set "GITHUB_REPO=wzdnzd/sing-box"       @REM GitHub repository for updates
 set "DEFAULT_DASHBOARD_NAME=dashboard"   @REM Default dashboard name
@@ -771,11 +772,12 @@ goto :eof
 
 
 @REM ============================================================================
-@REM Extract provider URLs and cache files from JSON configuration
+@REM Extract provider URLs and local save paths from JSON configuration
 @REM Parameters: <urls> - Return variable for comma-separated provider URLs
-@REM            <cache_files> - Return variable for comma-separated cache files
+@REM            <cache_files> - Return variable for comma-separated local save paths
 @REM Purpose:    Parses sing-box config to find subscription providers for updates
-@REM Method:     Uses PowerShell JSON parsing with regex fallback
+@REM Compatible: Uses "path" as default; other sing-box implementations use "cache_file"
+@REM Method:     PowerShell ConvertFrom-Json on the top-level providers array
 @REM ============================================================================
 :extractProviders <urls> <cache_files>
 set "%~1="
@@ -788,10 +790,9 @@ set "cache_files="
 set "temp_result=!TEMP_DIR!\providers_extract.txt"
 del /f /q "!temp_result!" >nul 2>nul
 
-@REM Primary method: Use PowerShell for accurate JSON parsing
-powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '!config_file!' -Encoding UTF8 | ConvertFrom-Json).providers | Where-Object { $_.url -and $_.cache_file } | ForEach-Object { $_.url + '|' + $_.cache_file }" > "!temp_result!" 2>nul
+@REM Prefer "path" (this fork); fall back to "cache_file" (other implementations)
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "@((Get-Content '!config_file!' -Encoding UTF8 | ConvertFrom-Json).providers) | Where-Object { $_.url -and ($_.path -or $_.cache_file) } | ForEach-Object { $_.url + '|' + $(if ($_.path) { $_.path } else { $_.cache_file }) }" > "!temp_result!" 2>nul
 
-@REM Process PowerShell extraction results
 if exist "!temp_result!" (
     for /f "usebackq tokens=1,2 delims=|" %%a in ("!temp_result!") do (
         call :addProvider "%%a" "%%b"
@@ -799,12 +800,6 @@ if exist "!temp_result!" (
     del /f /q "!temp_result!" >nul 2>nul
 )
 
-@REM Fallback method: Use regex parsing if PowerShell unavailable
-if "!urls!" == "" if "!cache_files!" == "" (
-    call :extractProvidersFallback
-)
-
-@REM Clean up formatting artifacts from comma-separated lists
 if "!urls:~0,1!" == "," set "urls=!urls:~1!"
 if "!cache_files:~0,1!" == "," set "cache_files=!cache_files:~1!"
 
@@ -814,9 +809,44 @@ goto :eof
 
 
 @REM ============================================================================
-@REM Add provider to URL and cache file lists if valid
+@REM Extract remote rule sets from configuration file
+@REM Parameters: <urls> - Return variable for comma-separated URLs
+@REM            <cache_files> - Return variable for comma-separated save paths
+@REM Purpose:    Filters route.rule_set entries with type=remote, url, and path
+@REM Method:     PowerShell ConvertFrom-Json on route.rule_set
+@REM ============================================================================
+:extractRuleSets <urls> <cache_files>
+set "%~1="
+set "%~2="
+
+if not exist "!config_file!" goto :eof
+
+set "urls="
+set "cache_files="
+set "temp_result=!TEMP_DIR!\rulesets_extract.txt"
+del /f /q "!temp_result!" >nul 2>nul
+
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$c = Get-Content '!config_file!' -Encoding UTF8 | ConvertFrom-Json; if ($c.route) { @($c.route.rule_set) | Where-Object { $_.type -eq 'remote' -and $_.url -and $_.path } | ForEach-Object { $_.url + '|' + $_.path } }" > "!temp_result!" 2>nul
+
+if exist "!temp_result!" (
+    for /f "usebackq tokens=1,2 delims=|" %%a in ("!temp_result!") do (
+        call :addProvider "%%a" "%%b"
+    )
+    del /f /q "!temp_result!" >nul 2>nul
+)
+
+if "!urls:~0,1!" == "," set "urls=!urls:~1!"
+if "!cache_files:~0,1!" == "," set "cache_files=!cache_files:~1!"
+
+set "%~1=!urls!"
+set "%~2=!cache_files!"
+goto :eof
+
+
+@REM ============================================================================
+@REM Add provider to URL and local save path lists if valid
 @REM Parameters: <url> - Provider subscription URL
-@REM            <cache_file> - Local cache file path for provider
+@REM            <cache_file> - Local save path (path or cache_file)
 @REM Purpose:    Validates and adds provider info to global comma-separated lists
 @REM ============================================================================
 :addProvider <url> <cache_file>
@@ -837,87 +867,6 @@ goto :eof
 
 
 @REM ============================================================================
-@REM Fallback provider extraction using regex patterns
-@REM Purpose:    Alternative method when PowerShell JSON parsing is unavailable
-@REM Method:     Uses findstr regex to locate provider sections and extract data
-@REM ============================================================================
-:extractProvidersFallback
-set "in_providers=0"
-set "current_url="
-set "current_cache="
-
-for /f "tokens=*" %%a in ('findstr /n /r /c:"\"providers\"" /c:"\"url\"" /c:"\"cache_file\"" /c:"}" "!config_file!"') do (
-    set "line=%%a"
-    call :parseJsonLine "!line!"
-
-    @REM Add complete provider pairs
-    if "!current_url!" NEQ "" if "!current_cache!" NEQ "" (
-        call :addProvider "!current_url!" "!current_cache!"
-        set "current_url="
-        set "current_cache="
-    )
-)
-goto :eof
-
-
-@REM ============================================================================
-@REM Parse JSON line for provider information during fallback extraction
-@REM Parameters: <line> - JSON line to parse for provider data
-@REM Purpose:    Extracts URL and cache_file from JSON lines in fallback mode
-@REM Process:    Tracks provider section state and extracts key-value pairs
-@REM ============================================================================
-:parseJsonLine <line>
-set "line=%~1"
-if "!line!" == "" goto :eof
-
-@REM Check for providers section
-echo "!line!" | findstr /i /c:"\"providers\"" >nul && (
-    set "in_providers=1"
-    goto :eof
-)
-
-@REM Process lines within providers section
-if "!in_providers!" == "1" (
-    @REM Extract URL
-    echo "!line!" | findstr /i /c:"\"url\"" >nul && (
-        for /f "tokens=2 delims=:" %%b in ("!line!") do (
-            set "url_part=%%b"
-            call :cleanJsonValue url_part "!url_part!"
-            set "current_url=!url_part!"
-        )
-    )
-
-    @REM Extract cache file
-    echo "!line!" | findstr /i /c:"\"cache_file\"" >nul && (
-        for /f "tokens=2 delims=:" %%b in ("!line!") do (
-            set "cache_part=%%b"
-            call :cleanJsonValue cache_part "!cache_part!"
-            set "current_cache=!cache_part!"
-        )
-    )
-
-    @REM Check for end of providers section
-    echo "!line!" | findstr /c:"}" >nul && set "in_providers=0"
-)
-goto :eof
-
-
-@REM ============================================================================
-@REM Clean JSON value by removing quotes, commas, and whitespace
-@REM Parameters: <r> - Return variable for cleaned value
-@REM            <value> - Raw JSON value to clean
-@REM Purpose:    Utility function to clean extracted JSON values
-@REM ============================================================================
-:cleanJsonValue <result> <value>
-call :trim value "%~2"
-set "value=!value:,=!"
-set "value=!value:"=!"
-call :trim value "!value!"
-set "%~1=!value!"
-goto :eof
-
-
-@REM ============================================================================
 @REM Update subscription providers from remote sources
 @REM Purpose:    Downloads and updates HTTP-based subscription configurations
 @REM Process:    Extracts providers, validates URLs, downloads updates
@@ -934,6 +883,29 @@ if "!urls!" == "" (
 )
 
 @REM Process each provider
+call :processProviders "!urls!" "!cache_files!"
+goto :eof
+
+
+@REM ============================================================================
+@REM Update remote rule sets from route.rule_set
+@REM Purpose:    Downloads remote rule sets that have both url and path
+@REM Process:    Filters type=remote entries, then reuses provider download
+@REM ============================================================================
+:updateRuleSets
+@echo [%ESC%[!info_color!m信息%ESC%[0m] 检查并更新远程规则集，仅刷新 %ESC%[!warn_color!mtype=remote%ESC%[0m 且同时配置了 %ESC%[!warn_color!murl%ESC%[0m 与 %ESC%[!warn_color!mpath%ESC%[0m 的规则
+
+call :extractRuleSets urls cache_files
+
+if "!urls!" == "" (
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 未发现可更新的远程规则集，跳过更新，文件："!config_file!"
+    goto :eof
+)
+
+set "ruleset_count=0"
+for %%a in (!urls!) do set /a ruleset_count+=1
+@echo [%ESC%[!info_color!m信息%ESC%[0m] 发现 %ESC%[!warn_color!m!ruleset_count!%ESC%[0m 个远程规则集，开始更新
+
 call :processProviders "!urls!" "!cache_files!"
 goto :eof
 
@@ -993,7 +965,7 @@ goto :processProviderLoop
 :processProvider <url> <cache_file>
 call :convertToAbsolutePath target_file "%~2"
 if "!target_file!" == "" (
-    @echo [%ESC%[!error_color!m错误%ESC%[0m] 缓存文件路径无效："%~2"
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 保存路径无效："%~2"
     goto :eof
 )
 
@@ -1015,7 +987,7 @@ if !file_size! GTR 16 (
     del /f /q "!target_file!" >nul 2>nul
     move "!TEMP_DIR!\!file_name!" "!file_path!" >nul 2>nul
 ) else (
-    @echo [%ESC%[!error_color!m错误%ESC%[0m] 订阅下载失败，文件：!file_name!，链接：!process_url!
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 下载失败，文件：!file_name!，链接：!process_url!
 )
 goto :eof
 
@@ -1255,20 +1227,31 @@ if "!download_url!" NEQ "" (
         @REM Download ZIP archive with retry mechanism
         call :downloadWithRetry "!download_url!" "!TEMP_DIR!\sing-box.zip"
         if exist "!TEMP_DIR!\sing-box.zip" (
-            @REM Extract ZIP archive using tar command
-            tar -xzf "!TEMP_DIR!\sing-box.zip" -C !TEMP_DIR! >nul 2>nul
+            set "extract_dir=!TEMP_DIR!\singbox"
+            if exist "!extract_dir!" rd /s /q "!extract_dir!" >nul 2>nul
+            mkdir "!extract_dir!" >nul 2>nul
 
-            @REM Clean up downloaded ZIP file
+            @REM Locate sing-box.exe inside the archive instead of walking %TEMP%
+            set "real_path="
+            for /f "delims=" %%a in ('tar -tf "!TEMP_DIR!\sing-box.zip" 2^>nul ^| findstr /i /e /c:"!SINGBOX_EXE!"') do set "real_path=%%a"
+
+            tar -xzf "!TEMP_DIR!\sing-box.zip" -C "!extract_dir!" >nul 2>nul
             del /f /q "!TEMP_DIR!\sing-box.zip"
+
+            if "!real_path!" NEQ "" if exist "!extract_dir!\!real_path!" (
+                for %%a in ("!extract_dir!\!real_path!") do (
+                    move /y "%%~fa" "!TEMP_DIR!\!SINGBOX_EXE!" >nul 2>nul
+                    if exist "%%~dpa!CRONET_DLL!" move /y "%%~dpa!CRONET_DLL!" "!TEMP_DIR!\" >nul 2>nul
+                )
+            )
+
+            if exist "!extract_dir!" rd /s /q "!extract_dir!" >nul 2>nul
         ) else (
             @echo [%ESC%[!error_color!m错误%ESC%[0m] !SINGBOX_EXE! 下载失败，下载链接："!download_url!"
         )
 
-        @REM Validate and rename extracted executable
+        @REM Validate extracted executable
         if exist "!TEMP_DIR!\!SINGBOX_EXE!" (
-            @REM Rename to standard filename
-            ren "!TEMP_DIR!\!SINGBOX_EXE!" !SINGBOX_EXE!
-
             set "%~1=1"
         ) else (
             @echo [%ESC%[!error_color!m错误%ESC%[0m] "!TEMP_DIR!\!SINGBOX_EXE!" 不存在，下载链接："!download_url!"
@@ -1537,7 +1520,7 @@ goto :eof
 @REM Prepare and validate all required components
 @REM Parameters: <changed> - Return variable (0=no changes, 1=changes detected)
 @REM Purpose:    Downloads, updates, and validates all sing-box components
-@REM Process:    Config update, server extraction, subscriptions, downloads
+@REM Process:    Config update, server extraction, subscriptions, rule sets, downloads
 @REM ============================================================================
 :prepare <changed>
 set "%~1=0"
@@ -1554,6 +1537,9 @@ call :extractDashboardInfo dashboard_name dashboard_url dashboard_path
 @REM Update subscription providers unless excluded
 if "!exclude_updates!" == "0" call :updateSubscriptions
 
+@REM Update remote rule sets that persist to a local path
+call :updateRuleSets
+
 @REM Determine download URL for sing-box
 call :checkAndGetSingboxDownloadUrl singbox_url
 
@@ -1568,7 +1554,9 @@ call :downloadSingbox success "!singbox_url!"
 
 @REM Check if any files changed using MD5 comparison
 set "changed=0"
-if "!success!" == "1" call :detect changed "!SINGBOX_EXE!"
+set "singbox_files=!SINGBOX_EXE!"
+if exist "!TEMP_DIR!\!CRONET_DLL!" set "singbox_files=!singbox_files! !CRONET_DLL!"
+if "!success!" == "1" call :detect changed "!singbox_files!"
 
 @REM Return change status to caller
 if "!changed!" == "1" set "%~1=!changed!"
@@ -2338,6 +2326,8 @@ if "!directory!" == "" set "directory=!TEMP_DIR!"
 
 if exist "!directory!\sing-box.zip" del /f /q "!directory!\sing-box.zip" >nul
 if exist "!directory!\!SINGBOX_EXE!" del /f /q "!directory!\!SINGBOX_EXE!" >nul
+if exist "!directory!\!CRONET_DLL!" del /f /q "!directory!\!CRONET_DLL!" >nul
+if exist "!directory!\singbox" rd /s /q "!directory!\singbox" >nul 2>nul
 
 if "!SINGBOX_EXE!" NEQ "" (
     if exist "!directory!\!SINGBOX_EXE!" del /f /q "!directory!\!SINGBOX_EXE!" >nul
