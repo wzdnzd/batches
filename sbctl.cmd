@@ -33,6 +33,8 @@ set "STARTUP_APPROVED=HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\St
 
 @REM System directories
 set "TEMP_DIR=%TEMP%"                     @REM Temporary files directory
+set "CURL_BINARY=%windir%\System32\curl.exe"
+set "TAR_BINARY=%windir%\System32\tar.exe"
 
 @REM Initialize color support for console output
 call :setESC
@@ -872,7 +874,7 @@ goto :eof
 @REM Process:    Extracts providers, validates URLs, downloads updates
 @REM ============================================================================
 :updateSubscriptions
-@echo [%ESC%[!info_color!m信息%ESC%[0m] 检查并更新订阅，仅刷新 %ESC%[!warn_color!mHTTP%ESC%[0m 类型的订阅
+@echo [%ESC%[!info_color!m信息%ESC%[0m] 检查并更新订阅，仅刷新 %ESC%[!warn_color!mremote%ESC%[0m 类型的订阅
 
 @REM Extract providers information
 call :extractProviders urls cache_files
@@ -893,7 +895,7 @@ goto :eof
 @REM Process:    Filters type=remote entries, then reuses provider download
 @REM ============================================================================
 :updateRuleSets
-@echo [%ESC%[!info_color!m信息%ESC%[0m] 检查并更新远程规则集，仅刷新 %ESC%[!warn_color!mtype=remote%ESC%[0m 且同时配置了 %ESC%[!warn_color!murl%ESC%[0m 与 %ESC%[!warn_color!mpath%ESC%[0m 的规则
+@echo [%ESC%[!info_color!m信息%ESC%[0m] 检查并更新远程规则集，仅刷新 %ESC%[!warn_color!mtype%ESC%[0m 为 %ESC%[!warn_color!mremote%ESC%[0m 且同时配置了 %ESC%[!warn_color!murl%ESC%[0m 与 %ESC%[!warn_color!mpath%ESC%[0m 的规则
 
 call :extractRuleSets urls cache_files
 
@@ -1225,29 +1227,40 @@ if "!download_url!" NEQ "" (
         @echo [%ESC%[!info_color!m信息%ESC%[0m] 开始下载 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m 至 %ESC%[!warn_color!m!dest!%ESC%[0m
 
         @REM Download ZIP archive with retry mechanism
-        call :downloadWithRetry "!download_url!" "!TEMP_DIR!\sing-box.zip"
+        call :downloadWithRetry "!download_url!" "!TEMP_DIR!\sing-box.zip" 2048
         if exist "!TEMP_DIR!\sing-box.zip" (
-            set "extract_dir=!TEMP_DIR!\singbox"
-            if exist "!extract_dir!" rd /s /q "!extract_dir!" >nul 2>nul
-            mkdir "!extract_dir!" >nul 2>nul
-
-            @REM Locate sing-box.exe inside the archive instead of walking %TEMP%
-            set "real_path="
-            for /f "delims=" %%a in ('tar -tf "!TEMP_DIR!\sing-box.zip" 2^>nul ^| findstr /i /e /c:"!SINGBOX_EXE!"') do set "real_path=%%a"
-
-            tar -xzf "!TEMP_DIR!\sing-box.zip" -C "!extract_dir!" >nul 2>nul
-            del /f /q "!TEMP_DIR!\sing-box.zip"
-
-            if "!real_path!" NEQ "" if exist "!extract_dir!\!real_path!" (
-                for %%a in ("!extract_dir!\!real_path!") do (
-                    move /y "%%~fa" "!TEMP_DIR!\!SINGBOX_EXE!" >nul 2>nul
-                    if exist "%%~dpa!CRONET_DLL!" move /y "%%~dpa!CRONET_DLL!" "!TEMP_DIR!\" >nul 2>nul
+            call :isZipArchive zip_valid "!TEMP_DIR!\sing-box.zip" 2048
+            if "!zip_valid!" == "0" (
+                @echo [%ESC%[!error_color!m错误%ESC%[0m] !SINGBOX_EXE! 下载内容%ESC%[!error_color!m无效%ESC%[0m，可能是代理返回了错误页面，下载链接："!download_url!"
+                if "!last_download_url!" NEQ "" if /i "!last_download_url!" NEQ "!download_url!" (
+                    @echo [%ESC%[!error_color!m错误%ESC%[0m] 实际下载链接："!last_download_url!"
                 )
-            )
+                del /f /q "!TEMP_DIR!\sing-box.zip" >nul 2>nul
+            ) else (
+                set "extract_dir=!TEMP_DIR!\singbox"
+                if exist "!extract_dir!" rd /s /q "!extract_dir!" >nul 2>nul
 
-            if exist "!extract_dir!" rd /s /q "!extract_dir!" >nul 2>nul
+                @REM Locate sing-box.exe inside the archive instead of walking %TEMP%
+                set "real_path="
+                for /f "delims=" %%a in ('!TAR_BINARY! -tf "!TEMP_DIR!\sing-box.zip" 2^>nul ^| findstr /i /e /c:"!SINGBOX_EXE!"') do set "real_path=%%a"
+
+                call :extractArchive zip_extracted "!TEMP_DIR!\sing-box.zip" "!extract_dir!"
+                del /f /q "!TEMP_DIR!\sing-box.zip" >nul 2>nul
+
+                if "!zip_extracted!" == "1" if "!real_path!" NEQ "" if exist "!extract_dir!\!real_path!" (
+                    for %%a in ("!extract_dir!\!real_path!") do (
+                        move /y "%%~fa" "!TEMP_DIR!\!SINGBOX_EXE!" >nul 2>nul
+                        if exist "%%~dpa!CRONET_DLL!" move /y "%%~dpa!CRONET_DLL!" "!TEMP_DIR!\" >nul 2>nul
+                    )
+                )
+
+                if exist "!extract_dir!" rd /s /q "!extract_dir!" >nul 2>nul
+            )
         ) else (
             @echo [%ESC%[!error_color!m错误%ESC%[0m] !SINGBOX_EXE! 下载失败，下载链接："!download_url!"
+            if "!last_download_url!" NEQ "" if /i "!last_download_url!" NEQ "!download_url!" (
+                @echo [%ESC%[!error_color!m错误%ESC%[0m] 实际下载链接："!last_download_url!"
+            )
         )
 
         @REM Validate extracted executable
@@ -1266,34 +1279,110 @@ goto :eof
 @REM Download file with automatic retry mechanism
 @REM Parameters: <url> - Source URL to download from
 @REM            <filename> - Local file path to save downloaded content
+@REM            [minBytes] - Reject files smaller than this size (default 64)
 @REM Purpose:    Robust file download with retry logic for network failures
 @REM ============================================================================
-:downloadWithRetry <url> <filename>
+:downloadWithRetry <url> <filename> [minBytes]
 set max_retries=3
+set "last_download_url="
 call :trim download_url "%~1"
 call :trim saved_path "%~2"
+call :trim min_bytes "%~3"
+call :removeQuotes download_url "!download_url!"
+if "!min_bytes!" == "" set "min_bytes=64"
 
 if "!download_url!" == "" goto :eof
 if "!saved_path!" == "" goto :eof
 
+if exist "!saved_path!" del /f /q "!saved_path!" >nul 2>nul
 set /a "count=0"
 
 :retry
 if !count! GEQ !max_retries! (
     @echo [%ESC%[!error_color!m错误%ESC%[0m] 文件 %ESC%[!warn_color!m!saved_path!%ESC%[0m 下载失败，已达最大重试次数，请尝试再次执行此命令
+    if "!last_download_url!" NEQ "" (
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 最后一次下载链接：%ESC%[!warn_color!m!last_download_url!%ESC%[0m
+    )
+    if exist "!saved_path!" del /f /q "!saved_path!" >nul 2>nul
     goto :eof
 )
 
-curl.exe --retry 5 --retry-max-time 120 --connect-timeout 20 -s -L -C - -o "!saved_path!" "!download_url!"
+@REM Always re-download from scratch; partial resumes can keep corrupt proxy responses
+if exist "!saved_path!" del /f /q "!saved_path!" >nul 2>nul
+
+call :applyGithubProxy real_download_url "!download_url!"
+set "last_download_url=!real_download_url!"
+!CURL_BINARY! --retry 5 --retry-max-time 120 --connect-timeout 20 -f -s -L -o "!saved_path!" "!real_download_url!"
 set "fail_flag=!errorlevel!"
 if not exist "!saved_path!" set "fail_flag=1"
+
+@REM Reject empty or tiny files (common for proxy/HTML error pages)
+if "!fail_flag!" == "0" (
+    set "downloaded_size=0"
+    for %%a in ("!saved_path!") do set "downloaded_size=%%~za"
+    if !downloaded_size! LSS !min_bytes! (
+        set "fail_flag=1"
+        del /f /q "!saved_path!" >nul 2>nul
+    )
+)
 
 if "!fail_flag!" NEQ "0" (
     set /a "count+=1"
 
-    @echo [%ESC%[!warn_color!m提示%ESC%[0m] 文件下载失败，正在进行第 %ESC%[!warn_color!m!count!%ESC%[0m 次重试，下载链接："!download_url!"
+    @echo [%ESC%[!warn_color!m提示%ESC%[0m] 文件下载失败，正在进行第 %ESC%[!warn_color!m!count!%ESC%[0m 次重试，下载链接：!real_download_url!
     goto :retry
 )
+goto :eof
+
+
+@REM ============================================================================
+@REM Validate whether a file is a readable zip/tar archive
+@REM Parameters: <result> - Return variable (0=invalid, 1=valid)
+@REM            <filePath> - Archive path to validate
+@REM            [minBytes] - Minimum accepted size (default 1024)
+@REM ============================================================================
+:isZipArchive <result> <filePath> [minBytes]
+set "%~1=0"
+call :trim archive_path "%~2"
+call :trim archive_min_bytes "%~3"
+if "!archive_min_bytes!" == "" set "archive_min_bytes=1024"
+if "!archive_path!" == "" goto :eof
+if not exist "!archive_path!" goto :eof
+
+set "archive_size=0"
+for %%a in ("!archive_path!") do set "archive_size=%%~za"
+if !archive_size! LSS !archive_min_bytes! goto :eof
+
+@REM Windows tar (libarchive) can list zip content; failure usually means HTML/corrupt payload
+!TAR_BINARY! -tf "!archive_path!" >nul 2>nul
+if "!errorlevel!" NEQ "0" goto :eof
+
+set "%~1=1"
+goto :eof
+
+
+@REM ============================================================================
+@REM Extract a zip/tar archive into the target directory
+@REM Parameters: <result> - Return variable (0=failed, 1=success)
+@REM            <archivePath> - Archive file to extract
+@REM            <destDir> - Destination directory
+@REM ============================================================================
+:extractArchive <result> <archivePath> <destDir>
+set "%~1=0"
+call :trim archive_file "%~2"
+call :trim extract_dir "%~3"
+if "!archive_file!" == "" goto :eof
+if "!extract_dir!" == "" goto :eof
+if not exist "!archive_file!" goto :eof
+
+call :createDirectories extract_ready "!extract_dir!"
+if "!extract_ready!" == "0" goto :eof
+
+@REM Use -xf so zip archives are not forced through gzip
+!TAR_BINARY! -xf "!archive_file!" -C "!extract_dir!" >nul 2>nul
+if "!errorlevel!" NEQ "0" goto :eof
+
+set "%~1=1"
 goto :eof
 
 
@@ -1979,13 +2068,21 @@ set "%~1="
 call :trim raw_url "%~2"
 if "!raw_url!" == "" goto :eof
 
-@REM GitHub proxy service for faster downloads in China
-set "GHPROXY=https://proxy.api.030101.xyz"
+@REM GitHub proxy service for faster downloads in China. Apply the selected GitHub proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
+set "proxy_urls[0]=https://ghfast.top"
+set "proxy_urls[1]=https://git.udrone.vip"
+set "proxy_urls[2]=https://gh.noki.icu"
+set "proxy_urls[3]=https://ghproxy.monkeyray.net"
+set "proxy_urls[4]=https://ghproxy.net"
+
+@REM Pick a random index in [0, 4]
+set /a "num=!random! %% 5"
+for %%N in (!num!) do set "ghProxy=!proxy_urls[%%N]!"
 
 @REM Apply proxy prefix to various GitHub URL patterns
-if "!raw_url:~0,18!" == "https://github.com" set "raw_url=!GHPROXY!/!raw_url!"
-if "!raw_url:~0,33!" == "https://raw.githubusercontent.com" set "raw_url=!GHPROXY!/!raw_url!"
-if "!raw_url:~0,34!" == "https://gist.githubusercontent.com" set "raw_url=!GHPROXY!/!raw_url!"
+if "!raw_url:~0,18!" == "https://github.com" set "raw_url=!ghProxy!/!raw_url!"
+if "!raw_url:~0,33!" == "https://raw.githubusercontent.com" set "raw_url=!ghProxy!/!raw_url!"
+if "!raw_url:~0,34!" == "https://gist.githubusercontent.com" set "raw_url=!ghProxy!/!raw_url!"
 
 set "%~1=!raw_url!"
 goto :eof
@@ -2032,7 +2129,7 @@ call :trim text "!text!"
 @REM Remove trailing comma if present
 if "!text:~-1!" == "," set "text=!text:~0,-1!"
 @REM Remove surrounding quotes
-if "!text:~0,1!" == """" if "!text:~-1!" == """" set "text=!text:~1,-1!"
+call :removeQuotes text "!text!"
 
 set "%~1=!text!"
 goto :eof
@@ -2136,7 +2233,7 @@ if "!url!" == "" (
         
         @REM Clean JSON value formatting
         if "!line:~-1!" == "," set "line=!line:~0,-1!"
-        if "!line:~0,1!" == """" if "!line:~-1!" == """" set "line=!line:~1,-1!"
+        call :removeQuotes line "!line!"
 
         @REM Validate URL format
         set "is_valid=0"
@@ -2157,7 +2254,7 @@ if "!name!" == "" (
 
         @REM Clean JSON value formatting
         if "!line:~-1!" == "," set "line=!line:~0,-1!"
-        if "!line:~0,1!" == """" if "!line:~-1!" == """" set "line=!line:~1,-1!"
+        call :removeQuotes line "!line!"
         set "name=!line!"
     )
 )
@@ -2222,12 +2319,13 @@ goto :eof
 @REM ============================================================================
 @REM Update dashboard to latest version
 @REM Purpose:    Downloads and installs latest dashboard files
-@REM Process:    Downloads ZIP, extracts, renames, replaces existing dashboard
+@REM Process:    Downloads ZIP, validates, extracts, renames, replaces existing dashboard
 @REM ============================================================================
 :updateDashboard <name> <url> <raw_folder_name>
 call :trim name "%~1"
 call :trim url "%~2"
 call :trim raw_folder_name "%~3"
+call :removeQuotes url "!url!"
 
 if "!url!" == "" (
     @echo [%ESC%[!info_color!m信息%ESC%[0m] 控制面板%ESC%[!warn_color!m未启用%ESC%[0m，跳过更新
@@ -2239,42 +2337,97 @@ if "!name!" == "" (
     goto :eof
 )
 
-@REM Exists
-call :createDirectories success "!name!"
+@REM Resolve dashboard path relative to dest when config uses a relative external_ui
+call :convertToAbsolutePath dashboard_dest "!name!"
+if "!dashboard_dest!" == "" (
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 无法获取控制面板保存路径
+    goto :eof
+)
+call :normalizeFilePath dashboard_dest "!dashboard_dest!"
+
+call :createDirectories success "!dashboard_dest!"
 
 @echo [%ESC%[!info_color!m信息%ESC%[0m] 开始下载并更新控制面板
-call :downloadWithRetry "!url!" "!TEMP_DIR!\dashboard.zip"
+
+@REM Prefer a larger minimum size so tiny proxy/HTML error pages are rejected early
+call :downloadWithRetry "!url!" "!TEMP_DIR!\dashboard.zip" 2048
 
 if not exist "!TEMP_DIR!\dashboard.zip" (
-    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板下载失败，下载链接："!url!"
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板下载失败，原始链接："!url!"
+    if "!last_download_url!" NEQ "" if /i "!last_download_url!" NEQ "!url!" (
+        @echo [%ESC%[!warn_color!m警告%ESC%[0m] 实际下载链接："!last_download_url!"
+    )
     goto :eof
 )
 
-@REM Unzip
-tar -xzf "!TEMP_DIR!\dashboard.zip" -C !TEMP_DIR! >nul 2>nul
-del /f /q "!TEMP_DIR!\dashboard.zip" >nul 2>nul
+@REM Validate the payload is a real archive, not an HTML/error page saved as .zip
+call :isZipArchive valid "!TEMP_DIR!\dashboard.zip" 2048
+if "!valid!" == "0" (
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板下载内容%ESC%[!error_color!m无效%ESC%[0m，可能是代理返回了错误页面，原始链接："!url!"
+    if "!last_download_url!" NEQ "" if /i "!last_download_url!" NEQ "!url!" (
+        @echo [%ESC%[!warn_color!m警告%ESC%[0m] 实际下载链接："!last_download_url!"
+    )
+    del /f /q "!TEMP_DIR!\dashboard.zip" >nul 2>nul
+    goto :eof
+)
 
-@REM Base path and directory name
-call :splitPath base_path folder_name "!name!"
+@REM Resolve base path and directory name before extraction
+call :splitPath base_path folder_name "!dashboard_dest!"
 if "!base_path!" == "" (
     @echo [%ESC%[!error_color!m错误%ESC%[0m] 无法获取控制面板保存路径
+    del /f /q "!TEMP_DIR!\dashboard.zip" >nul 2>nul
     goto :eof
 )
 
 if "!folder_name!" == "" (
     @echo [%ESC%[!error_color!m错误%ESC%[0m] 无法获取控制面板文件夹名
+    del /f /q "!TEMP_DIR!\dashboard.zip" >nul 2>nul
     goto :eof
 )
 
-@REM Rename
-ren "!TEMP_DIR!\!raw_folder_name!" !folder_name!
+@REM Clear stale extract directories from previous attempts
+if exist "!TEMP_DIR!\!raw_folder_name!" rd /s /q "!TEMP_DIR!\!raw_folder_name!" >nul 2>nul
+if /i "!folder_name!" NEQ "!raw_folder_name!" if exist "!TEMP_DIR!\!folder_name!" rd /s /q "!TEMP_DIR!\!folder_name!" >nul 2>nul
 
-@REM Replace if dashboard download success
-dir /a /s /b "!TEMP_DIR!\!folder_name!" | findstr . >nul && (
-    call :replaceDirectory "!TEMP_DIR!\!folder_name!" "!name!"
+@REM Extract the archive (zip-compatible, quoted destination path)
+call :extractArchive dashboard_extracted "!TEMP_DIR!\dashboard.zip" "!TEMP_DIR!"
+del /f /q "!TEMP_DIR!\dashboard.zip" >nul 2>nul
+if "!dashboard_extracted!" == "0" (
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板压缩包%ESC%[!error_color!m解压失败%ESC%[0m，原始链接："!url!"
+    if "!last_download_url!" NEQ "" if /i "!last_download_url!" NEQ "!url!" (
+        @echo [%ESC%[!warn_color!m警告%ESC%[0m] 实际下载链接："!last_download_url!"
+    )
+    goto :eof
+)
+
+if not exist "!TEMP_DIR!\!raw_folder_name!" (
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板解压后未找到目录 "%ESC%[!warn_color!m!raw_folder_name!%ESC%[0m"
+    goto :eof
+)
+
+@REM Rename the extracted directory to the configured dashboard folder name
+if /i "!raw_folder_name!" NEQ "!folder_name!" (
+    ren "!TEMP_DIR!\!raw_folder_name!" "!folder_name!" >nul 2>nul
+    if not exist "!TEMP_DIR!\!folder_name!" (
+        @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板目录重命名%ESC%[!error_color!m失败%ESC%[0m："!raw_folder_name!" -^> "!folder_name!"
+        if exist "!TEMP_DIR!\!raw_folder_name!" rd /s /q "!TEMP_DIR!\!raw_folder_name!" >nul 2>nul
+        goto :eof
+    )
+)
+
+@REM Ensure extracted content is non-empty before replacing the installed dashboard
+dir /a /s /b "!TEMP_DIR!\!folder_name!" >nul 2>nul
+if errorlevel 1 (
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板解压结果%ESC%[!error_color!m为空%ESC%[0m，原始链接："!url!"
+    if exist "!TEMP_DIR!\!folder_name!" rd /s /q "!TEMP_DIR!\!folder_name!" >nul 2>nul
+    goto :eof
+)
+
+call :replaceDirectory "!TEMP_DIR!\!folder_name!" "!dashboard_dest!"
+if exist "!dashboard_dest!\index.html" (
     @echo [%ESC%[!info_color!m信息%ESC%[0m] 控制面板已更新至最新版本
-) || (
-    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板下载失败，下载链接："!url!"
+) else (
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 控制面板更新%ESC%[!error_color!m失败%ESC%[0m，目标目录缺少 index.html："!dashboard_dest!"
 )
 goto :eof
 
