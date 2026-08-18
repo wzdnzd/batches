@@ -123,6 +123,12 @@ set "reloadOnly=0"
 @REM Restart proxy executable flag
 set "restartFlag=0"
 
+@REM Max times to re-download binary after abnormal start
+set "maxRedownloadAttempts=1"
+
+@REM Times the binary has been re-downloaded after abnormal start
+set "redownloadAttempts=0"
+
 @REM Close proxy flag
 set "killFlag=0"
 
@@ -2176,6 +2182,44 @@ set "%~1=http://!serverHost!"
 goto :eof
 
 @REM ============================================================================
+@REM Handle abnormal process after start
+@REM Purpose:    Re-downloads binary only under the attempt cap
+@REM Parameters: <action>
+@REM ============================================================================
+:handleAbnormalStart <action>
+set "%~1="
+
+if "!maxRedownloadAttempts!" == "" set "maxRedownloadAttempts=1"
+if "!redownloadAttempts!" == "" set "redownloadAttempts=0"
+
+@echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理进程%ESC%[!errorColor!m异常%ESC%[0m
+
+if !redownloadAttempts! GEQ !maxRedownloadAttempts! (
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理进程多次异常，已达到最大重新下载次数 %ESC%[!warnColor!m!maxRedownloadAttempts!%ESC%[0m，请检查配置文件 "%ESC%[!warnColor!m!configFile!%ESC%[0m" 或手动更换 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m
+    taskkill /im "!proxyExecutableName!" /f >nul 2>nul
+    goto :eof
+)
+
+set /a nextAttempt=redownloadAttempts+1
+set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] 代理进程%ESC%[!errorColor!m异常%ESC%[0m，将第 %ESC%[!warnColor!m!nextAttempt!%ESC%[0m/%ESC%[!warnColor!m!maxRedownloadAttempts!%ESC%[0m 次重新下载 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
+if "!msTerminal!" == "1" (
+    choice /t 5 /d y /n /m "!tips!"
+) else (
+    set /p "=!tips!" <nul
+    choice /t 5 /d y /n
+)
+if !errorlevel! == 1 (
+    set /a redownloadAttempts+=1
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 正在删除并重新下载 %ESC%[!warnColor!m!proxyExecutableName!%ESC%[0m（第 %ESC%[!warnColor!m!redownloadAttempts!%ESC%[0m/%ESC%[!warnColor!m!maxRedownloadAttempts!%ESC%[0m 次）
+    del /f /q "!dest!\!proxyExecutableName!" >nul 2>nul
+    set "%~1=redownload"
+) else (
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理程序启动%ESC%[!errorColor!m失败%ESC%[0m，请检查代理程序 %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m 是否完好
+    taskkill /im "!proxyExecutableName!" /f >nul 2>nul
+)
+goto :eof
+
+@REM ============================================================================
 @REM Validate and start the proxy core
 @REM Purpose:    Validate and start the proxy core
 @REM Parameters: <shouldCheck>
@@ -2233,23 +2277,9 @@ for /l %%i in (1,1,6) do (
         call :isProcessAbnormal state
 
         if "!state!" == "1" (
-            set "tips=[%ESC%[!warnColor!m警告%ESC%[0m] 代理进程%ESC%[!errorColor!m异常%ESC%[0m，需%ESC%[!errorColor!m删除并重新下载%ESC%[0m %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m，是否继续？(%ESC%[!warnColor!mY%ESC%[0m/%ESC%[!warnColor!mN%ESC%[0m) "
-            if "!msTerminal!" == "1" (
-                choice /t 5 /d y /n /m "!tips!"
-            ) else (
-                set /p "=!tips!" <nul
-                choice /t 5 /d y /n
-            )
-            if !errorlevel! == 1 (
-                @REM Delete the existing proxy executable
-                del /f /q "!dest!\!proxyExecutableName!" >nul 2>nul
-
-                @REM Download components and restart
-                goto :restartProgram
-            ) else (
-                @echo [%ESC%[!errorColor!m错误%ESC%[0m] 代理程序启动%ESC%[!errorColor!m失败%ESC%[0m，请检查代理程序 %ESC%[!warnColor!m!dest!\!proxyExecutableName!%ESC%[0m 是否完好
-                goto :eof
-            )
+            call :handleAbnormalStart action
+            if "!action!" == "redownload" goto :restartProgram
+            goto :eof
         ) else (
             if "!dashboard!" == "" (
                 @echo [%ESC%[!infoColor!m信息%ESC%[0m] 代理程序启动%ESC%[!infoColor!m成功%ESC%[0m

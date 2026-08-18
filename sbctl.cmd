@@ -1,5 +1,5 @@
 @REM ============================================================================
-@REM sing-box Network Proxy Controller
+@REM Sing-Box Network Proxy Controller
 @REM ============================================================================
 @REM Description: Comprehensive management tool for sing-box proxy service
 @REM             Supports installation, configuration, updates, and maintenance
@@ -25,6 +25,7 @@ set "GITHUB_REPO=wzdnzd/sing-box"       @REM GitHub repository for updates
 set "DEFAULT_DASHBOARD_NAME=dashboard"   @REM Default dashboard name
 set "DEFAULT_DASHBOARD_URL=https://github.com/Zephyruso/zashboard/archive/refs/heads/gh-pages.zip" @REM Default dashboard download URL
 set "DEFAULT_ICON_URL=https://raw.githubusercontent.com/wzdnzd/batches/main/icons/sing-box.ico" @REM Default icon URL
+set "MAX_REDOWNLOAD_ATTEMPTS=1"           @REM Max times to re-download binary after abnormal start
 
 @REM Registry paths for system configuration
 set "PROXY_REG_PATH=HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings"
@@ -54,9 +55,20 @@ goto :workflow
 call :isMicrosoftTerminal ms_terminal
 
 @REM Feature control flags
-set "enable_shortcut=1"                   @REM Enable desktop shortcut creation
-set "enable_remote_config=0"              @REM Enable remote configuration updates
-set "verify_config=0"                     @REM Enable configuration file verification
+@REM Enable desktop shortcut creation
+if defined SINGBOX_ENABLE_SHORTCUT (
+    set "enable_shortcut=!SINGBOX_ENABLE_SHORTCUT!"
+) else (
+    set "enable_shortcut=1"
+)
+
+@REM Enable remote configuration updates
+if defined SINGBOX_ENABLE_REMOTE_CONFIG (
+    set "enable_remote_config=!SINGBOX_ENABLE_REMOTE_CONFIG!"
+) else (
+    set "enable_remote_config=0"
+)
+set "redownload_attempts=0"               @REM Times the binary has been re-downloaded after abnormal start
 
 @REM Console color settings
 set "info_color=38;2;22;198;12"
@@ -80,9 +92,36 @@ set "show_window=0"                       @REM Show window when running
 
 @REM Configuration and runtime variables
 set "configuration=!CONFIG_FILE!"        @REM Active configuration file path
-set "subscription_link="                  @REM Subscription link URL
+
+@REM Subscription link URL
+if defined SINGBOX_SUBSCRIPTION_LINK (
+    set "subscription_link=!SINGBOX_SUBSCRIPTION_LINK!"
+) else (
+    set "subscription_link="
+)
 set "is_web_link=0"                       @REM Flag for web-based configuration
-set "remote_url="                         @REM Remote configuration URL
+if "!subscription_link:~0,8!" == "https://" set "is_web_link=1"
+if "!subscription_link:~0,7!" == "http://" set "is_web_link=1"
+
+@REM Remote configuration URL
+if defined SINGBOX_REMOTE_URL (
+    set "remote_url=!SINGBOX_REMOTE_URL!"
+) else (
+    set "remote_url="
+)
+
+@REM Custom reverse proxy url
+if defined SINGBOX_REVERSE_PROXY (
+    set "custom_proxy_url=!SINGBOX_REVERSE_PROXY!"
+) else (
+    set "custom_proxy_url="
+)
+
+@REM GitHub repository for updates
+if defined SINGBOX_GITHUB_REPO (
+    call :validateGithubRepo "!SINGBOX_GITHUB_REPO!"
+    if "!should_exit!" == "1" exit /b 1
+)
 set "dest="                               @REM Destination workspace directory
 set "singbox_server="                     @REM Sing-box API server address
 
@@ -591,7 +630,8 @@ if "!subscription!" == "" goto :invalidConfArg
 if "!subscription:~0,2!" == "--" goto :invalidConfArg
 if "!subscription:~0,1!" == "-" goto :invalidConfArg
 
-@REM Check if it's a URL
+@REM Check if it's a URL; CLI --conf always overrides env-derived is_web_link
+set "is_web_link=0"
 if "!subscription:~0,8!" == "https://" set "is_web_link=1"
 if "!subscription:~0,7!" == "http://" set "is_web_link=1"
 
@@ -729,6 +769,38 @@ if "!filename:~-5!" NEQ ".json" (
     goto :eof
 )
 set "configuration=!filename!"
+goto :eof
+
+
+@REM ============================================================================
+@REM Validate GitHub repository slug from environment
+@REM Parameters: <repo> - Repository slug to validate (username/repo)
+@REM Purpose:    Accepts only GitHub owner/name before overriding GITHUB_REPO
+@REM ============================================================================
+:validateGithubRepo <repo>
+call :trim repo "%~1"
+if "!repo!" == "" (
+    call :invalidGithubRepo ""
+    goto :eof
+)
+if "!repo!" NEQ "!repo: =!" (
+    call :invalidGithubRepo "!repo!"
+    goto :eof
+)
+
+echo(!repo!| findstr /r /x /c:"[A-Za-z0-9][A-Za-z0-9_-]*/[A-Za-z0-9._-][A-Za-z0-9._-]*" >nul
+if errorlevel 1 (
+    call :invalidGithubRepo "!repo!"
+    goto :eof
+)
+
+set "GITHUB_REPO=!repo!"
+goto :eof
+
+:invalidGithubRepo <repo>
+call :trim repo "%~1"
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 环境变量 "%ESC%[!warn_color!mSINGBOX_GITHUB_REPO%ESC%[0m" 无效："%ESC%[!warn_color!m!repo!%ESC%[0m"，格式必须为 %ESC%[!warn_color!musername/repo%ESC%[0m
+set "should_exit=1"
 goto :eof
 
 
@@ -975,9 +1047,9 @@ call :splitPath file_path file_name "!target_file!"
 call :createDirectories success "!file_path!"
 call :applyGithubProxy process_url "%~1"
 
-@REM Download subscription
+@REM Download subscription or rule set. Geosite .srs for a handful of domains can be ~40 bytes, so keep the floor at 16.
 del /f /q "!TEMP_DIR!\!file_name!" >nul 2>nul
-call :downloadWithRetry "!process_url!" "!TEMP_DIR!\!file_name!"
+call :downloadWithRetry "!process_url!" "!TEMP_DIR!\!file_name!" 16
 
 @REM Validate and move file
 set "file_size=0"
@@ -985,11 +1057,12 @@ if exist "!TEMP_DIR!\!file_name!" (
     for %%a in ("!TEMP_DIR!\!file_name!") do set "file_size=%%~za"
 )
 
-if !file_size! GTR 16 (
+if !file_size! GEQ 16 (
     del /f /q "!target_file!" >nul 2>nul
     move "!TEMP_DIR!\!file_name!" "!file_path!" >nul 2>nul
 ) else (
     @echo [%ESC%[!error_color!m错误%ESC%[0m] 下载失败，文件：!file_name!，链接：!process_url!
+    del /f /q "!TEMP_DIR!\!file_name!" >nul 2>nul
 )
 goto :eof
 
@@ -1279,17 +1352,20 @@ goto :eof
 @REM Download file with automatic retry mechanism
 @REM Parameters: <url> - Source URL to download from
 @REM            <filename> - Local file path to save downloaded content
-@REM            [minBytes] - Reject files smaller than this size (default 64)
+@REM            [minBytes] - Reject files smaller than this size (default 16)
 @REM Purpose:    Robust file download with retry logic for network failures
 @REM ============================================================================
 :downloadWithRetry <url> <filename> [minBytes]
 set max_retries=3
 set "last_download_url="
+set "fail_reason="
+set "downloaded_size=0"
 call :trim download_url "%~1"
 call :trim saved_path "%~2"
 call :trim min_bytes "%~3"
 call :removeQuotes download_url "!download_url!"
-if "!min_bytes!" == "" set "min_bytes=64"
+@REM 16 bytes rejects empty/truncated payloads while still accepting small geosite .srs files (~40 bytes)
+if "!min_bytes!" == "" set "min_bytes=16"
 
 if "!download_url!" == "" goto :eof
 if "!saved_path!" == "" goto :eof
@@ -1300,6 +1376,9 @@ set /a "count=0"
 :retry
 if !count! GEQ !max_retries! (
     @echo [%ESC%[!error_color!m错误%ESC%[0m] 文件 %ESC%[!warn_color!m!saved_path!%ESC%[0m 下载失败，已达最大重试次数，请尝试再次执行此命令
+    if "!fail_reason!" == "size" (
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 下载内容过小：%ESC%[!warn_color!m!downloaded_size!%ESC%[0m 字节，要求至少 %ESC%[!warn_color!m!min_bytes!%ESC%[0m 字节
+    )
     if "!last_download_url!" NEQ "" (
         @echo [%ESC%[!error_color!m错误%ESC%[0m] 最后一次下载链接：%ESC%[!warn_color!m!last_download_url!%ESC%[0m
     )
@@ -1309,6 +1388,8 @@ if !count! GEQ !max_retries! (
 
 @REM Always re-download from scratch; partial resumes can keep corrupt proxy responses
 if exist "!saved_path!" del /f /q "!saved_path!" >nul 2>nul
+set "fail_reason="
+set "downloaded_size=0"
 
 call :applyGithubProxy real_download_url "!download_url!"
 set "last_download_url=!real_download_url!"
@@ -1316,12 +1397,12 @@ set "last_download_url=!real_download_url!"
 set "fail_flag=!errorlevel!"
 if not exist "!saved_path!" set "fail_flag=1"
 
-@REM Reject empty or tiny files (common for proxy/HTML error pages)
+@REM Reject empty or truncated files (common for proxy/HTML error pages)
 if "!fail_flag!" == "0" (
-    set "downloaded_size=0"
     for %%a in ("!saved_path!") do set "downloaded_size=%%~za"
     if !downloaded_size! LSS !min_bytes! (
         set "fail_flag=1"
+        set "fail_reason=size"
         del /f /q "!saved_path!" >nul 2>nul
     )
 )
@@ -1329,7 +1410,11 @@ if "!fail_flag!" == "0" (
 if "!fail_flag!" NEQ "0" (
     set /a "count+=1"
 
-    @echo [%ESC%[!warn_color!m提示%ESC%[0m] 文件下载失败，正在进行第 %ESC%[!warn_color!m!count!%ESC%[0m 次重试，下载链接：!real_download_url!
+    if "!fail_reason!" == "size" (
+        @echo [%ESC%[!warn_color!m提示%ESC%[0m] 下载内容过小（%ESC%[!warn_color!m!downloaded_size!%ESC%[0m 字节，要求至少 %ESC%[!warn_color!m!min_bytes!%ESC%[0m 字节），正在进行第 %ESC%[!warn_color!m!count!%ESC%[0m 次重试，下载链接：!real_download_url!
+    ) else (
+        @echo [%ESC%[!warn_color!m提示%ESC%[0m] 文件下载失败，正在进行第 %ESC%[!warn_color!m!count!%ESC%[0m 次重试，下载链接：!real_download_url!
+    )
     goto :retry
 )
 goto :eof
@@ -1707,6 +1792,104 @@ goto :eof
 
 
 @REM ============================================================================
+@REM Print captured check output using the same error style
+@REM Parameters: <file> - Check output file
+@REM Purpose:    Prints each non-empty line so users can see configuration errors
+@REM ============================================================================
+:printErrorOutput <file>
+call :trim error_file "%~1"
+if "!error_file!" == "" goto :eof
+if not exist "!error_file!" goto :eof
+
+set "line_count=0"
+for /f "usebackq delims=" %%a in ("!error_file!") do (
+    set /a line_count+=1
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] %%a
+)
+goto :eof
+
+
+@REM ============================================================================
+@REM Validate configuration with sing-box check before starting
+@REM Parameters: <result> - Return variable (0=failed, 1=passed)
+@REM Purpose:    Runs "sing-box check -c -D" and prints all errors on failure
+@REM ============================================================================
+:checkConfiguration <result>
+set "%~1=0"
+
+call :splitPath config_dir config_name "!config_file!"
+if "!config_dir!" == "" set "config_dir=!dest!"
+if "!config_dir!" == "" (
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 配置文件工作目录%ESC%[!error_color!m无效%ESC%[0m，无法校验
+    goto :eof
+)
+
+set "test_output=!TEMP_DIR!\singbox-check-output.txt"
+del /f /q "!test_output!" >nul 2>nul
+
+"!dest!\!SINGBOX_EXE!" check -c "!config_file!" -D "!config_dir!" --disable-color > "!test_output!" 2>&1
+set "check_error=!errorlevel!"
+
+if "!check_error!" NEQ "0" (
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理启动%ESC%[!error_color!m失败%ESC%[0m，配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 校验未通过
+    set "has_check_output=0"
+    if exist "!test_output!" (
+        for %%a in ("!test_output!") do if %%~za GTR 0 set "has_check_output=1"
+    )
+    if "!has_check_output!" == "1" (
+        call :printErrorOutput "!test_output!"
+    ) else (
+        @echo [%ESC%[!error_color!m错误%ESC%[0m] 未捕获到详细校验信息，请检查 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m 或配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m"
+    )
+    del /f /q "!test_output!" >nul 2>nul
+    goto :eof
+)
+
+del /f /q "!test_output!" >nul 2>nul
+set "%~1=1"
+goto :eof
+
+
+@REM ============================================================================
+@REM Handle abnormal process after start
+@REM Parameters: <action> - Return variable (redownload or empty)
+@REM Purpose:    Re-downloads binary only under the attempt cap
+@REM ============================================================================
+:handleAbnormalStart <action>
+set "%~1="
+
+if "!MAX_REDOWNLOAD_ATTEMPTS!" == "" set "MAX_REDOWNLOAD_ATTEMPTS=2"
+if "!redownload_attempts!" == "" set "redownload_attempts=0"
+
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 代理进程%ESC%[!error_color!m异常%ESC%[0m
+
+if !redownload_attempts! GEQ !MAX_REDOWNLOAD_ATTEMPTS! (
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 代理进程多次异常，已达到最大重新下载次数 %ESC%[!warn_color!m!MAX_REDOWNLOAD_ATTEMPTS!%ESC%[0m，请检查配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 或手动更换 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m
+    taskkill /im "!SINGBOX_EXE!" /f >nul 2>nul
+    goto :eof
+)
+
+set /a next_attempt=redownload_attempts+1
+set "tips=[%ESC%[!warn_color!m警告%ESC%[0m] 代理进程%ESC%[!error_color!m异常%ESC%[0m，将第 %ESC%[!warn_color!m!next_attempt!%ESC%[0m/%ESC%[!warn_color!m!MAX_REDOWNLOAD_ATTEMPTS!%ESC%[0m 次重新下载 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m，是否继续？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+if "!ms_terminal!" == "1" (
+    choice /t 5 /d y /n /m "!tips!"
+) else (
+    set /p "=!tips!" <nul
+    choice /t 5 /d y /n
+)
+if !errorlevel! == 1 (
+    set /a redownload_attempts+=1
+    @echo [%ESC%[!info_color!m信息%ESC%[0m] 正在删除并重新下载 %ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m（第 %ESC%[!warn_color!m!redownload_attempts!%ESC%[0m/%ESC%[!warn_color!m!MAX_REDOWNLOAD_ATTEMPTS!%ESC%[0m 次）
+    del /f /q "!dest!\!SINGBOX_EXE!" >nul 2>nul
+    set "%~1=redownload"
+) else (
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 代理程序启动%ESC%[!error_color!m失败%ESC%[0m，请检查代理程序 %ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m 是否完好
+    taskkill /im "!SINGBOX_EXE!" /f >nul 2>nul
+)
+goto :eof
+
+
+@REM ============================================================================
 @REM Execute sing-box with privilege escalation wrapper
 @REM Parameters: <should_check> - Whether to check/prepare components (0/1)
 @REM Purpose:    Validates environment and starts sing-box with proper privileges
@@ -1735,30 +1918,8 @@ if not exist "!config_file!" (
     goto :eof
 )
 
-if "!verify_config!" == "1" (
-    set "test_output=!TEMP_DIR!\singbox_test_output.txt"
-    del /f /q "!test_output!" >nul 2>nul
-
-    @REM Test config file
-    "!dest!\!SINGBOX_EXE!" check --config "!config_file!" > "!test_output!" 2>&1
-
-    @REM Failed
-    if !errorlevel! NEQ 0 (
-        set "messages="
-        if exist "!test_output!" (
-            for /f "tokens=*" %%a in ('type "!test_output!"') do set "messages=%%a"
-            del /f /q "!test_output!" >nul 2>nul
-        )
-
-        if "!messages!" == "" set "messages=文件校验失败，%ESC%[!warn_color!m!SINGBOX_EXE!%ESC%[0m 或配置文件 %ESC%[!warn_color!m!config_file!%ESC%[0m 存在问题"
-        @echo [%ESC%[!error_color!m错误%ESC%[0m] 网络代理启动%ESC%[!error_color!m失败%ESC%[0m，配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 存在错误
-        @echo [%ESC%[!error_color!m错误%ESC%[0m] 错误信息："!messages!"
-        exit /b 1
-    )
-
-    @REM Delete test output
-    del /f /q "!test_output!" >nul 2>nul
-)
+call :checkConfiguration check_ok
+if "!check_ok!" NEQ "1" goto :eof
 
 @REM Run sing-box with config
 call :privilege "goto :execute !config_file! !dest!" !show_window!
@@ -1768,36 +1929,27 @@ for /l %%i in (1,1,6) do (
     call :isProcessRunning status
 
     if "!status!" == "1" (
+        @REM Wait briefly so FATAL exits can finish and memory can settle
+        timeout /t 2 /nobreak >nul 2>nul
+        call :isProcessRunning status
+        if "!status!" == "0" goto :executeStartFailed
+
         @REM Abnormal detect
         call :abnormal state
 
         if "!state!" == "1" (
-            set "tips=[%ESC%[!warn_color!m警告%ESC%[0m] 代理进程%ESC%[!error_color!m异常%ESC%[0m，需%ESC%[!error_color!m删除并重新下载%ESC%[0m %ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m，是否继续？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
-            if "!ms_terminal!" == "1" (
-                choice /t 5 /d y /n /m "!tips!"
-            ) else (
-                set /p "=!tips!" <nul
-                choice /t 5 /d y /n
-            )
-            if !errorlevel! == 1 (
-                @REM Delete exist sing-box.exe
-                del /f /q "!dest!\!SINGBOX_EXE!" >nul 2>nul
-
-                @REM Download and restart
-                goto :restartProgram
-            ) else (
-                @echo [%ESC%[!error_color!m错误%ESC%[0m] 代理程序启动%ESC%[!error_color!m失败%ESC%[0m，请检查代理程序 %ESC%[!warn_color!m!dest!\!SINGBOX_EXE!%ESC%[0m 是否完好
-                goto :eof
-            )
+            call :handleAbnormalStart action
+            if "!action!" == "redownload" goto :restartProgram
+            goto :eof
         ) else (
             if "!dashboard_name!" == "" (
                 @echo [%ESC%[!info_color!m信息%ESC%[0m] 代理程序启动%ESC%[!info_color!m成功%ESC%[0m
             ) else (
                 set "message=[%ESC%[!info_color!m信息%ESC%[0m] 代理程序启动%ESC%[!info_color!m成功%ESC%[0m，可在浏览器中访问 %ESC%[!warn_color!m!singbox_server!/ui%ESC%[0m 查看详细信息"
-                               
+
                 call :parseJsonValue secret "secret"
                 if "!secret:~0,1!" == """" if "!secret:~-1!" == """" set "secret=!secret:~1,-1!"
-                
+
                 if "!secret!" NEQ "" if !secret! NEQ "" set "message=!message!，密码：%ESC%[!warn_color!m!secret!%ESC%[0m"
 
                 @echo !message!
@@ -1811,7 +1963,8 @@ for /l %%i in (1,1,6) do (
     )
 )
 
-@echo [%ESC%[!error_color!m错误%ESC%[0m] 代理程序启动%ESC%[!error_color!m失败%ESC%[0m，请检查配置 %ESC%[!error_color!m!config_file!%ESC%[0m 是否正确
+:executeStartFailed
+@echo [%ESC%[!error_color!m错误%ESC%[0m] 代理程序启动%ESC%[!error_color!m失败%ESC%[0m，请检查配置文件 "%ESC%[!warn_color!m!config_file!%ESC%[0m" 是否正确
 goto :eof
 
 
@@ -2068,16 +2221,21 @@ set "%~1="
 call :trim raw_url "%~2"
 if "!raw_url!" == "" goto :eof
 
-@REM GitHub proxy service for faster downloads in China. Apply the selected GitHub proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
-set "proxy_urls[0]=https://ghfast.top"
-set "proxy_urls[1]=https://git.udrone.vip"
-set "proxy_urls[2]=https://gh.noki.icu"
-set "proxy_urls[3]=https://ghproxy.monkeyray.net"
-set "proxy_urls[4]=https://ghproxy.net"
+call :trim proxy_url "!custom_proxy_url!"
+if "!proxy_url!" == "" (
+    @REM GitHub proxy service for faster downloads in China. Apply the selected GitHub proxy list: https://github.com/XIU2/UserScript/blob/master/GithubEnhanced-High-Speed-Download.user.js
+    set "proxy_urls[0]=https://ghfast.top"
+    set "proxy_urls[1]=https://git.udrone.vip"
+    set "proxy_urls[2]=https://gh.noki.icu"
+    set "proxy_urls[3]=https://ghproxy.monkeyray.net"
+    set "proxy_urls[4]=https://ghproxy.net"
 
-@REM Pick a random index in [0, 4]
-set /a "num=!random! %% 5"
-for %%N in (!num!) do set "ghProxy=!proxy_urls[%%N]!"
+    @REM Pick a random index in [0, 4]
+    set /a "num=!random! %% 5"
+    for %%N in (!num!) do set "ghProxy=!proxy_urls[%%N]!"
+) else (
+    set "ghProxy=!proxy_url!"
+)
 
 @REM Apply proxy prefix to various GitHub URL patterns
 if "!raw_url:~0,18!" == "https://github.com" set "raw_url=!ghProxy!/!raw_url!"
@@ -3272,9 +3430,12 @@ goto :eof
 @REM ============================================================================
 :checkAndGetSingboxDownloadUrl <download_url>
 set "%~1="
+set "local_version="
+set "remote_version="
 
 @REM If sing-box doesn't exist, need to download
 if not exist "!dest!\!SINGBOX_EXE!" (
+    @echo [%ESC%[!info_color!m信息%ESC%[0m] 未找到本地 !SINGBOX_EXE!，准备下载
     call :getSingboxUrl download_url
     set "%~1=!download_url!"
     goto :eof
@@ -3300,7 +3461,7 @@ del /f /q "!temp_file!" >nul 2>nul
 @REM Fetch release information from GitHub API with retry mechanism
 curl --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -s -L "!api_url!" > "!temp_file!"
 if not exist "!temp_file!" (
-    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 无法获取远程 !SINGBOX_EXE! 版本信息
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 无法获取远程 !SINGBOX_EXE! 版本信息，本地版本：!local_version!
     goto :eof
 )
 
@@ -3308,7 +3469,7 @@ if not exist "!temp_file!" (
 for %%a in ("!temp_file!") do set "file_size=%%~za"
 if !file_size! LSS 10 (
     del /f /q "!temp_file!" >nul 2>nul
-    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 无法获取远程 !SINGBOX_EXE! 版本信息
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 无法获取远程 !SINGBOX_EXE! 版本信息，本地版本：!local_version!
     goto :eof
 )
 
@@ -3332,13 +3493,13 @@ for /f "tokens=*" %%a in ('findstr /i /r /c:"name.*sing-box-[a-f0-9][a-f0-9]*-wi
 :compareSingboxVersion
 if "!remote_version!" == "" (
     del /f /q "!temp_file!" >nul 2>nul
-    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 无法获取远程 !SINGBOX_EXE! 版本信息
+    @echo [%ESC%[!warn_color!m警告%ESC%[0m] 无法获取远程 !SINGBOX_EXE! 版本信息，本地版本：!local_version!
     goto :eof
 )
 
 @REM Compare local and remote versions using commit IDs
 if "!local_version!" NEQ "!remote_version!" (
-    @echo [%ESC%[!info_color!m信息%ESC%[0m] 发现新版本 !SINGBOX_EXE!，本地版本：!local_version!，远程版本：!remote_version!
+    @echo [%ESC%[!info_color!m信息%ESC%[0m] 发现新版本 !SINGBOX_EXE!，本地版本：%ESC%[!warn_color!m!local_version!%ESC%[0m，远程版本：%ESC%[!warn_color!m!remote_version!%ESC%[0m
 
     @REM Extract download URL from the same API response
     for /f "tokens=*" %%a in ('findstr /i /r /c:"browser_download_url.*sing-box-[a-f0-9][a-f0-9]*-windows-amd64\.zip" "!temp_file!"') do (
@@ -3352,6 +3513,8 @@ if "!local_version!" NEQ "!remote_version!" (
             goto :eof
         )
     )
+) else (
+    @echo [%ESC%[!info_color!m信息%ESC%[0m] !SINGBOX_EXE! 当前已是最新版本，本地版本：%ESC%[!warn_color!m!local_version!%ESC%[0m，远程版本：%ESC%[!warn_color!m!remote_version!%ESC%[0m
 )
 
 del /f /q "!temp_file!" >nul 2>nul
