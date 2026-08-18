@@ -34,8 +34,8 @@ set "STARTUP_APPROVED=HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\St
 
 @REM System directories
 set "TEMP_DIR=%TEMP%"                     @REM Temporary files directory
-set "CURL_BINARY=%windir%\System32\curl.exe"
-set "TAR_BINARY=%windir%\System32\tar.exe"
+set "CURL_BINARY=!windir!\System32\curl.exe"  @REM Windows curl, avoid Git Bash PATH
+set "TAR_BINARY=!windir!\System32\tar.exe"    @REM Windows tar, avoid Git Bash PATH
 
 @REM Initialize color support for console output
 call :setESC
@@ -226,7 +226,7 @@ if "!is_web_link!" == "1" (
     del /f /q "!subscription_file!" >nul 2>nul
 
     set "status_code=000"
-    for /f %%a in ('curl --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -L -s -o "!subscription_file!" -w "%%{http_code}" -H "User-Agent: sing-box" "!subscription_link!"') do set "status_code=%%a"
+    for /f %%a in ('!CURL_BINARY! --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -L -s -o "!subscription_file!" -w "%%{http_code}" -H "User-Agent: sing-box" "!subscription_link!"') do set "status_code=%%a"
 
     @REM Process successful download
     if "!status_code!" == "200" (
@@ -1176,10 +1176,10 @@ if "!url!" == "" set "url=https://www.google.com"
 set "status_code=000"
 if "!proxy_server!" == "" (
     @REM Direct connection test
-    for /f %%a in ('curl --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "status_code=%%a"
+    for /f %%a in ('!CURL_BINARY! --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "status_code=%%a"
 ) else (
     @REM Proxy connection test
-    for /f %%a in ('curl -x !proxy_server! --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "status_code=%%a"
+    for /f %%a in ('!CURL_BINARY! -x !proxy_server! --retry 3 --retry-max-time 10 -m 5 --connect-timeout 5 -L -s -o nul -w "%%{http_code}" "!url!"') do set "status_code=%%a"
 )
 
 @REM Process test results and provide user feedback
@@ -2319,7 +2319,7 @@ if exist "!subscription_file!" (
 @REM Download remote configuration if enabled and URL available
 if "!enable_remote_config!" == "1" if "!remote_url!" NEQ "" (
     @REM Download configuration file with retry and resume support
-    curl.exe --retry 5 --retry-max-time 90 -m 120 --connect-timeout 15 -H "User-Agent: sing-box" -s -L -C - "!remote_url!" > "!download_path!"
+    !CURL_BINARY! --retry 5 --retry-max-time 90 -m 120 --connect-timeout 15 -H "User-Agent: sing-box" -s -L -C - "!remote_url!" > "!download_path!"
     if not exist "!download_path!" (
         @echo [%ESC%[!warn_color!m警告%ESC%[0m] 配置文件下载失败，如有需要，请重试或点击 %ESC%[!warn_color!m!remote_url!%ESC%[0m 手动下载并替换
         goto :eof
@@ -3318,7 +3318,7 @@ if "!icon_name!" == "" goto :eof
 
 call :applyGithubProxy icon_url "!DEFAULT_ICON_URL!"
 set "status_code=000"
-for /f %%a in ('curl --retry 3 --retry-max-time 60 -m 60 --connect-timeout 30 -L -s -o "!dest!\!icon_name!" -w "%%{http_code}" "!icon_url!"') do set "status_code=%%a"
+for /f %%a in ('!CURL_BINARY! --retry 3 --retry-max-time 60 -m 60 --connect-timeout 30 -L -s -o "!dest!\!icon_name!" -w "%%{http_code}" "!icon_url!"') do set "status_code=%%a"
 
 if "!status_code!" == "200" set "%~1=1"
 goto :eof
@@ -3461,7 +3461,7 @@ set "temp_file=!TEMP_DIR!\singbox_release.json"
 del /f /q "!temp_file!" >nul 2>nul
 
 @REM Fetch release information from GitHub API with retry mechanism
-curl --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -s -L "!api_url!" > "!temp_file!"
+!CURL_BINARY! --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -s -L "!api_url!" > "!temp_file!"
 if not exist "!temp_file!" (
     @echo [%ESC%[!warn_color!m警告%ESC%[0m] 无法获取远程 !SINGBOX_EXE! 版本信息，本地版本：!local_version!
     goto :eof
@@ -3610,7 +3610,7 @@ call :applyGithubProxy api_url "!api_url!"
 set "temp_file=!TEMP_DIR!\singbox_release.json"
 del /f /q "!temp_file!" >nul 2>nul
 
-curl --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -s -L "!api_url!" > "!temp_file!"
+!CURL_BINARY! --retry 3 --retry-max-time 30 -m 60 --connect-timeout 30 -s -L "!api_url!" > "!temp_file!"
 if not exist "!temp_file!" goto :eof
 
 @REM Check if file has content
@@ -3709,9 +3709,9 @@ if "!status!" == "1" (
     if exist "!output!" del /f /q "!output!" >nul 2>nul
 
     if "!secret!" NEQ "" (
-        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer !secret!" -X PUT -d "{""path"":""!file_path!""}" "!singbox_api!"') do set "status_code=%%a"
+        for /f %%a in ('!CURL_BINARY! --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -H "Authorization: Bearer !secret!" -X PUT -d "{""path"":""!file_path!""}" "!singbox_api!"') do set "status_code=%%a"
     ) else (
-        for /f %%a in ('curl --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -X PUT -d "{""path"":""!file_path!""}" "!singbox_api!"') do set "status_code=%%a"
+        for /f %%a in ('!CURL_BINARY! --retry 3 -L -s -o "!output!" -w "%%{http_code}" -H "Content-Type: application/json" -X PUT -d "{""path"":""!file_path!""}" "!singbox_api!"') do set "status_code=%%a"
     )
 
     if "!status_code!" == "204" (
