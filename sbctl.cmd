@@ -3328,9 +3328,10 @@ goto :eof
 @REM Create desktop shortcut using VBScript
 @REM Parameters: <r> - Return variable (0=failed, 1=success)
 @REM            <linkdest> - Destination path for shortcut file
-@REM            <target> - Target executable path
+@REM            <target> - VBScript path passed as arguments to wscript.exe
 @REM            <iconname> - Icon file name (optional)
 @REM Purpose:    Creates Windows shortcut with custom icon and working directory
+@REM             Target is wscript.exe so the shortcut can be pinned to the taskbar
 @REM ============================================================================
 :createShortcut <result> <linkdest> <target> <iconname>
 set "%~1=0"
@@ -3346,10 +3347,11 @@ if exist "!link_dest!" del /f /q "!link_dest!" >nul
 
 set "vbs_path=!TEMP_DIR!\createshortcut.vbs"
 ((
-    @echo set ows = WScript.CreateObject^("WScript.Shell"^) 
+    @echo set ows = WScript.CreateObject^("WScript.Shell"^)
     @echo slinkfile = ows.ExpandEnvironmentStrings^("!link_dest!"^)
-    @echo set olink = ows.CreateShortcut^(slinkfile^) 
-    @echo olink.TargetPath = ows.ExpandEnvironmentStrings^("!target!"^)
+    @echo set olink = ows.CreateShortcut^(slinkfile^)
+    @echo olink.TargetPath = ows.ExpandEnvironmentStrings^("%%SystemRoot%%\System32\wscript.exe"^)
+    @echo olink.Arguments = "//B " ^& Chr^(34^) ^& ows.ExpandEnvironmentStrings^("!target!"^) ^& Chr^(34^)
     @echo olink.IconLocation = ows.ExpandEnvironmentStrings^("!dest!\!icon_name!"^)
     @echo olink.WorkingDirectory = ows.ExpandEnvironmentStrings^("!dest!"^)
     @echo olink.Save
@@ -3373,19 +3375,19 @@ if "!enable_shortcut!" == "0" goto :eof
 
 set "icon_name=sing-box.ico"
 set "link_dest=!HOMEDRIVE!!HOMEPATH!\Desktop\SingBox.lnk"
+set "shortcut_matched=0"
+set "action=添加"
 
-set "exe_path="
-@REM Parse target if link exists
+@REM Parse the existing shortcut target and arguments
 if exist "!link_dest!" (
-    for /f "delims=" %%a in ('wmic path win32_shortcutfile where "name='!link_dest:\=\\!'" get target /value') do (
-        for /f "tokens=2 delims==" %%b in ("%%~a") do set "exe_path=%%b"
-    )
+    set "action=更新"
+
+    for /f "usebackq delims=" %%a in (`powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "$shortcut=(New-Object -ComObject WScript.Shell).CreateShortcut($env:link_dest); $shortcutCommand=($shortcut.TargetPath + ' ' + $shortcut.Arguments).Trim(); $expectedShortcutCommand=((Join-Path $env:SystemRoot 'System32\wscript.exe') + ' //B ' + [char]34 + $env:startup_script + [char]34).Trim(); if ($shortcutCommand -ieq $expectedShortcutCommand) { '1' } else { '0' }"`) do set "shortcut_matched=%%a"
 )
 
-call :trim exe_path "!exe_path!"
-if "!exe_path!" == "!startup_script!" goto :eof
+if "!shortcut_matched!" == "1" goto :eof
 
-set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 是否添加桌面快捷方式？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
+set "tips=[%ESC%[!warn_color!m提示%ESC%[0m] 是否!action!桌面快捷方式？(%ESC%[!warn_color!mY%ESC%[0m/%ESC%[!warn_color!mN%ESC%[0m) "
 if "!ms_terminal!" == "1" (
     choice /t 5 /d y /n /m "!tips!"
 ) else (
@@ -3404,9 +3406,9 @@ if not exist "!dest!\!icon_name!" (
 
 call :createShortcut finished "!link_dest!" "!startup_script!" "!icon_name!"
 if "!finished!" == "0" (
-    @echo [%ESC%[!error_color!m错误%ESC%[0m] 桌面快捷方式添加%ESC%[!error_color!m失败%ESC%[0m，如有需要，请自行创建
+    @echo [%ESC%[!error_color!m错误%ESC%[0m] 桌面快捷方式!action!%ESC%[!error_color!m失败%ESC%[0m，如有需要，请自行创建
 ) else (
-    @echo [%ESC%[!info_color!m信息%ESC%[0m] 桌面快捷方式添加%ESC%[!info_color!m成功%ESC%[0m
+    @echo [%ESC%[!info_color!m信息%ESC%[0m] 桌面快捷方式!action!%ESC%[!info_color!m成功%ESC%[0m
 )
 goto :eof
 
