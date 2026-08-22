@@ -32,11 +32,72 @@ param(
     [switch]$SkipUserData,
     [switch]$SkipFileRemoval,
     [switch]$SkipRegistryCleanup,
-    [switch]$SkipInstalledEdgeUninstaller
+    [switch]$SkipInstalledEdgeUninstaller,
+    [string]$LogPath
 )
 
 $ErrorActionPreference = 'Continue'
 $ProgressPreference = 'SilentlyContinue'
+$script:EdgeLogFile = $null
+
+function Write-EdgeLog([string]$Message) {
+    if ([string]::IsNullOrWhiteSpace($script:EdgeLogFile)) { return }
+    try {
+        [System.IO.File]::AppendAllText(
+            $script:EdgeLogFile,
+            $Message + [Environment]::NewLine,
+            [System.Text.UTF8Encoding]::new($false)
+        )
+    } catch {
+    }
+}
+
+function Write-Host {
+    param(
+        [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
+        [object[]]$Object,
+        [switch]$NoNewline,
+        [System.ConsoleColor]$ForegroundColor,
+        [System.ConsoleColor]$BackgroundColor,
+        [object]$Separator
+    )
+    $sep = if ($PSBoundParameters.ContainsKey('Separator')) { [string]$Separator } else { ' ' }
+    $text = if ($null -eq $Object) { '' } else { ($Object | ForEach-Object { [string]$_ }) -join $sep }
+    Write-EdgeLog $text
+    Microsoft.PowerShell.Utility\Write-Host @PSBoundParameters
+}
+
+function Write-Warning {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$Message
+    )
+    Write-EdgeLog ("WARNING: " + $Message)
+    Microsoft.PowerShell.Utility\Write-Warning -Message $Message
+}
+
+function Write-EdgeLogFooter {
+    $result = if (-not $Apply) { 'DRYRUN' } elseif ($Script:Warnings.Count -gt 0) { 'COMPLETED_WITH_WARNINGS' } else { 'SUCCESS' }
+    Write-Host ''
+    Write-Host ("==== finished {0} ====" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+    Write-Host ("Result: {0}" -f $result)
+    Write-Host ("Matched: {0}" -f $Script:Matched)
+    Write-Host ("Changed: {0}" -f $Script:Changed)
+    Write-Host ("Warnings: {0}" -f $Script:Warnings.Count)
+}
+
+if (-not [string]::IsNullOrWhiteSpace($LogPath)) {
+    $resolvedLog = $LogPath
+    if (-not [System.IO.Path]::IsPathRooted($resolvedLog)) {
+        $resolvedLog = Join-Path (Get-Location).Path $resolvedLog
+    }
+    $logDir = Split-Path -Parent $resolvedLog
+    if ($logDir -and -not (Test-Path -LiteralPath $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+    $script:EdgeLogFile = $resolvedLog
+}
 
 $Script:Changed = 0
 $Script:Matched = 0
@@ -189,7 +250,11 @@ function Quote-Argument([string]$Value) {
 }
 
 function Get-CurrentArgumentList {
-    $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Quote-Argument $PSCommandPath), '-Mode', $Mode)
+    $args = @('-NoProfile', '-ExecutionPolicy', 'Bypass')
+    if (-not [string]::IsNullOrWhiteSpace($script:EdgeLogFile)) {
+        $args += @('-NoLogo', '-NonInteractive', '-WindowStyle', 'Hidden')
+    }
+    $args += @('-File', (Quote-Argument $PSCommandPath), '-Mode', $Mode)
     if ($Apply) { $args += '-Apply' }
     if (-not [string]::IsNullOrWhiteSpace($BackupRoot)) { $args += '-BackupRoot'; $args += (Quote-Argument $BackupRoot) }
     if (-not [string]::IsNullOrWhiteSpace($BackupDir)) { $args += '-BackupDir'; $args += (Quote-Argument $BackupDir) }
@@ -202,15 +267,30 @@ function Get-CurrentArgumentList {
     if ($SkipFileRemoval) { $args += '-SkipFileRemoval' }
     if ($SkipRegistryCleanup) { $args += '-SkipRegistryCleanup' }
     if ($SkipInstalledEdgeUninstaller) { $args += '-SkipInstalledEdgeUninstaller' }
+    if (-not [string]::IsNullOrWhiteSpace($script:EdgeLogFile)) { $args += '-LogPath'; $args += (Quote-Argument $script:EdgeLogFile) }
     return ($args -join ' ')
 }
 
 if (-not (Test-IsAdmin)) {
     if ($NoSelfElevate) {
+        Write-Host 'ERROR: Administrator privileges are required.'
+        Write-EdgeLogFooter
         throw 'Administrator privileges are required.'
     }
     Write-Host 'Requesting administrator privileges...'
-    Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList (Get-CurrentArgumentList)
+    $startParams = @{
+        FilePath     = 'powershell.exe'
+        Verb         = 'RunAs'
+        ArgumentList = (Get-CurrentArgumentList)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($script:EdgeLogFile)) {
+        $startParams.Wait = $true
+        $startParams.PassThru = $true
+        $startParams.WindowStyle = 'Hidden'
+        $elevated = Start-Process @startParams
+        exit $(if ($null -ne $elevated) { $elevated.ExitCode } else { 1 })
+    }
+    Start-Process @startParams
     exit
 }
 
@@ -1151,3 +1231,5 @@ if ($Script:Warnings.Count -gt 0) {
     Write-Host 'Warnings:'
     foreach ($w in $Script:Warnings) { Write-Host "  - $w" }
 }
+
+Write-EdgeLogFooter
