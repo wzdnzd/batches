@@ -91,6 +91,13 @@ set "drawHeart=0"
 @REM Exit flag
 set "shouldExit=0"
 
+@REM Launch lock for serializing start/restart
+set "launchLockOwned=0"
+set "launchLockDepth=0"
+set "launchLockFile="
+set "launchLockPid="
+set "launchLockTimeout=90"
+
 @REM Initialization flag
 set "initFlag=0"
 
@@ -523,6 +530,9 @@ if "!asDaemon!" == "1" (
     )
 )
 
+call :acquireLaunchLock lockAcquired lockWaited
+if "!lockAcquired!" NEQ "1" goto :eof
+
 @REM Prepare all required components
 call :prepareComponents changed 1 !downloadedAlready!
 
@@ -543,6 +553,7 @@ call :startClash
 @REM Regenerate auto update script
 if "!regenerate!" == "1" call :generateUpdateVbs
 
+call :releaseLaunchLock
 goto :eof
 
 @REM ============================================================================
@@ -1974,15 +1985,20 @@ goto :eof
 @REM Purpose:    Start the selected proxy core
 @REM ============================================================================
 :startClash
-call :isProcessRunning status
+call :acquireLaunchLock lockAcquired lockWaited
+if "!lockAcquired!" NEQ "1" goto :eof
 
-if "!status!" == "0" (
-    @REM Start the proxy program
-    call :runClashWrapper 0
-) else (
+call :isProcessRunning status
+if "!status!" == "1" (
     @echo [%ESC%[!infoColor!m信息%ESC%[0m] 订阅和代理规则更新完毕，即将重新加载
-    goto :reloadConfig
+    call :reloadConfig
+    call :releaseLaunchLock
+    goto :eof
 )
+
+@REM Start the proxy program
+call :runClashWrapper 0
+call :releaseLaunchLock
 goto :eof
 
 @REM ============================================================================
@@ -2008,7 +2024,15 @@ if "!elevatedShowWindow!" NEQ "0" set "elevatedShowWindow=1"
 @REM Call Start-Process through PowerShell
 cacls "%SystemDrive%\System Volume Information" >nul 2>&1 && (
     if "!elevatedShowWindow!" == "0" (
-        !operation!
+        set "hiddenRunClash=0"
+        if /i "!operation:~0,14!" == "goto :runClash" set "hiddenRunClash=1"
+        if "!hiddenRunClash!" == "1" (
+            @REM Hidden mihomo start must be async so the launch lock can be released
+            powershell.exe -NoLogo -NoProfile -Command "Start-Process -FilePath '!scriptPath!' -ArgumentList '%~1' -WindowStyle Hidden"
+        ) else (
+            @REM kill / registry operations stay synchronous in this process
+            !operation!
+        )
         exit /b
     ) else (
         start "" "%ComSpec%" /k ""!scriptPath!" %~1"
@@ -2278,7 +2302,9 @@ for /l %%i in (1,1,6) do (
 
         if "!state!" == "1" (
             call :handleAbnormalStart action
-            if "!action!" == "redownload" goto :restartProgram
+            if "!action!" == "redownload" (
+                call :restartProgram
+            )
             goto :eof
         ) else (
             if "!dashboard!" == "" (
@@ -2402,12 +2428,253 @@ if !errorlevel! == 1 (
 goto :eof
 
 @REM ============================================================================
+@REM Resolve the current cmd.exe process id
+@REM Purpose:    Resolve the current cmd.exe process id via the PowerShell parent
+@REM Parameters: <result>
+@REM ============================================================================
+:currentCmdPid <result>
+set "%~1="
+set "cmdPidValue="
+@REM for /f hosts powershell in a helper cmd; walk up to the cmd that is actually running this script
+for /f "delims=" %%a in ('powershell.exe -NoLogo -NoProfile -Command "$p=Get-CimInstance Win32_Process -Filter ('ProcessId='+$PID); while($p){$p=Get-CimInstance Win32_Process -Filter ('ProcessId='+$p.ParentProcessId); if(-not $p){break}; if($p.Name -match '^cmd(\.exe)?$' -and $p.CommandLine -notmatch '(?i)powershell'){$p.ProcessId; break}}" 2^>nul') do (
+    if "!cmdPidValue!" == "" set "cmdPidValue=%%a"
+)
+call :trim cmdPidValue "!cmdPidValue!"
+if "!cmdPidValue!" == "" goto :eof
+set /a cmdPidValue=!cmdPidValue! 2>nul
+if "!cmdPidValue!" == "" goto :eof
+if "!cmdPidValue!" == "0" goto :eof
+set "pidNonDigit="
+for /f "delims=0123456789" %%a in ("!cmdPidValue!") do set "pidNonDigit=%%a"
+if defined pidNonDigit goto :eof
+set "%~1=!cmdPidValue!"
+goto :eof
+
+@REM ============================================================================
+@REM Detect whether a process id is still running
+@REM Purpose:    Detect whether a process id is still running
+@REM Parameters: <result>, <pid>
+@REM ============================================================================
+:isPidRunning <result> <pid>
+set "%~1=0"
+call :trim checkPid "%~2"
+if "!checkPid!" == "" goto :eof
+tasklist /fi "pid eq !checkPid!" /nh 2>nul | findstr /i /c:"!checkPid!" >nul 2>nul && set "%~1=1"
+goto :eof
+
+@REM ============================================================================
+@REM Convert ASCII letters in a string to lowercase
+@REM Purpose:    Normalize lock ids so mixed-case paths share one lock file
+@REM Parameters: <result>, <text>
+@REM ============================================================================
+:toLower <result> <text>
+set "%~1="
+set "toLowerText=%~2"
+if "!toLowerText!" == "" goto :eof
+set "toLowerText=!toLowerText:A=a!"
+set "toLowerText=!toLowerText:B=b!"
+set "toLowerText=!toLowerText:C=c!"
+set "toLowerText=!toLowerText:D=d!"
+set "toLowerText=!toLowerText:E=e!"
+set "toLowerText=!toLowerText:F=f!"
+set "toLowerText=!toLowerText:G=g!"
+set "toLowerText=!toLowerText:H=h!"
+set "toLowerText=!toLowerText:I=i!"
+set "toLowerText=!toLowerText:J=j!"
+set "toLowerText=!toLowerText:K=k!"
+set "toLowerText=!toLowerText:L=l!"
+set "toLowerText=!toLowerText:M=m!"
+set "toLowerText=!toLowerText:N=n!"
+set "toLowerText=!toLowerText:O=o!"
+set "toLowerText=!toLowerText:P=p!"
+set "toLowerText=!toLowerText:Q=q!"
+set "toLowerText=!toLowerText:R=r!"
+set "toLowerText=!toLowerText:S=s!"
+set "toLowerText=!toLowerText:T=t!"
+set "toLowerText=!toLowerText:U=u!"
+set "toLowerText=!toLowerText:V=v!"
+set "toLowerText=!toLowerText:W=w!"
+set "toLowerText=!toLowerText:X=x!"
+set "toLowerText=!toLowerText:Y=y!"
+set "toLowerText=!toLowerText:Z=z!"
+set "%~1=!toLowerText!"
+goto :eof
+
+@REM ============================================================================
+@REM Resolve the hidden launch lock file path
+@REM Purpose:    Keep the lock in Temp and unique per workspace
+@REM Parameters: <result>
+@REM ============================================================================
+:resolveLaunchLockFile <result>
+set "%~1="
+if "!tempDir!" == "" goto :eof
+if not exist "!tempDir!" md "!tempDir!" >nul 2>nul
+
+set "lockWorkspace=!dest!"
+if "!lockWorkspace!" == "" set "lockWorkspace=%~dp0"
+call :normalizePath lockWorkspace "!lockWorkspace!"
+if "!lockWorkspace!" == "" goto :eof
+
+set "lockId=!lockWorkspace!"
+set "lockId=!lockId::=_!"
+set "lockId=!lockId:\=_!"
+set "lockId=!lockId:/=_!"
+set "lockId=!lockId: =_!"
+call :toLower lockId "!lockId!"
+if "!lockId!" == "" goto :eof
+
+set "%~1=!tempDir!\mihomo-launch-!lockId!.lock"
+goto :eof
+
+@REM ============================================================================
+@REM Acquire the cross-process launch lock
+@REM Purpose:    Serialize start/restart so two mihomo processes are not launched
+@REM Parameters: <result>, <waited>
+@REM ============================================================================
+:acquireLaunchLock <result> <waited>
+set "%~1=0"
+set "%~2=0"
+
+if "!launchLockOwned!" == "1" (
+    set /a launchLockDepth+=1
+    set "%~1=1"
+    goto :eof
+)
+
+call :currentCmdPid cmdPid
+if "!cmdPid!" == "" (
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无法获取当前进程 PID，启动锁获取失败
+    goto :eof
+)
+
+call :resolveLaunchLockFile lockFile
+if "!lockFile!" == "" (
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无法确定启动锁路径
+    goto :eof
+)
+
+if "!launchLockTimeout!" == "" set "launchLockTimeout=90"
+set "waited=0"
+set "elapsed=0"
+set "lockWaitMessage=0"
+
+for %%I in ("!lockFile!") do set "lockName=%%~nxI"
+
+:acquireLaunchLockRetry
+set "lockTmp=!lockFile!.!cmdPid!.tmp"
+del /f /q /a "!lockTmp!" >nul 2>nul
+> "!lockTmp!" (echo !cmdPid!)
+set "renOk=0"
+@REM Hidden files cannot be renamed; hide the lock only after a successful create
+if exist "!lockTmp!" (
+    ren "!lockTmp!" "!lockName!" >nul 2>nul && set "renOk=1"
+)
+if exist "!lockTmp!" del /f /q /a "!lockTmp!" >nul 2>nul
+if "!renOk!" == "1" (
+    attrib +h "!lockFile!" >nul 2>nul
+    set "launchLockOwned=1"
+    set "launchLockDepth=1"
+    set "launchLockFile=!lockFile!"
+    set "launchLockPid=!cmdPid!"
+    set "%~1=1"
+    set "%~2=!waited!"
+    goto :eof
+)
+
+set "holderPid="
+if exist "!lockFile!" (
+    for /f "usebackq tokens=1 delims= " %%a in ("!lockFile!") do (
+        if "!holderPid!" == "" set "holderPid=%%a"
+    )
+)
+call :trim holderPid "!holderPid!"
+
+if "!holderPid!" == "!cmdPid!" (
+    attrib +h "!lockFile!" >nul 2>nul
+    set "launchLockOwned=1"
+    set "launchLockDepth=1"
+    set "launchLockFile=!lockFile!"
+    set "launchLockPid=!cmdPid!"
+    set "%~1=1"
+    set "%~2=!waited!"
+    goto :eof
+)
+
+set "holderAlive=0"
+if "!holderPid!" NEQ "" call :isPidRunning holderAlive "!holderPid!"
+if "!holderAlive!" == "0" (
+    if exist "!lockFile!" del /f /q /a "!lockFile!" >nul 2>nul
+    if not exist "!lockFile!" (
+        set /a elapsed+=1
+        if !elapsed! GEQ !launchLockTimeout! (
+            @echo [%ESC%[!errorColor!m错误%ESC%[0m] 等待启动锁超时，请稍后重试
+            set "%~1=0"
+            set "%~2=!waited!"
+            goto :eof
+        )
+        goto :acquireLaunchLockRetry
+    )
+)
+
+if !elapsed! GEQ !launchLockTimeout! (
+    @echo [%ESC%[!errorColor!m错误%ESC%[0m] 等待启动锁超时，请稍后重试
+    set "%~1=0"
+    set "%~2=1"
+    goto :eof
+)
+
+if "!lockWaitMessage!" == "0" (
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 正在等待其他启动流程完成
+    set "lockWaitMessage=1"
+)
+set "waited=1"
+set /a elapsed+=1
+timeout /t 1 /nobreak >nul 2>nul
+goto :acquireLaunchLockRetry
+
+@REM ============================================================================
+@REM Release the cross-process launch lock
+@REM Purpose:    Drop one reentrant depth, then delete the lock if we still own it
+@REM ============================================================================
+:releaseLaunchLock
+if "!launchLockOwned!" NEQ "1" goto :eof
+if "!launchLockDepth!" == "" goto :eof
+if !launchLockDepth! LEQ 0 goto :eof
+
+set /a launchLockDepth-=1
+if !launchLockDepth! GTR 0 goto :eof
+
+set "holderPid="
+if exist "!launchLockFile!" (
+    for /f "usebackq tokens=1 delims= " %%a in ("!launchLockFile!") do (
+        if "!holderPid!" == "" set "holderPid=%%a"
+    )
+)
+call :trim holderPid "!holderPid!"
+if "!holderPid!" == "!launchLockPid!" if exist "!launchLockFile!" del /f /q /a "!launchLockFile!" >nul 2>nul
+
+set "launchLockOwned=0"
+set "launchLockDepth=0"
+set "launchLockFile="
+set "launchLockPid="
+goto :eof
+
+@REM ============================================================================
 @REM Restart the proxy program
 @REM Purpose:    Restart the proxy program
 @REM ============================================================================
 :restartProgram
-@REM Check running status
+call :acquireLaunchLock lockAcquired lockWaited
+if "!lockAcquired!" NEQ "1" goto :eof
+
+@REM Check running status after the lock is held
 call :isProcessRunning status
+if "!lockWaited!" == "1" if "!status!" == "1" (
+    @echo [%ESC%[!infoColor!m信息%ESC%[0m] 代理程序已由其他启动流程拉起，无需重复启动
+    call :releaseLaunchLock
+    goto :eof
+)
+
 if "!status!" == "1" (
     @REM Stop the proxy process
     call :killProcessWrapper
@@ -2419,6 +2686,7 @@ if "!status!" == "1" (
         call :getRunningProxyExecutable runningExecutable
         if "!runningExecutable!" == "" set "runningExecutable=!proxyExecutableName!"
         @echo [%ESC%[!errorColor!m错误%ESC%[0m] 无法关闭进程，代理程序重启%ESC%[!errorColor!m失败%ESC%[0m，请到%ESC%[!errorColor!m任务管理中心%ESC%[0m手动退出 %ESC%[!warnColor!m!runningExecutable!%ESC%[0m
+        call :releaseLaunchLock
         goto :eof
     )
 )
@@ -2428,6 +2696,7 @@ if "!useClashPremium!" == "1" set "alpha=0"
 
 @REM Start the proxy program
 call :runClashWrapper 1
+call :releaseLaunchLock
 exit /b
 
 @REM ============================================================================
@@ -3852,6 +4121,10 @@ goto :eof
 :terminate
 @echo [%ESC%[!errorColor!m错误%ESC%[0m] 更新失败，代理程序、域名及 IP 地址数据库或控制面板缺失
 call :cleanWorkspace "!tempDir!"
+if "!launchLockOwned!" == "1" (
+    set "launchLockDepth=1"
+    call :releaseLaunchLock
+)
 exit /b 1
 goto :eof
 
