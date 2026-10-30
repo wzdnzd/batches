@@ -7,16 +7,16 @@
 ' Default (no extra arguments): -Apply
 ' Pass any remove-edge.ps1 arguments after the .vbs path to override.
 ' Dry-run example:
-'   wscript.exe //B "D:\Applications\Tools\Cmds\msedge-manager\remove-edge.vbs" -Mode Remove
+'   wscript.exe //B "<path>\msedge-manager\remove-edge.vbs" -Mode Remove
 '
 ' Task Scheduler (create from an elevated prompt):
 '   Program/script:  wscript.exe
-'   Add arguments:   //B "D:\Applications\Tools\Cmds\msedge-manager\remove-edge.vbs"
-'   Start in:        D:\Applications\Tools\Cmds\msedge-manager
+'   Add arguments:   //B "<path>\msedge-manager\remove-edge.vbs"
+'   Start in:        <path>\msedge-manager
 '   Run with highest privileges: YES
 '   Run as the interactive user (not SYSTEM) so HKCU cleanup hits your profile.
 '
-'   schtasks /Create /TN "msedge-manager\RemoveEdgeKeepWebView2" /TR "wscript.exe //B \"D:\Applications\Tools\Cmds\msedge-manager\remove-edge.vbs\"" /SC DAILY /ST 03:30 /RL HIGHEST /F
+'   schtasks /Create /TN "msedge-manager\RemoveEdgeKeepWebView2" /TR "wscript.exe //B \"<path>\msedge-manager\remove-edge.vbs\"" /SC DAILY /ST 03:30 /RL HIGHEST /F
 '
 ' Logs: EdgeRemovalLogs\remove-edge-yyyyMMdd-HHmmss.log (kept 30 days)
 
@@ -24,10 +24,10 @@ Option Explicit
 
 Const WINDOW_HIDDEN = 0
 Const WAIT_ON_RETURN = True
-Const LOG_KEEP_DAYS = 30
+Const LOG_KEEP_DAYS = 1
 Const ForAppending = 8
 
-Dim fso, sh, scriptDir, ps1Path, logDir, logPath, argLine, cmd, rc
+Dim fso, sh, scriptDir, ps1Path, logDir, logPath, argLine, cmd, rc, psExe
 
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set sh  = CreateObject("WScript.Shell")
@@ -61,10 +61,20 @@ End If
 
 sh.CurrentDirectory = scriptDir
 
-' Same executable name as remove-edge.cmd. Hidden via Run 0 + -WindowStyle Hidden.
+' Resolve powershell.exe dynamically from PATH. Use the first existing result.
+' Run where.exe from System32 so the script's own directory is not searched first.
+' This avoids relying on a hard-coded PowerShell installation directory.
+psExe = FindPowerShellExe()
+If psExe = "" Then
+  If logPath <> "" Then AppendLog logPath, "ERROR: unable to locate powershell.exe via PATH (where.exe)."
+  WScript.Quit 2
+End If
+
+If logPath <> "" Then AppendLog logPath, "PowerShell executable: " & psExe
+
 ' Output is written by remove-edge.ps1 -LogPath (Start-Transcript cannot capture
 ' Write-Host in a hidden / non-interactive host, and can hang the process).
-cmd = "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File " & _
+cmd = QuoteWin(psExe) & " -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File " & _
       QuoteWin(ps1Path) & " " & argLine
 
 rc = sh.Run(cmd, WINDOW_HIDDEN, WAIT_ON_RETURN)
@@ -79,6 +89,47 @@ If logDir <> "" Then PruneOldLogs logDir, LOG_KEEP_DAYS
 On Error GoTo 0
 
 WScript.Quit rc
+
+Function FindPowerShellExe()
+  Dim whereExe, previousDir, proc, output, lines, candidate, i
+
+  FindPowerShellExe = ""
+  whereExe = sh.ExpandEnvironmentStrings("%SystemRoot%\System32\where.exe")
+  If Not fso.FileExists(whereExe) Then Exit Function
+
+  previousDir = sh.CurrentDirectory
+  On Error Resume Next
+
+  ' where.exe searches its current directory before PATH. Use System32 as a
+  ' neutral working directory so a powershell.exe next to this VBS cannot win.
+  sh.CurrentDirectory = sh.ExpandEnvironmentStrings("%SystemRoot%\System32")
+  Err.Clear
+  Set proc = sh.Exec(QuoteWin(whereExe) & " powershell.exe")
+
+  If Err.Number = 0 Then
+    If IsObject(proc) Then
+      output = proc.StdOut.ReadAll
+      lines = Split(Replace(output, vbCr, ""), vbLf)
+
+      For i = 0 To UBound(lines)
+        candidate = Trim(lines(i))
+        If Len(candidate) > 0 Then
+          ' where.exe normally returns fully-qualified paths. Verify the result
+          ' before returning it, and normalize it to an absolute path.
+          If fso.FileExists(candidate) Then
+            FindPowerShellExe = fso.GetAbsolutePathName(candidate)
+            Exit For
+          End If
+        End If
+      Next
+    End If
+  End If
+
+  ' Restore the launcher's original working directory even if where.exe fails.
+  Err.Clear
+  sh.CurrentDirectory = previousDir
+  On Error GoTo 0
+End Function
 
 Function BuildArgLine()
   Dim i, a, parts
